@@ -7,12 +7,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import org.cloudfoundry.identity.uaa.oauth.client.ClientJwtChangeRequest;
+import org.cloudfoundry.identity.uaa.oauth.client.ClientJwtCredential;
 import org.cloudfoundry.identity.uaa.oauth.jwk.JsonWebKey;
 import org.cloudfoundry.identity.uaa.oauth.jwk.JsonWebKeyHelper;
 import org.cloudfoundry.identity.uaa.oauth.jwk.JsonWebKeySet;
+import org.cloudfoundry.identity.uaa.oauth.provider.ClientDetails;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
 import org.cloudfoundry.identity.uaa.util.UaaUrlUtils;
-import org.cloudfoundry.identity.uaa.oauth.provider.ClientDetails;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
@@ -24,7 +26,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -32,6 +33,7 @@ public class ClientJwtConfiguration implements Cloneable{
 
   public static final String JWKS_URI = ClientJwtChangeRequest.JWKS_URI;
   public static final String JWKS = ClientJwtChangeRequest.JWKS;
+    public static final String JWT_CREDS = "jwt_creds";
 
   @JsonIgnore
   private static final int MAX_KEY_SIZE = 10;
@@ -41,6 +43,9 @@ public class ClientJwtConfiguration implements Cloneable{
 
   @JsonProperty(JWKS)
   private JsonWebKeySet<JsonWebKey> jwkSet;
+
+    @JsonProperty(JWT_CREDS)
+    private List<ClientJwtCredential> clientJwtCredentials;
 
   public ClientJwtConfiguration() {
   }
@@ -52,6 +57,10 @@ public class ClientJwtConfiguration implements Cloneable{
       validateJwkSet();
     }
   }
+
+    public ClientJwtConfiguration(List<ClientJwtCredential> clientJwtCredentials) {
+        this.setClientJwtCredentials(clientJwtCredentials);
+    }
 
   public String getJwksUri() {
     return this.jwksUri;
@@ -69,49 +78,84 @@ public class ClientJwtConfiguration implements Cloneable{
     this.jwkSet = jwkSet;
   }
 
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-
-    if (o instanceof ClientJwtConfiguration) {
-      ClientJwtConfiguration that = (ClientJwtConfiguration) o;
-      if (!Objects.equals(jwksUri, that.jwksUri)) return false;
-      if (jwkSet != null && that.jwkSet != null) {
-        return jwkSet.getKeys().equals(that.jwkSet.getKeys());
-      } else {
-        return Objects.equals(jwkSet, that.jwkSet);
-      }
+    public List<ClientJwtCredential> getClientJwtCredentials() {
+        return this.clientJwtCredentials;
     }
-    return false;
-  }
 
-  @Override
-  public int hashCode() {
-    int result = super.hashCode();
+    public void setClientJwtCredentials(final List<ClientJwtCredential> clientJwtCredentials) {
+        this.clientJwtCredentials = setValidatedCredentials(clientJwtCredentials);
+    }
 
-    result = 31 * result + (jwksUri != null ? jwksUri.hashCode() : 0);
-    result = 31 * result + (jwkSet != null ? jwkSet.hashCode() : 0);
-    return result;
-  }
+    @JsonIgnore
+    public void addJwtCredentials(final List<ClientJwtCredential> additionalCredentials) {
+        HashMap<String, ClientJwtCredential> clientJwtCredentialHashMap = new HashMap<>();
+        if (this.clientJwtCredentials != null) {
+            this.clientJwtCredentials.forEach(jwtEntry -> clientJwtCredentialHashMap.putIfAbsent(jwtEntry.getSubject() + jwtEntry.getIssuer(), jwtEntry));
+        }
+        validateClientJwtCredentials(additionalCredentials, clientJwtCredentialHashMap);
+        setClientJwtCredentials(clientJwtCredentialHashMap.values().stream().toList());
+    }
 
-  @Override
-  public Object clone() throws CloneNotSupportedException {
-    return super.clone();
-  }
+    private static void validateClientJwtCredentials(List<ClientJwtCredential> additionalCredentials, HashMap<String, ClientJwtCredential> clientJwtCredentialHashMap) {
+        additionalCredentials.forEach(jwtEntry ->
+                clientJwtCredentialHashMap.putIfAbsent(jwtEntry.getSubject() + jwtEntry.getIssuer(), jwtEntry));
+        if (clientJwtCredentialHashMap.isEmpty() || clientJwtCredentialHashMap.size() > MAX_KEY_SIZE) {
+            throw new InvalidClientDetailsException("Invalid private_key_jwt: federated jwt credentials exceeds the maximum of keys. max: + " + MAX_KEY_SIZE);
+        }
+    }
 
-  @JsonIgnore
-  public String getCleanString() {
-    try {
-      if (UaaUrlUtils.isUrl(this.jwksUri)) {
-        return this.jwksUri;
-      } else if (this.jwkSet != null && !ObjectUtils.isEmpty(this.jwkSet.getKeySetMap())) {
-        return JWKSet.parse(this.jwkSet.getKeySetMap()).toString(true);
-      }
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        if (o instanceof ClientJwtConfiguration that) {
+            if (!Objects.equals(jwksUri, that.jwksUri)) return false;
+            if (!Objects.equals(clientJwtCredentials, that.clientJwtCredentials)) return false;
+            if (jwkSet != null && that.jwkSet != null) {
+                return jwkSet.getKeys().equals(that.jwkSet.getKeys());
+            } else {
+                return Objects.equals(jwkSet, that.jwkSet);
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+
+        result = 31 * result + (jwksUri != null ? jwksUri.hashCode() : 0);
+        result = 31 * result + (jwkSet != null ? jwkSet.hashCode() : 0);
+        result = 31 * result + (clientJwtCredentials != null ? clientJwtCredentials.hashCode() : 0);
+        return result;
+    }
+
+    @Override
+    public Object clone() throws CloneNotSupportedException {
+        return super.clone();
+    }
+
+    @JsonIgnore
+    public boolean hasConfiguration() {
+        boolean configurationChanges = false;
+        try {
+            if (UaaUrlUtils.isUrl(this.jwksUri)) {
+                configurationChanges = true;
+            } else if (this.jwkSet != null) {
+                configurationChanges = !JWKSet.parse(this.jwkSet.getKeySetMap()).isEmpty();
+            }
+            if (!configurationChanges) {
+                configurationChanges = !CollectionUtils.isEmpty(this.clientJwtCredentials);
+            }
     } catch (IllegalStateException | JsonUtils.JsonUtilException | ParseException e) {
       throw new InvalidClientDetailsException("Client jwt configuration configuration fails ", e);
     }
-    return null;
+        return configurationChanges;
   }
 
   @JsonIgnore
@@ -135,6 +179,9 @@ public class ClientJwtConfiguration implements Cloneable{
     String cleanJwtString;
     try {
       HashMap<String, Object> jsonMap = JsonUtils.readValue(privateKeyJwt, HashMap.class);
+            if (CollectionUtils.isEmpty(jsonMap)) {
+                return new ClientJwtConfiguration();
+            }
       if (jsonMap.containsKey("keys")) {
         cleanJwtString = JWKSet.parse(jsonMap).toString(true);
       } else {
@@ -197,12 +244,18 @@ public class ClientJwtConfiguration implements Cloneable{
     return true;
   }
 
+    private List<ClientJwtCredential> setValidatedCredentials(List<ClientJwtCredential> clientJwtCredentials) {
+        if (ObjectUtils.isEmpty(clientJwtCredentials)) {
+            throw new InvalidClientDetailsException("Invalid null or empty credentials");
+        }
+        HashMap<String, ClientJwtCredential> clientJwtCredentialHashMap = new HashMap<>();
+        validateClientJwtCredentials(clientJwtCredentials, clientJwtCredentialHashMap);
+        return clientJwtCredentialHashMap.values().stream().toList();
+    }
+
   /**
    * Creator from ClientDetails. Should abstract the persistence.
    * Use currently the client_jwt_config in UaaClientDetails
-   *
-   * @param clientDetails
-   * @return
    */
   @JsonIgnore
   public static ClientJwtConfiguration readValue(UaaClientDetails clientDetails) {
@@ -216,9 +269,6 @@ public class ClientJwtConfiguration implements Cloneable{
 
   /**
    * Creator from searialized ClientJwtConfiguration.
-   *
-   * @param clientJwtConfig
-   * @return
    */
   @JsonIgnore
   public static ClientJwtConfiguration readValue(String clientJwtConfig) {
@@ -228,14 +278,10 @@ public class ClientJwtConfiguration implements Cloneable{
   /**
    * Creator from ClientDetails. Should abstract the persistence.
    * Use currently the client_jwt_config in UaaClientDetails
-   *
-   * @param clientDetails
-   * @return
    */
   @JsonIgnore
   public void writeValue(ClientDetails clientDetails) {
-    if (clientDetails instanceof UaaClientDetails) {
-      UaaClientDetails uaaClientDetails = (UaaClientDetails) clientDetails;
+        if (clientDetails instanceof UaaClientDetails uaaClientDetails) {
       uaaClientDetails.setClientJwtConfig(JsonUtils.writeValueAsString(this));
     }
   }
@@ -243,14 +289,10 @@ public class ClientJwtConfiguration implements Cloneable{
   /**
    * Cleanup configuration in ClientDetails. Should abstract the persistence.
    * Use currently the client_jwt_config in UaaClientDetails
-   *
-   * @param clientDetails
-   * @return
    */
   @JsonIgnore
   public static void resetConfiguration(ClientDetails clientDetails) {
-    if (clientDetails instanceof UaaClientDetails) {
-      UaaClientDetails uaaClientDetails = (UaaClientDetails) clientDetails;
+        if (clientDetails instanceof UaaClientDetails uaaClientDetails) {
       uaaClientDetails.setClientJwtConfig(null);
     }
   }
@@ -296,6 +338,14 @@ public class ClientJwtConfiguration implements Cloneable{
         result = new ClientJwtConfiguration(null, new JsonWebKeySet<>(existingKeys));
       }
     }
+        if (newConfig.clientJwtCredentials != null) {
+            result = existingConfig;
+            if (overwrite) {
+                result.setValidatedCredentials(newConfig.clientJwtCredentials);
+            } else {
+                result.addJwtCredentials(newConfig.clientJwtCredentials);
+            }
+        }
     return result;
   }
 
@@ -310,7 +360,7 @@ public class ClientJwtConfiguration implements Cloneable{
     ClientJwtConfiguration result = null;
     if (existingConfig.jwkSet != null && tobeDeleted.jwksUri != null) {
       JsonWebKeySet<JsonWebKey> existingKeySet = existingConfig.jwkSet;
-      List<JsonWebKey> keys = existingKeySet.getKeys().stream().filter(k -> !tobeDeleted.jwksUri.equals(k.getKid())).collect(Collectors.toList());
+            List<JsonWebKey> keys = existingKeySet.getKeys().stream().filter(k -> !tobeDeleted.jwksUri.equals(k.getKid())).toList();
       if (keys.isEmpty()) {
         result = null;
       } else {
@@ -330,6 +380,15 @@ public class ClientJwtConfiguration implements Cloneable{
       } else {
         result = existingConfig;
       }
+        } else if (existingConfig.clientJwtCredentials != null && tobeDeleted.clientJwtCredentials != null) {
+            existingConfig.clientJwtCredentials = existingConfig.clientJwtCredentials.stream()
+                    .filter (c -> tobeDeleted.clientJwtCredentials.stream()
+                    .filter(e -> e.getSubject().equals(c.getSubject()) && e.getIssuer().equals(c.getIssuer())).isParallel()).toList();
+            result = existingConfig;
+            if (ObjectUtils.isEmpty(result.clientJwtCredentials)) {
+                result.clientJwtCredentials = null;
+            }
+            result = ObjectUtils.isEmpty(result.jwkSet) && ObjectUtils.isEmpty(result.jwksUri) ? null : result;
     }
     return result;
   }

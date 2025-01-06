@@ -71,10 +71,10 @@ public class ClientDetailsAuthenticationProvider extends DaoAuthenticationProvid
                         setAuthenticationMethod(authentication, CLIENT_AUTH_NONE);
                         break;
                     } else if (isPrivateKeyJwt(authentication.getDetails())) {
+                        setAuthenticationMethod(authentication, CLIENT_AUTH_PRIVATE_KEY_JWT);
                         if (!validatePrivateKeyJwt(authentication.getDetails(), uaaClient)) {
                             error = new BadCredentialsException("Bad client_assertion type");
                         }
-                        setAuthenticationMethod(authentication, CLIENT_AUTH_PRIVATE_KEY_JWT);
                         break;
                     }
                 } else if (ObjectUtils.isEmpty(authentication.getCredentials())) {
@@ -128,7 +128,7 @@ public class ClientDetailsAuthenticationProvider extends DaoAuthenticationProvid
     }
 
     private static UaaAuthenticationDetails getUaaAuthenticationDetails(Object object) {
-        return object instanceof UaaAuthenticationDetails ? (UaaAuthenticationDetails)  object : new UaaAuthenticationDetails();
+        return object instanceof UaaAuthenticationDetails uad ? uad : new UaaAuthenticationDetails();
     }
 
     private static Map<String, String[]> getRequestParameters(UaaAuthenticationDetails authenticationDetails) {
@@ -138,10 +138,10 @@ public class ClientDetailsAuthenticationProvider extends DaoAuthenticationProvid
     private static boolean isPrivateKeyJwt(Object uaaAuthenticationDetails) {
         UaaAuthenticationDetails authenticationDetails = getUaaAuthenticationDetails(uaaAuthenticationDetails);
         Map<String, String[]> requestParameters = getRequestParameters(authenticationDetails);
-        return (isPublicTokenRequest(authenticationDetails) &&
+        return isPublicTokenRequest(authenticationDetails) &&
             !StringUtils.hasText(getSafeParameterValue(requestParameters.get("client_secret"))) &&
              StringUtils.hasText(getSafeParameterValue(requestParameters.get("client_assertion_type"))) &&
-             StringUtils.hasText(getSafeParameterValue(requestParameters.get("client_assertion"))));
+                StringUtils.hasText(getSafeParameterValue(requestParameters.get("client_assertion")));
     }
 
     private boolean validatePrivateKeyJwt(Object uaaAuthenticationDetails, UaaClient uaaClient) {
