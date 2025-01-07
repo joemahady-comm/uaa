@@ -17,7 +17,6 @@
 package org.cloudfoundry.identity.uaa.provider.saml;
 
 import lombok.extern.slf4j.Slf4j;
-import net.shibboleth.utilities.java.support.xml.ParserPool;
 import org.cloudfoundry.identity.uaa.authentication.BackwardsCompatibleTokenEndpointAuthenticationFilter;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
@@ -31,15 +30,11 @@ import org.cloudfoundry.identity.uaa.util.UaaUrlUtils;
 import org.cloudfoundry.identity.uaa.web.UaaSavedRequestAwareAuthenticationSuccessHandler;
 import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.cloudfoundry.identity.uaa.zone.beans.IdentityZoneManager;
-import org.opensaml.core.config.ConfigurationService;
-import org.opensaml.core.xml.config.XMLObjectProviderRegistry;
 import org.opensaml.saml.common.assertion.ValidationContext;
 import org.opensaml.saml.saml2.assertion.SAML2AssertionValidationParameters;
 import org.opensaml.saml.saml2.core.Assertion;
 import org.opensaml.saml.saml2.core.Issuer;
 import org.opensaml.saml.saml2.core.Response;
-import org.opensaml.saml.saml2.core.impl.AssertionUnmarshaller;
-import org.opensaml.saml.saml2.core.impl.ResponseUnmarshaller;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
@@ -51,7 +46,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.saml2.Saml2Exception;
-import org.springframework.security.saml2.core.OpenSamlInitializationService;
 import org.springframework.security.saml2.core.Saml2Error;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.Saml2ResponseValidatorResult;
@@ -97,21 +91,7 @@ public final class Saml2BearerGrantAuthenticationConverter implements Authentica
         ApplicationEventPublisherAware {
 
     static {
-        OpenSamlInitializationService.initialize();
-    }
-
-    private static final AssertionUnmarshaller assertionUnmarshaller;
-    private static final ResponseUnmarshaller responseUnMarshaller;
-
-    private static final ParserPool parserPool;
-
-    static {
-        XMLObjectProviderRegistry registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
-        assertionUnmarshaller = (AssertionUnmarshaller) registry.getUnmarshallerFactory()
-                .getUnmarshaller(Assertion.DEFAULT_ELEMENT_NAME);
-        responseUnMarshaller = (ResponseUnmarshaller) registry.getUnmarshallerFactory()
-                .getUnmarshaller(Response.DEFAULT_ELEMENT_NAME);
-        parserPool = registry.getParserPool();
+        OpenSamlXmlUtils.initialize();
     }
 
     private final Converter<OpenSaml4AuthenticationProvider.AssertionToken, Saml2ResponseValidatorResult> assertionSignatureValidator = OpenSaml4AuthenticationProvider.createDefaultAssertionSignatureValidator();
@@ -301,10 +281,10 @@ public final class Saml2BearerGrantAuthenticationConverter implements Authentica
 
     private static Assertion parseAssertion(String assertion) throws Saml2Exception, Saml2AuthenticationException {
         try {
-            Document document = parserPool
+            Document document = OpenSamlXmlUtils.getParserPool()
                     .parse(new ByteArrayInputStream(assertion.getBytes(StandardCharsets.UTF_8)));
             Element element = document.getDocumentElement();
-            return (Assertion) assertionUnmarshaller.unmarshall(element);
+            return (Assertion) OpenSamlXmlUtils.getAssertionUnmarshaller().unmarshall(element);
         } catch (Exception ex) {
             throw OpenSaml4AuthenticationProvider.createAuthenticationException(Saml2ErrorCodes.INVALID_ASSERTION, "Unable to parse bearer assertion", ex);
         }
@@ -312,10 +292,10 @@ public final class Saml2BearerGrantAuthenticationConverter implements Authentica
 
     protected static Response parseSamlResponse(String samlResponse) throws Saml2Exception, Saml2AuthenticationException {
         try {
-            Document document = parserPool
+            Document document = OpenSamlXmlUtils.getParserPool()
                     .parse(new ByteArrayInputStream(samlResponse.getBytes(StandardCharsets.UTF_8)));
             Element element = document.getDocumentElement();
-            return (Response) responseUnMarshaller.unmarshall(element);
+            return (Response) OpenSamlXmlUtils.getResponseUnmarshaller().unmarshall(element);
         } catch (Exception ex) {
             throw OpenSaml4AuthenticationProvider.createAuthenticationException(Saml2ErrorCodes.INVALID_RESPONSE, "Unable to parse saml response", ex);
         }

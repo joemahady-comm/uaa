@@ -17,13 +17,9 @@
 package org.cloudfoundry.identity.uaa.provider.saml;
 
 import lombok.Getter;
-import net.shibboleth.utilities.java.support.xml.ParserPool;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.opensaml.core.config.ConfigurationService;
 import org.opensaml.core.xml.XMLObject;
-import org.opensaml.core.xml.config.XMLObjectProviderRegistry;
-import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
 import org.opensaml.core.xml.schema.XSAny;
 import org.opensaml.core.xml.schema.XSBoolean;
 import org.opensaml.core.xml.schema.XSBooleanValue;
@@ -52,8 +48,6 @@ import org.opensaml.saml.saml2.core.Response;
 import org.opensaml.saml.saml2.core.StatusCode;
 import org.opensaml.saml.saml2.core.SubjectConfirmation;
 import org.opensaml.saml.saml2.core.SubjectConfirmationData;
-import org.opensaml.saml.saml2.core.impl.AuthnRequestUnmarshaller;
-import org.opensaml.saml.saml2.core.impl.ResponseUnmarshaller;
 import org.opensaml.saml.security.impl.SAMLSignatureProfileValidator;
 import org.opensaml.xmlsec.signature.support.SignaturePrevalidator;
 import org.opensaml.xmlsec.signature.support.SignatureTrustEngine;
@@ -65,7 +59,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.saml2.Saml2Exception;
-import org.springframework.security.saml2.core.OpenSamlInitializationService;
 import org.springframework.security.saml2.core.Saml2Error;
 import org.springframework.security.saml2.core.Saml2ErrorCodes;
 import org.springframework.security.saml2.core.Saml2ResponseValidatorResult;
@@ -108,22 +101,10 @@ import java.util.function.Consumer;
 public final class OpenSaml4AuthenticationProvider implements AuthenticationProvider {
 
     static {
-        OpenSamlInitializationService.initialize();
+        OpenSamlXmlUtils.initialize();
     }
 
     private final Log logger = LogFactory.getLog(this.getClass());
-
-    private final ResponseUnmarshaller responseUnmarshaller;
-
-    private static final AuthnRequestUnmarshaller authnRequestUnmarshaller;
-
-    static {
-        XMLObjectProviderRegistry registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
-        authnRequestUnmarshaller = (AuthnRequestUnmarshaller) registry.getUnmarshallerFactory()
-                .getUnmarshaller(AuthnRequest.DEFAULT_ELEMENT_NAME);
-    }
-
-    private final ParserPool parserPool;
 
     private final Converter<ResponseToken, Saml2ResponseValidatorResult> responseSignatureValidator = createDefaultResponseSignatureValidator();
 
@@ -143,10 +124,6 @@ public final class OpenSaml4AuthenticationProvider implements AuthenticationProv
      * Creates an {@link OpenSaml4AuthenticationProvider}
      */
     public OpenSaml4AuthenticationProvider() {
-        XMLObjectProviderRegistry registry = ConfigurationService.get(XMLObjectProviderRegistry.class);
-        this.responseUnmarshaller = (ResponseUnmarshaller) registry.getUnmarshallerFactory()
-                .getUnmarshaller(Response.DEFAULT_ELEMENT_NAME);
-        this.parserPool = registry.getParserPool();
     }
 
     /**
@@ -348,10 +325,10 @@ public final class OpenSaml4AuthenticationProvider implements AuthenticationProv
 
     private Response parseResponse(String response) throws Saml2Exception, Saml2AuthenticationException {
         try {
-            Document document = this.parserPool
+            Document document = OpenSamlXmlUtils.getParserPool()
                     .parse(new ByteArrayInputStream(response.getBytes(StandardCharsets.UTF_8)));
             Element element = document.getDocumentElement();
-            return (Response) this.responseUnmarshaller.unmarshall(element);
+            return (Response) OpenSamlXmlUtils.getResponseUnmarshaller().unmarshall(element);
         } catch (Exception ex) {
             throw createAuthenticationException(Saml2ErrorCodes.MALFORMED_RESPONSE_DATA, ex.getMessage(), ex);
         }
@@ -621,10 +598,10 @@ public final class OpenSaml4AuthenticationProvider implements AuthenticationProv
             samlRequest = new String(Saml2Utils.samlDecode(samlRequest), StandardCharsets.UTF_8);
         }
         try {
-            Document document = XMLObjectProviderRegistrySupport.getParserPool()
+            Document document = OpenSamlXmlUtils.getParserPool()
                     .parse(new ByteArrayInputStream(samlRequest.getBytes(StandardCharsets.UTF_8)));
             Element element = document.getDocumentElement();
-            return (AuthnRequest) authnRequestUnmarshaller.unmarshall(element);
+            return (AuthnRequest) OpenSamlXmlUtils.getAuthnRequestUnmarshaller().unmarshall(element);
         } catch (Exception ex) {
             String message = "Failed to deserialize associated authentication request [" + ex.getMessage() + "]";
             throw createAuthenticationException(Saml2ErrorCodes.MALFORMED_REQUEST_DATA, message, ex);
