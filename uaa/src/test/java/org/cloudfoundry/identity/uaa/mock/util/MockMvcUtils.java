@@ -1101,7 +1101,7 @@ public final class MockMvcUtils {
         String basicDigestHeaderValue = "Basic "
           + new String(org.apache.commons.codec.binary.Base64.encodeBase64((clientId + ":" + clientSecret)
           .getBytes()));
-        UaaPrincipal p = new UaaPrincipal(userId, username, "test@test.org", OriginKeys.UAA, "", zoneId);
+        UaaPrincipal p = new UaaPrincipal(userId, username, "test@test.org", OriginKeys.UAA, "", OriginKeys.UAA);
         UaaAuthentication auth = new UaaAuthentication(p, UaaAuthority.USER_AUTHORITIES, null);
         Assert.assertTrue(auth.isAuthenticated());
 
