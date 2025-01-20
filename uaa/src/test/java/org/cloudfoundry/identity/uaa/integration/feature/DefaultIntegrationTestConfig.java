@@ -16,7 +16,6 @@ package org.cloudfoundry.identity.uaa.integration.feature;
 import com.dumbster.smtp.SimpleSmtpServer;
 import org.cloudfoundry.identity.uaa.oauth.client.test.TestAccounts;
 import org.cloudfoundry.identity.uaa.test.UaaTestAccounts;
-import org.openqa.selenium.Dimension;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.springframework.beans.factory.annotation.Value;
@@ -62,9 +61,7 @@ public class DefaultIntegrationTestConfig {
         ChromeOptions options = new ChromeOptions();
         options.addArguments(
           "--verbose",
-          "--headless=old",
-          "--window-position=-2400,-2400",
-          "--window-size=1024,768",
+          "--headless",
           "--disable-web-security",
           "--ignore-certificate-errors",
           "--allow-running-insecure-content",
@@ -82,7 +79,6 @@ public class DefaultIntegrationTestConfig {
                 .implicitlyWait(IMPLICIT_WAIT_TIME * timeoutMultiplier, TimeUnit.SECONDS)
                 .pageLoadTimeout(PAGE_LOAD_TIMEOUT * timeoutMultiplier, TimeUnit.SECONDS)
                 .setScriptTimeout(SCRIPT_TIMEOUT * timeoutMultiplier, TimeUnit.SECONDS);
-        driver.manage().window().setSize(new Dimension(1024, 768));
         return driver;
     }
 
