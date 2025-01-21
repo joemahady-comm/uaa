@@ -377,6 +377,9 @@ login:
 #  idpDiscoveryEnabled: true
 #  accountChooserEnabled: true
 #  aliasEntitiesEnabled: true
+#  loginInfoIdpCache:
+#    enabled: true
+#    durationInMs: 3000
 
   # SAML Key Configuration
   # The location and credentials of the certificate for this SP
