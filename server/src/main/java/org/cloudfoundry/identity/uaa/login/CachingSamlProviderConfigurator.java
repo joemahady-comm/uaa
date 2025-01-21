@@ -2,6 +2,7 @@ package org.cloudfoundry.identity.uaa.login;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.Ticker;
 import org.cloudfoundry.identity.uaa.provider.IdentityProviderProvisioning;
 import org.cloudfoundry.identity.uaa.provider.SamlIdentityProviderDefinition;
 import org.cloudfoundry.identity.uaa.provider.saml.FixedHttpMetaDataProvider;
@@ -35,10 +36,23 @@ public class CachingSamlProviderConfigurator extends SamlIdentityProviderConfigu
             final FixedHttpMetaDataProvider fixedHttpMetaDataProvider,
             final long cacheDurationInMs
     ) {
+        this(providerProvisioning, identityZoneManager, fixedHttpMetaDataProvider, cacheDurationInMs,
+                Ticker.systemTicker());
+    }
+
+    /** Constructor for testing; allows injecting ticker to advance time. */
+    CachingSamlProviderConfigurator(
+            final IdentityProviderProvisioning providerProvisioning,
+            final IdentityZoneManager identityZoneManager,
+            final FixedHttpMetaDataProvider fixedHttpMetaDataProvider,
+            final long cacheDurationInMs,
+            final Ticker ticker
+    ) {
         super(providerProvisioning, identityZoneManager, fixedHttpMetaDataProvider);
 
         this.cache = Caffeine.newBuilder()
                 .expireAfterWrite(cacheDurationInMs, MILLISECONDS)
+                .ticker(ticker)
                 .build(cacheKey -> {
                     final List<String> allowedIdps = Optional.ofNullable(cacheKey.allowedIdps())
                             .map(ArrayList::new)
