@@ -154,12 +154,13 @@ public class LoginInfoEndpoint {
             final @Qualifier("codeStore") ExpiringCodeStore expiringCodeStore,
             final @Value("${login.url:''}") String externalLoginUrl,
             final @Qualifier("uaaUrl") String baseUrl,
-            final @Qualifier("externalOAuthProviderConfigurator") ExternalOAuthProviderConfigurator externalOAuthProviderConfigurator,
+            final @Qualifier("loginInfoExternalOAuthProviderConfigurator") ExternalOAuthProviderConfigurator externalOAuthProviderConfigurator,
             final @Qualifier("identityProviderProvisioning") IdentityProviderProvisioning providerProvisioning,
             final @Qualifier("samlEntityID") String entityID,
             final @Qualifier("globalLinks") Links globalLinks,
             final @Qualifier("jdbcClientDetailsService") MultitenantClientServices clientDetailsService,
-            final @Qualifier("metaDataProviders") SamlIdentityProviderConfigurator idpDefinitions) {
+            final @Qualifier("loginInfoSamlProviderConfigurator") SamlIdentityProviderConfigurator idpDefinitions
+    ) {
         this.authenticationManager = authenticationManager;
         this.expiringCodeStore = expiringCodeStore;
         this.externalLoginUrl = externalLoginUrl;
