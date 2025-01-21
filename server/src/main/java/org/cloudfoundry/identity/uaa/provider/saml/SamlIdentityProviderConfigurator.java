@@ -10,6 +10,7 @@ import org.cloudfoundry.identity.uaa.provider.SamlIdentityProviderDefinition;
 import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.cloudfoundry.identity.uaa.zone.beans.IdentityZoneManager;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Primary;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrations;
@@ -23,6 +24,7 @@ import java.util.List;
 import static org.springframework.util.StringUtils.hasText;
 
 @Component("metaDataProviders")
+@Primary
 public class SamlIdentityProviderConfigurator {
     private final IdentityProviderProvisioning providerProvisioning;
     private final IdentityZoneManager identityZoneManager;
