@@ -1,6 +1,9 @@
 package org.cloudfoundry.identity.uaa.oauth.provider.client;
 
+import org.cloudfoundry.identity.uaa.authentication.UaaAuthenticationDetails;
+import org.cloudfoundry.identity.uaa.oauth.common.DefaultOAuth2AccessToken;
 import org.cloudfoundry.identity.uaa.oauth.common.OAuth2AccessToken;
+import org.cloudfoundry.identity.uaa.oauth.common.exceptions.InvalidRequestException;
 import org.cloudfoundry.identity.uaa.oauth.provider.ClientDetails;
 import org.cloudfoundry.identity.uaa.oauth.provider.ClientDetailsService;
 import org.cloudfoundry.identity.uaa.oauth.provider.OAuth2Request;
@@ -10,9 +13,13 @@ import org.cloudfoundry.identity.uaa.oauth.provider.token.AuthorizationServerTok
 import org.cloudfoundry.identity.uaa.oauth.token.TokenConstants;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Collections;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,6 +43,11 @@ public class ClientCredentialsTokenGranterTests {
     clientCredentialsTokenGranter = new ClientCredentialsTokenGranter(tokenServices, clientDetailsService, requestFactory);
   }
 
+    @AfterEach
+    void cleanUp() {
+        SecurityContextHolder.clearContext();
+    }
+
   @Test
   public void grant() {
     OAuth2Request oAuth2Request = mock(OAuth2Request.class);
@@ -55,4 +67,22 @@ public class ClientCredentialsTokenGranterTests {
     when(oAuth2Request.getAuthorities()).thenReturn(Collections.EMPTY_LIST);
     assertNull(clientCredentialsTokenGranter.grant(TokenConstants.GRANT_TYPE_CLIENT_CREDENTIALS, tokenRequest));
   }
+
+    @Test
+    public void grantNoSecretFails() {
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken("username", null, null);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        OAuth2Request oAuth2Request = mock(OAuth2Request.class);
+        UaaAuthenticationDetails uaaAuthenticationDetails = mock(UaaAuthenticationDetails.class);
+        authentication.setDetails(uaaAuthenticationDetails);
+        when(clientDetailsService.loadClientByClientId(any())).thenReturn(mock(ClientDetails.class));
+        when(requestFactory.createOAuth2Request(any(), any())).thenReturn(oAuth2Request);
+        when(tokenServices.createAccessToken(any())).thenReturn(new DefaultOAuth2AccessToken("eyJx"));
+        when(oAuth2Request.getAuthorities()).thenReturn(Collections.emptyList());
+        when(uaaAuthenticationDetails.getAuthenticationMethod()).thenReturn("none");
+        assertThatThrownBy(() -> clientCredentialsTokenGranter
+                .grant(TokenConstants.GRANT_TYPE_CLIENT_CREDENTIALS, tokenRequest))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessage("Client credentials required");
+    }
 }
