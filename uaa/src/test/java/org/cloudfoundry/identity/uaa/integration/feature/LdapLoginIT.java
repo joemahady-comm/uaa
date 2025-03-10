@@ -9,6 +9,7 @@ import org.cloudfoundry.identity.uaa.scim.ScimGroup;
 import org.cloudfoundry.identity.uaa.scim.ScimUser;
 import org.cloudfoundry.identity.uaa.test.InMemoryLdapServer;
 import org.cloudfoundry.identity.uaa.test.UaaTestAccounts;
+import org.cloudfoundry.identity.uaa.test.UaaWebDriver;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneConfiguration;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.hamcrest.Matchers;
@@ -16,7 +17,6 @@ import org.junit.*;
 import org.junit.runner.RunWith;
 import org.openqa.selenium.By;
 import org.openqa.selenium.NoSuchElementException;
-import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,7 +53,7 @@ public class LdapLoginIT {
     RestOperations restOperations;
 
     @Autowired
-    WebDriver webDriver;
+    UaaWebDriver webDriver;
 
     @Value("${integration.test.base_url}")
     String baseUrl;
@@ -183,7 +183,7 @@ public class LdapLoginIT {
         webDriver.get(zoneUrl + "/login");
         webDriver.findElement(By.name("username")).sendKeys(username);
         webDriver.findElement(By.name("password")).sendKeys(password);
-        webDriver.findElement(By.xpath("//input[@value='Sign in']")).click();
+        webDriver.clickAndWait(By.xpath("//input[@value='Sign in']"));
 
         saveAlertErrorMessage();
     }

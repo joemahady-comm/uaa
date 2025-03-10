@@ -30,7 +30,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
@@ -68,7 +67,7 @@ public class AppApprovalIT {
     public IntegrationTestRule integrationTestRule;
 
     @Autowired
-    WebDriver webDriver;
+    UaaWebDriver webDriver;
 
     @Value("${integration.test.base_url}")
     String baseUrl;
@@ -115,7 +114,7 @@ public class AppApprovalIT {
         // Sign in to login server
         webDriver.findElement(By.name("username")).sendKeys(user.getUserName());
         webDriver.findElement(By.name("password")).sendKeys(user.getPassword());
-        webDriver.findElement(By.xpath("//input[@value='Sign in']")).click();
+        webDriver.clickAndWait(By.xpath("//input[@value='Sign in']"));
 
         // Authorize the app for some scopes
         Assert.assertEquals("Application Authorization", webDriver.findElement(By.cssSelector("h1")).getText());
@@ -124,7 +123,7 @@ public class AppApprovalIT {
         webDriver.findElement(By.xpath("//label[text()='Read user IDs and retrieve users by ID']/preceding-sibling::input")).click();
         webDriver.findElement(By.xpath("//label[text()='Read about your clouds.']/preceding-sibling::input"));
 
-        webDriver.findElement(By.xpath("//button[text()='Authorize']")).click();
+        webDriver.clickAndWait(By.xpath("//button[text()='Authorize']"));
 
         Assert.assertEquals("Sample Home Page", webDriver.findElement(By.cssSelector("h1")).getText());
 
@@ -140,7 +139,7 @@ public class AppApprovalIT {
         webDriver.findElement(By.xpath("//input[@value='app-password.write']")).click();
         webDriver.findElement(By.xpath("//input[@value='app-scim.userids']")).click();
 
-        webDriver.findElement(By.xpath("//button[text()='Update']")).click();
+        webDriver.clickAndWait(By.xpath("//button[text()='Update']"));
 
         Assert.assertTrue(webDriver.findElement(By.xpath("//input[@value='app-password.write']")).isSelected());
         Assert.assertTrue(webDriver.findElement(By.xpath("//input[@value='app-scim.userids']")).isSelected());
@@ -158,7 +157,7 @@ public class AppApprovalIT {
         webDriver.findElement(By.linkText("Revoke Access")).click();
 
         // click confirm
-        webDriver.findElement(By.cssSelector("#app-form .revocation-confirm")).click();
+        webDriver.clickAndWait(By.cssSelector("#app-form .revocation-confirm"));
 
         Assert.assertThat(webDriver.findElements(By.xpath("//input[@value='app-password.write']")), Matchers.empty());
     }
@@ -187,7 +186,7 @@ public class AppApprovalIT {
         // Sign in to login server
         webDriver.findElement(By.name("username")).sendKeys(user.getUserName());
         webDriver.findElement(By.name("password")).sendKeys(user.getPassword());
-        webDriver.findElement(By.xpath("//input[@value='Sign in']")).click();
+        webDriver.clickAndWait(By.xpath("//input[@value='Sign in']"));
 
         // Authorize the app for some scopes
         Assert.assertEquals("Application Authorization", webDriver.findElement(By.cssSelector("h1")).getText());
@@ -205,7 +204,7 @@ public class AppApprovalIT {
         // Sign in to login server
         webDriver.findElement(By.name("username")).sendKeys(user.getUserName());
         webDriver.findElement(By.name("password")).sendKeys(user.getPassword());
-        webDriver.findElement(By.xpath("//input[@value='Sign in']")).click();
+        webDriver.clickAndWait(By.xpath("//input[@value='Sign in']"));
 
         // Authorize the app for some scopes
         assertThat(webDriver.findElement(By.className("alert-error")).getText(), IntegrationTestUtils.RegexMatcher.matchesRegex("^Invalid redirect (.*) did not match one of the registered values"));
