@@ -2,6 +2,7 @@ package org.cloudfoundry.identity.uaa.integration.feature;
 
 import com.dumbster.smtp.SimpleSmtpServer;
 import com.dumbster.smtp.SmtpMessage;
+import org.cloudfoundry.identity.uaa.test.UaaWebDriver;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -146,7 +147,7 @@ public class ChangeEmailIT {
 
         webDriver.get(link);
         webDriver.clickAndWait(By.id("authorize"));
-        assertThat(webDriver.getCurrentUrl()).startsWith("http://localhost:8080/app/");
+        assertThat(webDriver.getCurrentUrl(), startsWith("http://localhost:8080/app/"));
     }
 
     private void signIn(String userName, String password) {
@@ -155,6 +156,6 @@ public class ChangeEmailIT {
         webDriver.findElement(By.name("username")).sendKeys(userName);
         webDriver.findElement(By.name("password")).sendKeys(password);
         webDriver.clickAndWait(By.xpath("//input[@value='Sign in']"));
-        assertThat(webDriver.findElement(By.cssSelector("h1")).getText()).contains("Where to?");
+        assertThat(webDriver.findElement(By.cssSelector("h1")).getText(), containsString("Where to?"));
     }
 }

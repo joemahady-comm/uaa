@@ -14,13 +14,13 @@
 package org.cloudfoundry.identity.uaa.integration.feature;
 
 import com.dumbster.smtp.SimpleSmtpServer;
+import org.cloudfoundry.identity.uaa.test.UaaWebDriver;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,7 +44,7 @@ public class ChangePasswordIT {
     public IntegrationTestRule integrationTestRule;
 
     @Autowired
-    WebDriver webDriver;
+    UaaWebDriver webDriver;
 
     @Autowired
     SimpleSmtpServer simpleSmtpServer;
@@ -125,17 +125,17 @@ public class ChangePasswordIT {
         webDriver.findElement(By.name("new_password")).sendKeys(newPassword);
         webDriver.findElement(By.name("confirm_password")).sendKeys(confirmPassword);
 
-        webDriver.findElement(By.xpath("//input[@value='Change password']")).click();
+        webDriver.clickAndWait(By.xpath("//input[@value='Change password']"));
     }
 
     private void signOut() {
         webDriver.findElement(By.xpath("//*[text()='"+userEmail+"']")).click();
-        webDriver.findElement(By.linkText("Sign Out")).click();
+        webDriver.clickAndWait(By.linkText("Sign Out"));
     }
 
     private void signIn(String userName, String password) {
         webDriver.findElement(By.name("username")).sendKeys(userName);
         webDriver.findElement(By.name("password")).sendKeys(password);
-        webDriver.findElement(By.xpath("//input[@value='Sign in']")).click();
+        webDriver.clickAndWait(By.xpath("//input[@value='Sign in']"));
     }
 }

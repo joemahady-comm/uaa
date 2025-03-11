@@ -35,6 +35,7 @@ import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.integration.util.IntegrationTestUtils;
 import org.cloudfoundry.identity.uaa.oauth.client.test.TestAccounts;
 import org.cloudfoundry.identity.uaa.security.web.CookieBasedCsrfTokenRepository;
+import org.cloudfoundry.identity.uaa.test.UaaWebDriver;
 import org.cloudfoundry.identity.uaa.zone.BrandingInformation;
 import org.cloudfoundry.identity.uaa.zone.BrandingInformation.Banner;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneConfiguration;
@@ -48,7 +49,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -77,7 +77,7 @@ public class LoginIT {
     public IntegrationTestRule integrationTestRule;
 
     @Autowired
-    WebDriver webDriver;
+    UaaWebDriver webDriver;
 
     @Value("${integration.test.base_url}")
     String baseUrl;
@@ -273,7 +273,7 @@ public class LoginIT {
 
         // Verify that the CopyToClipboard function can be executed
         String passcode = webDriver.findElement(By.id("passcode")).getText();
-        ((JavascriptExecutor)webDriver).executeScript("CopyToClipboard",
+        (webDriver.getJavascriptExecutor()).executeScript("CopyToClipboard",
                 passcode);
         // Verify that the copybutton can be clicked
         webDriver.findElement(By.id("copybutton")).click();
@@ -377,7 +377,7 @@ public class LoginIT {
     public void attemptLogin(String username, String password) {
         webDriver.findElement(By.name("username")).sendKeys(username);
         webDriver.findElement(By.name("password")).sendKeys(password);
-        webDriver.findElement(By.xpath("//input[@value='Sign in']")).click();
+        webDriver.clickAndWait(By.xpath("//input[@value='Sign in']"));
     }
 
     @Test
@@ -402,7 +402,7 @@ public class LoginIT {
 
         webDriver.get(zoneUrl);
         assertEquals("Sign in to another account", webDriver.findElement(By.cssSelector("div.action a")).getText());
-        webDriver.findElement(By.cssSelector("div.action a")).click();
+        webDriver.clickAndWait(By.cssSelector("div.action a"));
 
         loginThroughDiscovery(userEmail, USER_PASSWORD);
         assertEquals("Where to?", webDriver.findElement(By.cssSelector(".island h1")).getText());
@@ -422,12 +422,12 @@ public class LoginIT {
         webDriver.get(zoneUrl);
         assertThat(webDriver.findElement(By.className("email-address")).getText(), startsWith(userEmail));
         assertThat(webDriver.findElement(By.className("email-address")).getText(), containsString(OriginKeys.UAA));
-        webDriver.findElement(By.className("email-address")).click();
+        webDriver.clickAndWait(By.className("email-address"));
 
         assertEquals(userEmail, webDriver.findElement(By.id("username")).getAttribute("value"));
         assertThat(webDriver.getCurrentUrl(), containsString("login_hint"));
         webDriver.findElement(By.id("password")).sendKeys(USER_PASSWORD);
-        webDriver.findElement(By.xpath("//input[@value='Sign in']")).click();
+        webDriver.clickAndWait(By.xpath("//input[@value='Sign in']"));
         assertEquals("Where to?", webDriver.findElement(By.cssSelector(".island h1")).getText());
     }
 
@@ -441,7 +441,7 @@ public class LoginIT {
         webDriver.get(zoneUrl);
 
         webDriver.manage().deleteAllCookies();
-        JavascriptExecutor js = (JavascriptExecutor) webDriver;
+        JavascriptExecutor js = webDriver.getJavascriptExecutor();
         js.executeScript("document.cookie = \"Saved-Account-1=" + URLEncoder.encode(userUAA, StandardCharsets.UTF_8.name()) + ";path=/;domain=testzone3.localhost\"");
         js.executeScript("document.cookie = \"Saved-Account-2=" + URLEncoder.encode(userLDAP, StandardCharsets.UTF_8.name()) + ";path=/;domain=testzone3.localhost\"");
         js.executeScript("document.cookie = \"Saved-Account-3=" + URLEncoder.encode(userExternal, StandardCharsets.UTF_8.name()) + ";path=/;domain=testzone3.localhost\"");
@@ -449,15 +449,15 @@ public class LoginIT {
         webDriver.navigate().refresh();
         assertEquals(3, webDriver.findElements(By.cssSelector("span.email-address")).size());
 
-        webDriver.findElement(By.xpath("//span[contains(text(), 'userUAA')]")).click();
+        webDriver.clickAndWait(By.xpath("//span[contains(text(), 'userUAA')]"));
         assertEquals("userUAA", webDriver.findElement(By.id("username")).getAttribute("value"));
         webDriver.navigate().back();
 
-        webDriver.findElement(By.xpath("//span[contains(text(), 'userLDAP')]")).click();
+        webDriver.clickAndWait(By.xpath("//span[contains(text(), 'userLDAP')]"));
         assertEquals("userLDAP", webDriver.findElement(By.id("username")).getAttribute("value"));
         webDriver.navigate().back();
 
-        webDriver.findElement(By.xpath("//span[contains(text(), 'userExternal')]")).click();
+        webDriver.clickAndWait(By.xpath("//span[contains(text(), 'userExternal')]"));
         assertEquals("user@external.org", webDriver.findElement(By.id("username")).getAttribute("value"));
 
         webDriver.manage().deleteAllCookies();
@@ -468,10 +468,10 @@ public class LoginIT {
 
         String redirectUri = "http://expected.com";
         webDriver.get(baseUrl + "/oauth/authorize?client_id=test&redirect_uri="+redirectUri);
-        ((JavascriptExecutor)webDriver).executeScript("document.getElementsByName('X-Uaa-Csrf')[0].value=''");
+        (webDriver.getJavascriptExecutor()).executeScript("document.getElementsByName('X-Uaa-Csrf')[0].value=''");
         webDriver.manage().deleteCookieNamed("JSESSIONID");
 
-        webDriver.findElement(By.xpath("//input[@value='Sign in']")).click();
+        webDriver.clickAndWait(By.xpath("//input[@value='Sign in']"));
 
         assertThat(webDriver.getCurrentUrl(), Matchers.containsString("/login"));
         assertThat(webDriver.findElement(By.name("form_redirect_uri")).getAttribute("value"), Matchers.containsString("redirect_uri="+redirectUri));
@@ -506,8 +506,8 @@ public class LoginIT {
 
     private void loginThroughDiscovery(String userEmail, String password) {
         webDriver.findElement(By.id("email")).sendKeys(userEmail);
-        webDriver.findElement(By.cssSelector(".form-group input[value='Next']")).click();
+        webDriver.clickAndWait(By.cssSelector(".form-group input[value='Next']"));
         webDriver.findElement(By.id("password")).sendKeys(password);
-        webDriver.findElement(By.xpath("//input[@value='Sign in']")).click();
+        webDriver.clickAndWait(By.xpath("//input[@value='Sign in']"));
     }
 }

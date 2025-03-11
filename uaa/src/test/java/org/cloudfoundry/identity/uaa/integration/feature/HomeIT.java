@@ -14,6 +14,7 @@
 package org.cloudfoundry.identity.uaa.integration.feature;
 
 import org.cloudfoundry.identity.uaa.oauth.client.test.TestAccounts;
+import org.cloudfoundry.identity.uaa.test.UaaWebDriver;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Assert;
@@ -39,7 +40,7 @@ public class HomeIT {
     public IntegrationTestRule integrationTestRule;
 
     @Autowired
-    WebDriver webDriver;
+    UaaWebDriver webDriver;
 
     @Value("${integration.test.base_url}")
     String baseUrl;
@@ -63,7 +64,7 @@ public class HomeIT {
         webDriver.get(baseUrl + "/login");
         webDriver.findElement(By.name("username")).sendKeys(testAccounts.getUserName());
         webDriver.findElement(By.name("password")).sendKeys(testAccounts.getPassword());
-        webDriver.findElement(By.xpath("//input[@value='Sign in']")).click();
+        webDriver.clickAndWait(By.xpath("//input[@value='Sign in']"));
 
         asOnHomePage = new HomePagePerspective(webDriver, testAccounts.getUserName());
     }

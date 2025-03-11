@@ -25,6 +25,7 @@ import java.util.UUID;
 
 import org.cloudfoundry.identity.uaa.client.UaaClientDetails;
 import org.cloudfoundry.identity.uaa.oauth.client.test.TestAccounts;
+import org.cloudfoundry.identity.uaa.test.UaaWebDriver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -82,7 +83,6 @@ import org.junit.runner.RunWith;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.NoSuchElementException;
-import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 
 import static org.cloudfoundry.identity.uaa.integration.util.IntegrationTestUtils.SAML_AUTH_SOURCE;
@@ -136,7 +136,7 @@ public class SamlLoginIT {
     RestOperations restOperations;
 
     @Autowired
-    WebDriver webDriver;
+    UaaWebDriver webDriver;
 
     @Value("${integration.test.base_url}")
     String baseUrl;
@@ -1409,7 +1409,7 @@ public class SamlLoginIT {
         webDriver.findElement(By.name("username")).clear();
         webDriver.findElement(By.name("username")).sendKeys(username);
         webDriver.findElement(By.name("password")).sendKeys(password);
-        webDriver.findElement(loginButtonSelector).click();
+        webDriver.clickAndWait(loginButtonSelector);
     }
 
     private void sendCredentials(String username, String password) {

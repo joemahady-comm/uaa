@@ -1,17 +1,17 @@
 package org.cloudfoundry.identity.uaa.integration.util;
 
 import org.apache.commons.io.FileUtils;
+import org.cloudfoundry.identity.uaa.test.UaaWebDriver;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
-import org.openqa.selenium.WebDriver;
 
 import java.io.File;
 import java.io.IOException;
 
 public class ScreenshotOnFail extends TestWatcher {
-    private WebDriver browser;
+    private UaaWebDriver browser;
 
     @Override
     protected void failed(Throwable e, Description description) {
@@ -19,7 +19,7 @@ public class ScreenshotOnFail extends TestWatcher {
     }
 
     public void debugPage(String className, String description) {
-        TakesScreenshot takesScreenshot = (TakesScreenshot) browser;
+        TakesScreenshot takesScreenshot = browser.getTakesScreenShot();
 
         File scrFile = takesScreenshot.getScreenshotAs(OutputType.FILE);
         File destFile = getDestinationFile(className, description);
@@ -46,7 +46,7 @@ public class ScreenshotOnFail extends TestWatcher {
         return new File(absoluteFileName);
     }
 
-    public void setWebDriver(WebDriver webDriver) {
+    public void setWebDriver(UaaWebDriver webDriver) {
         this.browser = webDriver;
     }
 }

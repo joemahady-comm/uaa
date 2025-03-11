@@ -22,6 +22,7 @@ import org.cloudfoundry.identity.uaa.scim.ScimGroup;
 import org.cloudfoundry.identity.uaa.scim.ScimUser;
 import org.cloudfoundry.identity.uaa.test.TestAccountSetup;
 import org.cloudfoundry.identity.uaa.test.UaaTestAccounts;
+import org.cloudfoundry.identity.uaa.test.UaaWebDriver;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -29,7 +30,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
@@ -66,7 +66,7 @@ public class SessionLossDuringOauthFlowIT {
     public IntegrationTestRule integrationTestRule;
 
     @Autowired
-    WebDriver webDriver;
+    UaaWebDriver webDriver;
 
     @Value("${integration.test.base_url}")
     String baseUrl;
@@ -117,7 +117,7 @@ public class SessionLossDuringOauthFlowIT {
 
         //Session Expires (we simulate through deleting the cookie)
         webDriver.manage().deleteCookieNamed("JSESSIONID");
-        webDriver.findElement(By.xpath("//input[@value='Sign in']")).click();
+        webDriver.clickAndWait(By.xpath("//input[@value='Sign in']"));
 
         // Authorize the app for some scopes
         Assert.assertEquals("Application Authorization", webDriver.findElement(By.cssSelector("h1")).getText());
@@ -129,12 +129,12 @@ public class SessionLossDuringOauthFlowIT {
 
         //Session Expires (we simulate through deleting the cookie)
         webDriver.manage().deleteCookieNamed("JSESSIONID");
-        webDriver.findElement(By.xpath("//button[text()='Authorize']")).click();
+        webDriver.clickAndWait(By.xpath("//button[text()='Authorize']"));
 
         //We should be back on the login page
         webDriver.findElement(By.name("username")).sendKeys(user.getUserName());
         webDriver.findElement(By.name("password")).sendKeys(user.getPassword());
-        webDriver.findElement(By.xpath("//input[@value='Sign in']")).click();
+        webDriver.clickAndWait(By.xpath("//input[@value='Sign in']"));
 
         //We should be back on the approvals page
         Assert.assertEquals("Application Authorization", webDriver.findElement(By.cssSelector("h1")).getText());
@@ -142,7 +142,7 @@ public class SessionLossDuringOauthFlowIT {
         webDriver.findElement(By.xpath("//label[text()='Change your password']/preceding-sibling::input")).click();
         webDriver.findElement(By.xpath("//label[text()='Read user IDs and retrieve users by ID']/preceding-sibling::input")).click();
         webDriver.findElement(By.xpath("//label[text()='Read about your clouds.']/preceding-sibling::input"));
-        webDriver.findElement(By.xpath("//button[text()='Authorize']")).click();
+        webDriver.clickAndWait(By.xpath("//button[text()='Authorize']"));
 
         Assert.assertEquals("Sample Home Page", webDriver.findElement(By.cssSelector("h1")).getText());
     }

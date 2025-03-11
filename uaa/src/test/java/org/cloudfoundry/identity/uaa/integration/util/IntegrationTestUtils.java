@@ -36,6 +36,7 @@ import org.cloudfoundry.identity.uaa.scim.ScimUser;
 import org.cloudfoundry.identity.uaa.scim.ScimUser.PhoneNumber;
 import org.cloudfoundry.identity.uaa.security.web.CookieBasedCsrfTokenRepository;
 import org.cloudfoundry.identity.uaa.test.UaaTestAccounts;
+import org.cloudfoundry.identity.uaa.test.UaaWebDriver;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
 import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneConfiguration;
@@ -48,7 +49,6 @@ import org.junit.Assert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.OutputType;
-import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
@@ -1573,12 +1573,12 @@ public class IntegrationTestUtils {
         return null;
     }
 
-    public static void takeScreenShot(WebDriver webDriver) {
+    public static void takeScreenShot(UaaWebDriver webDriver) {
         takeScreenShot("testscreenshot-", webDriver);
     }
 
-    public static void takeScreenShot(String prefix, WebDriver webDriver) {
-        File scrFile = ((TakesScreenshot) webDriver).getScreenshotAs(OutputType.FILE);
+    public static void takeScreenShot(String prefix, UaaWebDriver webDriver) {
+        File scrFile = webDriver.getTakesScreenShot().getScreenshotAs(OutputType.FILE);
         try {
             SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd-HHmmss.SSS");
             String now = format.format(new Date(System.currentTimeMillis()));
@@ -1630,14 +1630,14 @@ public class IntegrationTestUtils {
         }
     }
 
-    public static String createAnotherUser(WebDriver webDriver, String password, SimpleSmtpServer simpleSmtpServer, String url, TestClient testClient) {
+    public static String createAnotherUser(UaaWebDriver webDriver, String password, SimpleSmtpServer simpleSmtpServer, String url, TestClient testClient) {
         String userEmail = "user" + new SecureRandom().nextInt() + "@example.com";
 
         webDriver.get(url + "/create_account");
         webDriver.findElement(By.name("email")).sendKeys(userEmail);
         webDriver.findElement(By.name("password")).sendKeys(password);
         webDriver.findElement(By.name("password_confirmation")).sendKeys(password);
-        webDriver.findElement(By.xpath("//input[@value='Send activation link']")).click();
+        webDriver.clickAndWait(By.xpath("//input[@value='Send activation link']"));
 
         Iterator receivedEmail = simpleSmtpServer.getReceivedEmail();
         SmtpMessage message = (SmtpMessage) receivedEmail.next();
