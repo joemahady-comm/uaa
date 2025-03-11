@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -65,9 +66,9 @@ class ClientJwtConfigurationTest {
   }
 
   @Test
-  void testGetCleanConfig() {
-    assertNotNull(ClientJwtConfiguration.parse("https://any.domain.net/openid/jwks-uri").getCleanString());
-    assertNotNull(ClientJwtConfiguration.parse(jsonWebKey).getCleanString());
+  void hasConfiguration() {
+    assertTrue(ClientJwtConfiguration.parse("https://any.domain.net/openid/jwks-uri").hasConfiguration());
+    assertFalse(ClientJwtConfiguration.parse(jsonWebKey).hasConfiguration());
   }
 
   @Test
@@ -77,9 +78,8 @@ class ClientJwtConfigurationTest {
     when(mockedKey.getKeys()).thenReturn(keyList);
     ClientJwtConfiguration privateKey = new ClientJwtConfiguration(null, mockedKey);
     when(mockedKey.getKeySetMap()).thenThrow(new IllegalStateException("error"));
-    assertThrows(InvalidClientDetailsException.class, () -> privateKey.getCleanString());
     ClientJwtConfiguration privateKey2 = new ClientJwtConfiguration("hello", null);
-    assertNull(privateKey2.getCleanString());
+    assertFalse(privateKey2.hasConfiguration());
   }
 
   @Test

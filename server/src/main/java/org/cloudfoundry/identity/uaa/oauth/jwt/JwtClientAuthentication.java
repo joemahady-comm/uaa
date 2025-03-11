@@ -102,7 +102,7 @@ public class JwtClientAuthentication {
     String kid = readJwtClientOption(jwtClientConfiguration.get("kid"), keyInfoService.getActiveKey().keyId(), allowDynamicValueLookupInCustomZone);
     Claims claims = new Claims();
     claims.setAud(Arrays.asList(audience));
-        claims.setSub(subject);
+    claims.setSub(subject);
     claims.setIss(issuer);
     claims.setJti(UUID.randomUUID().toString().replace("-", ""));
     claims.setIat((int) Instant.now().minusSeconds(120).getEpochSecond());
@@ -268,7 +268,7 @@ public class JwtClientAuthentication {
             throw new BadCredentialsException("Bad empty jwk_set");
         }
     Algorithm algorithm = jwtAssertion.getHeader().getAlgorithm();
-        if (!(algorithm instanceof JWSAlgorithm) || NOT_SUPPORTED_ALGORITHMS.contains(algorithm)) {
+    if (!(algorithm instanceof JWSAlgorithm) || NOT_SUPPORTED_ALGORITHMS.contains(algorithm)) {
       throw new BadCredentialsException("Bad client_assertion algorithm");
     }
     JWKSource<SecurityContext> keySource = new ImmutableJWKSet<>(jwkSet);
@@ -276,7 +276,7 @@ public class JwtClientAuthentication {
     ConfigurableJWTProcessor<SecurityContext> jwtProcessor = new DefaultJWTProcessor<>();
     jwtProcessor.setJWSKeySelector(keySelector);
 
-        JWTClaimsSet.Builder claimSetBuilder = new JWTClaimsSet.Builder().issuer(expectIss).subject(expectedSub);
+    JWTClaimsSet.Builder claimSetBuilder = new JWTClaimsSet.Builder().issuer(expectIss).subject(expectedSub);
     jwtProcessor.setJWTClaimsSetVerifier(new DefaultJWTClaimsVerifier<>(expectedAud, claimSetBuilder.build(), JWT_REQUIRED_CLAIMS));
 
     try {
