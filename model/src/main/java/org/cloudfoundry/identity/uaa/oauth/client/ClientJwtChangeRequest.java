@@ -33,11 +33,11 @@ public class ClientJwtChangeRequest {
     @JsonProperty("client_id")
     private String clientId;
     @JsonProperty(ISS)
-    private String iss;
+    private String issuer;
     @JsonProperty(SUB)
-    private String sub;
+    private String subject;
     @JsonProperty(AUD)
-    private String aud;
+    private String audience;
 
     private ChangeMode changeMode = ADD;
 
@@ -88,28 +88,28 @@ public class ClientJwtChangeRequest {
         this.keyId = keyId;
     }
 
-    public String getIss() {
-        return this.iss;
+    public String getIssuer() {
+        return this.issuer;
     }
 
-    public void setIss(final String iss) {
-        this.iss = iss;
+    public void setIssuer(String issuer) {
+        this.issuer = issuer;
     }
 
-    public String getSub() {
-        return this.sub;
+    public String getSubject() {
+        return this.subject;
     }
 
-    public void setSub(final String sub) {
-        this.sub = sub;
+    public void setSubject(String subject) {
+        this.subject = subject;
     }
 
-    public String getAud() {
-        return this.aud;
+    public String getAudience() {
+        return this.audience;
     }
 
-    public void setAud(final String aud) {
-        this.aud = aud;
+    public void setAudience(String audience) {
+        this.audience = audience;
     }
 
     public String getChangeValue() {
@@ -122,12 +122,12 @@ public class ClientJwtChangeRequest {
 
     @JsonIgnore
     public boolean isFederated() {
-        return ((changeMode == ADD || changeMode == UPDATE) && iss != null && sub != null) ||
-                (changeMode == DELETE && (iss != null || sub != null));
+        return ((changeMode == ADD || changeMode == UPDATE) && issuer != null && subject != null) ||
+                (changeMode == DELETE && (issuer != null || subject != null));
     }
 
     @JsonIgnore
     public ClientJwtCredential getFederation() {
-        return ClientJwtCredential.builder().issuer(iss).subject(sub).audience(aud).build();
+        return new ClientJwtCredential(subject, issuer, audience);
     }
 }

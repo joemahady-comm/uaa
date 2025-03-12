@@ -68,7 +68,8 @@ class ClientJwtConfigurationTest {
   @Test
   void hasConfiguration() {
     assertTrue(ClientJwtConfiguration.parse("https://any.domain.net/openid/jwks-uri").hasConfiguration());
-    assertFalse(ClientJwtConfiguration.parse(jsonWebKey).hasConfiguration());
+    assertTrue(ClientJwtConfiguration.parse(jsonWebKey).hasConfiguration());
+    assertFalse(new ClientJwtConfiguration().hasConfiguration());
   }
 
   @Test

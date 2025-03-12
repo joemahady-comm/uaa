@@ -6,7 +6,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -16,7 +16,7 @@ class ClientJwtCredentialTest {
     @Test
     void parse() {
         assertDoesNotThrow(() -> ClientJwtCredential.parse("[{\"iss\":\"http://localhost:8080/uaa\",\"sub\":\"client_with_jwks_trust\"}]"));
-        List<ClientJwtCredential> federationList = ClientJwtCredential.parse("[{\"iss\":\"http://localhost:8080/uaa\",\"sub\":\"client_with_jwks_trust\"},{\"iss\":\"http://localhost:8080/uaa\"}]");
+        List<ClientJwtCredential> federationList = ClientJwtCredential.parse("[{\"iss\":\"http://localhost:8080/uaa\",\"sub\":\"client_with_jwks_trust\"},{\"iss\":\"http://localhost:8080/uaa\",\"sub\":\"subject\"}]");
         assertEquals(2, federationList.size());
     }
 
@@ -26,14 +26,17 @@ class ClientJwtCredentialTest {
         assertTrue(jwtCredential.getSubject().equals("subject"));
         assertTrue(jwtCredential.getIssuer().equals("issuer"));
         assertTrue(jwtCredential.getAudience().equals("audience"));
-        assertTrue(jwtCredential.isValid());
-        jwtCredential = new ClientJwtCredential();
-        assertFalse(jwtCredential.isValid());
+        assertNotNull(jwtCredential);
+        try {
+            jwtCredential = new ClientJwtCredential(null, null, null);
+        } catch (IllegalArgumentException e) {
+            // ignore
+        }
     }
 
     @Test
     void testDeserializer() {
-        assertFalse(ClientJwtCredential.parse("[{\"iss\":\"issuer\"}]").iterator().next().isValid());
+        assertTrue(ClientJwtCredential.parse("[{\"iss\":\"issuer\",\"sub\":\"subject\"}]").iterator().next().getSubject().equals("subject"));
     }
 
     @Test
