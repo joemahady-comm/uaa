@@ -47,11 +47,15 @@ public class IdentityZoneResolvingFilter extends OncePerRequestFilter implements
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
+    protected void doFilterInternal(
+            final HttpServletRequest request,
+            final HttpServletResponse response,
+            final FilterChain filterChain
+    ) throws ServletException, IOException {
+        final String hostname = request.getServerName();
+        final String subdomain = getSubdomain(hostname);
+
         IdentityZone identityZone = null;
-        String hostname = request.getServerName();
-        String subdomain = getSubdomain(hostname);
         if (subdomain != null) {
             try {
                 identityZone = dao.retrieveBySubdomain(subdomain);
@@ -66,7 +70,7 @@ public class IdentityZoneResolvingFilter extends OncePerRequestFilter implements
         }
         if (identityZone == null) {
             // skip filter to static resources in order to serve images and css in case of invalid zones
-            boolean isStaticResource = staticResources.stream().anyMatch(UaaUrlUtils.getRequestPath(request)::startsWith);
+            final boolean isStaticResource = staticResources.stream().anyMatch(UaaUrlUtils.getRequestPath(request)::startsWith);
             if (isStaticResource) {
                 filterChain.doFilter(request, response);
                 return;
@@ -76,6 +80,7 @@ public class IdentityZoneResolvingFilter extends OncePerRequestFilter implements
             response.sendError(HttpServletResponse.SC_NOT_FOUND, "Cannot find identity zone for subdomain " + subdomain);
             return;
         }
+
         try {
             IdentityZoneHolder.set(identityZone);
             filterChain.doFilter(request, response);
