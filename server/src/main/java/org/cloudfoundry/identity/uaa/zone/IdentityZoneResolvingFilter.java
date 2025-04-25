@@ -37,6 +37,12 @@ import java.util.Set;
  */
 public class IdentityZoneResolvingFilter extends OncePerRequestFilter implements InitializingBean {
 
+    /**
+     * Header for specifying the identity zone in which the request should be performed. If both a subdomain and the
+     * header are defined, the header takes precedence.
+     */
+    private static final String X_ZID_HEADER = "X-zid";
+
     private final IdentityZoneProvisioning dao;
     private final Set<String> staticResources = Set.of("/resources/", "/vendor/font-awesome/");
     private final Set<String> defaultZoneHostnames = new HashSet<>();
@@ -52,6 +58,7 @@ public class IdentityZoneResolvingFilter extends OncePerRequestFilter implements
             final HttpServletResponse response,
             final FilterChain filterChain
     ) throws ServletException, IOException {
+        final String zidFromHeader = request.getHeader(X_ZID_HEADER);
         final String hostname = request.getServerName();
         final String subdomain = getSubdomain(hostname);
 
