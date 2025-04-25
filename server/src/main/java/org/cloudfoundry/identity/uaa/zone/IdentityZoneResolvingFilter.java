@@ -63,18 +63,25 @@ public class IdentityZoneResolvingFilter extends OncePerRequestFilter implements
         final String subdomain = getSubdomain(hostname);
 
         IdentityZone identityZone = null;
-        if (subdomain != null) {
-            try {
+        String zoneResolvingDescription = null; // for logging and error messages
+        try {
+            if (zidFromHeader != null) {
+                zoneResolvingDescription = "zid '%s'".formatted(zidFromHeader);
+                identityZone = dao.retrieve(zidFromHeader);
+            } else {
+                zoneResolvingDescription = "subdomain '%s'".formatted(subdomain);
                 identityZone = dao.retrieveBySubdomain(subdomain);
-            } catch (EmptyResultDataAccessException ex) {
-                logger.debug("Cannot find identity zone for subdomain {}", subdomain);
-            } catch (Exception ex) {
-                String message = "Internal server error while fetching identity zone for subdomain" + subdomain;
-                logger.warn(message, ex);
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message);
-                return;
             }
+        } catch (final EmptyResultDataAccessException | ZoneDoesNotExistsException ex) {
+            logger.debug("Cannot find identity zone for {}", zoneResolvingDescription);
+        } catch (final Exception ex) {
+            final String message = "Internal server error while fetching identity zone for %s"
+                    .formatted(zoneResolvingDescription);
+            logger.warn(message, ex);
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message);
+            return;
         }
+
         if (identityZone == null) {
             // skip filter to static resources in order to serve images and css in case of invalid zones
             final boolean isStaticResource = staticResources.stream().anyMatch(UaaUrlUtils.getRequestPath(request)::startsWith);
@@ -84,7 +91,7 @@ public class IdentityZoneResolvingFilter extends OncePerRequestFilter implements
             }
 
             request.setAttribute("error_message_code", "zone.not.found");
-            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Cannot find identity zone for subdomain " + subdomain);
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Cannot find identity zone for %s".formatted(zoneResolvingDescription));
             return;
         }
 
