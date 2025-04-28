@@ -1,7 +1,10 @@
 package org.cloudfoundry.identity.uaa.zone;
 
+import org.apache.commons.lang3.StringUtils;
 import org.cloudfoundry.identity.uaa.annotations.WithDatabaseContext;
+import org.cloudfoundry.identity.uaa.util.AlphanumericRandomValueStringGenerator;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,8 +22,15 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 @WithDatabaseContext
 class IdentityZoneResolvingFilterTests {
@@ -232,5 +242,137 @@ class IdentityZoneResolvingFilterTests {
         filter.restoreDefaultHostnames(new HashSet<>(Collections.singletonList("uaa.MYCF2.com")));
         assertThat(filter.getDefaultZoneHostnames()).hasSize(1);
         assertThat(filter.getDefaultZoneHostnames()).contains("uaa.mycf2.com");
+    }
+
+    @Nested
+    class XZidHeader {
+        private static final String X_ZID_HEADER = "X-Zid";
+
+        private final String zoneASubdomain = generateRandomSubdomain();
+        private final String zoneAId = UUID.randomUUID().toString();
+        private final IdentityZone zoneA = MultitenancyFixture.identityZone(zoneAId, zoneASubdomain);
+
+        private final String zoneBSubdomain = generateRandomSubdomain();
+        private final String zoneBId = UUID.randomUUID().toString();
+        private final IdentityZone zoneB = MultitenancyFixture.identityZone(zoneBId, zoneBSubdomain);
+
+        private final IdentityZoneResolvingFilter filter;
+        private final IdentityZoneProvisioning identityZoneProvisioning = mock(IdentityZoneProvisioning.class);
+
+        public XZidHeader() {
+            this.filter = new IdentityZoneResolvingFilter(identityZoneProvisioning);
+            filter.setAdditionalInternalHostnames(Set.of("uaa.mycf.com"));
+        }
+
+        @Test
+        void subdomainNotSet_XZidSetToZoneA_ZoneAExists_ShouldUseZoneA() throws ServletException, IOException {
+            arrangeZoneExists(zoneA);
+            assertZoneIsResolved("uaa.mycf.com", zoneAId, zoneA);
+        }
+
+        @Test
+        void subdomainSetToZoneA_XZidSetToZoneB_BothZonesExist_ShouldUseZoneB() throws ServletException, IOException {
+            arrangeZoneExists(zoneA);
+            arrangeZoneExists(zoneB);
+            assertZoneIsResolved(zoneA.getSubdomain() + ".uaa.mycf.com", zoneBId, zoneB);
+        }
+
+        @Test
+        void subdomainSetToZoneA_XZidSetToZoneB_ZoneBDoesNotExist_ShouldReturn404() throws ServletException, IOException {
+            arrangeZoneExists(zoneA);
+            arrangeZoneDoesNotExist(zoneB);
+            assertZoneIsNotFound(zoneA.getSubdomain() + ".uaa.mycf.com", zoneBId);
+        }
+
+        @Test
+        void subdomainNotSet_XZidSetToZoneA_ZoneADoesNotExist_ShouldReturn404() throws ServletException, IOException {
+            arrangeZoneDoesNotExist(zoneA);
+            assertZoneIsNotFound("uaa.mycf.com", zoneAId);
+        }
+
+        @Test
+        void subdomainNotSet_XZidEmpty_ShouldReturn404() throws ServletException, IOException {
+            assertZoneIsNotFound("uaa.mycf.com", StringUtils.EMPTY);
+        }
+
+        private void assertZoneIsResolved(
+                final String hostname,
+                final String xZidHeader, // null -> no header
+                final IdentityZone expectedZone
+        ) throws ServletException, IOException {
+            final MockHttpServletRequest request = new MockHttpServletRequest();
+            request.setServerName(hostname);
+            if (xZidHeader != null) {
+                request.addHeader(X_ZID_HEADER, xZidHeader);
+            }
+
+            final MockHttpServletResponse response = new MockHttpServletResponse();
+
+            final MockFilterChain filterChain = new MockFilterChain() {
+                @Override
+                public void doFilter(final ServletRequest request, final ServletResponse response) {
+                    assertThat(IdentityZoneHolder.get()).isNotNull().isEqualTo(expectedZone);
+                    wasFilterExecuted = true;
+                }
+            };
+
+            filter.doFilter(request, response, filterChain);
+
+            assertThat(wasFilterExecuted).isTrue();
+
+            // IdZHolder must be reset to the UAA zone after the request is processed
+            assertThat(IdentityZoneHolder.get()).isEqualTo(IdentityZone.getUaa());
+        }
+
+        private void assertZoneIsNotFound(
+                final String hostname,
+                final String xZidHeader // null -> no header
+        ) throws ServletException, IOException {
+            final MockHttpServletRequest request = new MockHttpServletRequest();
+            request.setServerName(hostname);
+            if (xZidHeader != null) {
+                request.addHeader(X_ZID_HEADER, xZidHeader);
+            }
+
+            final MockHttpServletResponse response = mock(MockHttpServletResponse.class);
+
+            final MockFilterChain filterChain = new MockFilterChain() {
+                @Override
+                public void doFilter(final ServletRequest request, final ServletResponse response) {
+                    wasFilterExecuted = true;
+                }
+            };
+
+            filter.doFilter(request, response, filterChain);
+
+            assertThat(wasFilterExecuted).isFalse();
+            verify(response).sendError(eq(HttpServletResponse.SC_NOT_FOUND), anyString());
+
+            // IdZHolder must be reset to the UAA zone after the request is processed
+            assertThat(IdentityZoneHolder.get()).isEqualTo(IdentityZone.getUaa());
+        }
+
+        private void arrangeZoneExists(final IdentityZone identityZone) {
+            lenient().when(identityZoneProvisioning.retrieveBySubdomain(identityZone.getSubdomain())).thenReturn(identityZone);
+            lenient().when(identityZoneProvisioning.retrieve(identityZone.getId())).thenReturn(identityZone);
+        }
+
+        private void arrangeZoneDoesNotExist(final IdentityZone identityZone) {
+            lenient().when(identityZoneProvisioning.retrieveBySubdomain(identityZone.getSubdomain()))
+                    .thenThrow(new ZoneDoesNotExistsException("zone does not exist"));
+            lenient().when(identityZoneProvisioning.retrieve(identityZone.getId()))
+                    .thenThrow(new ZoneDoesNotExistsException("zone does not exist"));
+        }
+
+        private static String generateRandomSubdomain() {
+            final String randomString = new AlphanumericRandomValueStringGenerator(10).generate().toLowerCase();
+
+            // ensure string starts with letter
+            if ('0' <= randomString.charAt(0) && randomString.charAt(0) <= '9') {
+                return 'a' + randomString.substring(1);
+            }
+
+            return randomString;
+        }
     }
 }
