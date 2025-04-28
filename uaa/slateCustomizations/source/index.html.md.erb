@@ -26,6 +26,13 @@ The User Account and Authentication Service (UAA):
 - supports APIs for user account management for an external web UI
 - most of the APIs are defined by the specs for the OAuth2, OIDC, and SCIM standards.
 
+## Multi-tenancy: Identity Zones
+
+UAA supports multi-tenancy through the concept of identity zones.
+Each identity zone is accessed through a unique subdomain.
+
+Since UAA version 77.34.0, the identity zone can be overwritten by providing an identity zone ID in the `X-Zid` header
+if `login.zidHeaderEnabled` is set to `true`.
 
 # Authorization
 
