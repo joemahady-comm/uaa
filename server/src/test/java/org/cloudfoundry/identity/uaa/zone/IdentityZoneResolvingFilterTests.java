@@ -26,11 +26,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 class IdentityZoneResolvingFilterTests {
 
     private boolean wasFilterExecuted;
-    private IdentityZoneProvisioning dao;
+    private final IdentityZoneProvisioning dao;
+
+    public IdentityZoneResolvingFilterTests(@Autowired final JdbcTemplate jdbcTemplate) {
+        dao = new JdbcIdentityZoneProvisioning(jdbcTemplate);
+    }
 
     @BeforeEach
-    void setUp(@Autowired JdbcTemplate jdbcTemplate) {
-        dao = new JdbcIdentityZoneProvisioning(jdbcTemplate);
+    void setUp() {
         wasFilterExecuted = false;
     }
 
