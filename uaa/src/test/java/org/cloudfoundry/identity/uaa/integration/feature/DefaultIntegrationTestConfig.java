@@ -62,6 +62,7 @@ public class DefaultIntegrationTestConfig {
         ChromeOptions options = new ChromeOptions();
         options.addArguments(
           "--verbose",
+          "--guest",
           "--headless",
           "--disable-web-security",
           "--ignore-certificate-errors",
