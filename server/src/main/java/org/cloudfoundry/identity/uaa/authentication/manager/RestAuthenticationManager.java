@@ -90,12 +90,7 @@ public class RestAuthenticationManager implements AuthenticationManager {
         RestTemplate restTemplate = new RestTemplate();
         // The default java.net client doesn't allow you to handle 4xx responses
         restTemplate.setRequestFactory(new HttpComponentsClientHttpRequestFactory());
-        restTemplate.setErrorHandler(new DefaultResponseErrorHandler() {
-            @Override
-            protected boolean hasError(HttpStatus statusCode) {
-                return statusCode.series() == HttpStatus.Series.SERVER_ERROR;
-            }
-        });
+        restTemplate.setErrorHandler(new DefaultResponseErrorHandler());
         this.restTemplate = restTemplate;
     }
 

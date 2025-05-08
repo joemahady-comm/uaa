@@ -45,8 +45,8 @@ dependencies {
     implementation(libraries.javaxXmlBindApi)
     implementation(libraries.glassfishJaxb)
 
-    implementation(libraries.braveInstrumentationSpringWebmvc)
-    implementation(libraries.braveContextSlf4j)
+    //implementation(libraries.braveInstrumentationSpringWebmvc)
+    //implementation(libraries.braveContextSlf4j)
 
     providedCompile(libraries.tomcatEmbed)
     implementation(libraries.bouncyCastleFipsProv)

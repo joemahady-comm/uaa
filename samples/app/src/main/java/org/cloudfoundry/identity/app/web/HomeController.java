@@ -12,11 +12,12 @@
  *******************************************************************************/
 package org.cloudfoundry.identity.app.web;
 
+import jakarta.servlet.ServletException;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.security.Principal;
 
 @Controller
@@ -91,10 +92,10 @@ public class HomeController {
     }
 
     @RequestMapping("/logout")
-    public String logout(Model model, HttpServletRequest request) {
+    public String logout(Model model, HttpServletRequest request) throws ServletException {
         String redirect = request.getRequestURL().toString();
         model.addAttribute("cflogout", logoutUrl + "?client_id=app&redirect=" + redirect);
-        request.getSession().invalidate();
+        request.logout();
         return "loggedout";
     }
 

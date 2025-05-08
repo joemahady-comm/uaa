@@ -24,7 +24,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.filter.RequestContextFilter;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
-import javax.servlet.Filter;
+import jakarta.servlet.Filter;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -105,7 +105,6 @@ public class SpringServletXmlSecurityConfiguration {
     @Bean
     SecurityFilterChainPostProcessor securityFilterChainPostProcessor(
             UaaProperties.RootLevel rootLevel,
-            @Qualifier("tracingFilter") Filter tracingFilter,
             @Qualifier("metricsFilter") Filter metricsFilter,
             @Qualifier("headerFilter") Filter headerFilter,
             @Qualifier("contentSecurityPolicyFilter") Filter contentSecurityPolicyFilter,
@@ -143,7 +142,6 @@ public class SpringServletXmlSecurityConfiguration {
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), rateLimitingFilter);
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), springRequestContextFilter);
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), httpHeaderSecurityFilter);
-        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), tracingFilter);
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), metricsFilter);
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), headerFilter);
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), new BackwardsCompatibleScopeParsingFilter());

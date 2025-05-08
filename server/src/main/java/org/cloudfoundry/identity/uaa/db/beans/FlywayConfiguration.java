@@ -2,11 +2,13 @@ package org.cloudfoundry.identity.uaa.db.beans;
 
 import org.cloudfoundry.identity.uaa.db.FixFailedBackportMigrations_4_0_4;
 import org.flywaydb.core.Flyway;
+import org.springframework.boot.autoconfigure.flyway.FlywayMigrationInitializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Condition;
 import org.springframework.context.annotation.ConditionContext;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 
 import javax.sql.DataSource;
@@ -77,6 +79,24 @@ public class FlywayConfiguration {
         public Flyway flyway(Flyway baseFlyway) {
             return baseFlyway;
         }
+    }
+
+    /**
+     * Override default flyway initializer to do nothing
+     */
+    @Bean
+    FlywayMigrationInitializer flywayInitializer(Flyway flyway) {
+        return new FlywayMigrationInitializer(flyway, (f) -> {
+        });
+    }
+
+    /**
+     * Create a second flyway initializer to run after jpa has created the schema
+     */
+    @Bean
+    @DependsOn("transactionManager")
+    FlywayMigrationInitializer delayedFlywayInitializer(Flyway flyway) {
+        return new FlywayMigrationInitializer(flyway, null);
     }
 }
 

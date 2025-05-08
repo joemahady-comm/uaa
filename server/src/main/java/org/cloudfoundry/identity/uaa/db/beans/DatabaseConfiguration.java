@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerA
 import org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration;
 import org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -55,6 +56,7 @@ import java.util.Properties;
 public class DatabaseConfiguration {
 
     @Bean(destroyMethod = "close")
+    @DependsOnDatabaseInitialization
     org.apache.tomcat.jdbc.pool.DataSource dataSource(
             DatabaseProperties databaseProperties,
             List<JdbcUrlCustomizer> jdbcUrlCustomizers

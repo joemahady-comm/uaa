@@ -17,8 +17,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
 import java.lang.reflect.Field;
 
 import static org.springframework.util.ReflectionUtils.findField;
@@ -34,6 +34,8 @@ public class UaaBootApplication {
         );
         System.setProperty("spring.main.allow-bean-definition-overriding", "true");
         System.setProperty("spring.main.allow-circular-references", "true");
+        System.setProperty("spring.jpa.defer-datasource-initialization", "false");
+        System.setProperty("spring.flyway.depends-on", "entityManagerFactory");
         System.setProperty("server.servlet.context-path", "/uaa");
         SpringApplication application = new SpringApplication(UaaBootApplication.class);
         application.addInitializers(new YamlServletProfileInitializer());

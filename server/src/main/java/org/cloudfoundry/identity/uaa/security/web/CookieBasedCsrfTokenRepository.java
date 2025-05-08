@@ -27,9 +27,9 @@ import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.DefaultCsrfToken;
 import org.springframework.stereotype.Component;
 
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import static java.util.Optional.ofNullable;
 import static org.springframework.http.HttpHeaders.SET_COOKIE;
@@ -121,7 +121,7 @@ public class CookieBasedCsrfTokenRepository implements CsrfTokenRepository {
         } else {
             csrfCookie.setMaxAge(getCookieMaxAge());
         }
-        String headerValue = rfc6265CookieProcessor.generateHeader(csrfCookie);
+        String headerValue = rfc6265CookieProcessor.generateHeader(csrfCookie, request);
         response.addHeader(SET_COOKIE, headerValue);
     }
 

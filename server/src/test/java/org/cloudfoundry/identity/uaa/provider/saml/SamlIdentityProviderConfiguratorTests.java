@@ -15,7 +15,7 @@
 
 package org.cloudfoundry.identity.uaa.provider.saml;
 
-import org.apache.http.conn.ConnectTimeoutException;
+import org.apache.hc.client5.http.ConnectTimeoutException;
 import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
 import org.cloudfoundry.identity.uaa.cache.UrlContentCache;
 import org.cloudfoundry.identity.uaa.impl.config.RestTemplateConfig;

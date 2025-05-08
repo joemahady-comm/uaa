@@ -11,7 +11,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.View;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 @Controller
 public class CodeStoreEndpoints {
@@ -29,7 +29,7 @@ public class CodeStoreEndpoints {
         this.identityZoneManager = identityZoneManager;
     }
 
-    @RequestMapping(value = {"/Codes"}, method = RequestMethod.POST)
+    @PostMapping({"/Codes"})
     @ResponseStatus(HttpStatus.CREATED)
     @ResponseBody
     public ExpiringCode generateCode(@RequestBody ExpiringCode expiringCode) {
@@ -44,7 +44,7 @@ public class CodeStoreEndpoints {
         }
     }
 
-    @RequestMapping(value = "/Codes/{code}", method = RequestMethod.GET)
+    @GetMapping("/Codes/{code}")
     @ResponseBody
     public ExpiringCode retrieveCode(@PathVariable String code) {
         ExpiringCode result;

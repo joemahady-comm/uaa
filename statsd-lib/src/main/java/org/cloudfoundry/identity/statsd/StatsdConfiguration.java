@@ -44,8 +44,8 @@ public class StatsdConfiguration {
                         return null;
                     }
                     return triggerContext.lastCompletionTime() != null
-                            ? getFiveSecondsFrom(triggerContext.lastCompletionTime())
-                            : getFiveSecondsFrom(new Date());
+                            ? getFiveSecondsFrom(triggerContext.lastCompletionTime()).toInstant()
+                            : getFiveSecondsFrom(new Date()).toInstant();
                 });
     }
 

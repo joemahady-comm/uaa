@@ -43,3 +43,6 @@ processResources {
 integrationTest {}.onlyIf { //disable since we don't have any
     false
 }
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}

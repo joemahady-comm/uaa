@@ -136,7 +136,7 @@ class PasswordGrantIntegrationTests {
         template.setErrorHandler(new ResponseErrorHandler() {
             @Override
             public boolean hasError(ClientHttpResponse response) throws IOException {
-                return response.getRawStatusCode() >= 500;
+                return response.getStatusCode() >= 500;
             }
 
             @Override

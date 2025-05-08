@@ -12,13 +12,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
-import org.springframework.util.Base64Utils;
 
 import java.io.ByteArrayInputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -73,7 +73,7 @@ public class JdbcClientMetadataProvisioning implements ClientMetadataProvisionin
             ps.setString(pos++, appLaunchUrl == null ? null : appLaunchUrl.toString());
             String appIcon = resource.getAppIcon();
             if (appIcon != null) {
-                byte[] decodedAppIcon = Base64Utils.decode(appIcon.getBytes());
+                byte[] decodedAppIcon = Base64.getDecoder().decode(appIcon.getBytes());
                 ps.setBinaryStream(pos++, new ByteArrayInputStream(decodedAppIcon), decodedAppIcon.length);
             } else {
                 ps.setBinaryStream(pos++, new ByteArrayInputStream(new byte[]{}), 0);
@@ -116,7 +116,7 @@ public class JdbcClientMetadataProvisioning implements ClientMetadataProvisionin
             }
             byte[] iconBytes = rs.getBytes("app_icon");
             if (iconBytes != null) {
-                clientMetadata.setAppIcon(new String(Base64Utils.encode(iconBytes)));
+                clientMetadata.setAppIcon(new String(Base64.getEncoder().encode(iconBytes)));
             }
             clientMetadata.setCreatedBy(rs.getString("created_by"));
             String json = rs.getString("additional_information");

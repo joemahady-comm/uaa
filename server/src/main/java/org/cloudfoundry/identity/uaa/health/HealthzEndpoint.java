@@ -1,6 +1,6 @@
 package org.cloudfoundry.identity.uaa.health;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import javax.sql.DataSource;
 
 import java.sql.Connection;

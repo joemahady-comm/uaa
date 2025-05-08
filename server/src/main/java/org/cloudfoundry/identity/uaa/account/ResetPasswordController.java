@@ -22,7 +22,9 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -30,9 +32,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import java.sql.Timestamp;
 import java.util.Map;
 
@@ -66,7 +68,7 @@ public class ResetPasswordController {
         this.externalLoginUrl = externalLoginUrl;
     }
 
-    @RequestMapping(value = "/forgot_password", method = RequestMethod.GET)
+    @GetMapping("/forgot_password")
     public String forgotPasswordPage(Model model,
             @RequestParam(required = false, value = "client_id") String clientId,
             @RequestParam(required = false, value = "redirect_uri") String redirectUri,
@@ -79,8 +81,8 @@ public class ResetPasswordController {
         return "forgot_password";
     }
 
-    @RequestMapping(value = "/forgot_password.do", method = RequestMethod.POST)
-    public String forgotPassword(Model model, @RequestParam("username") String username, @RequestParam(value = "client_id", defaultValue = "") String clientId,
+    @PostMapping("/forgot_password.do")
+    public String forgotPassword(Model model, @RequestParam String username, @RequestParam(value = "client_id", defaultValue = "") String clientId,
             @RequestParam(value = "redirect_uri", defaultValue = "") String redirectUri, HttpServletResponse response) {
         if (!IdentityZoneHolder.get().getConfig().getLinks().getSelfService().isSelfServiceLinksEnabled()) {
             return handleSelfServiceDisabled(model, response, "error_message_code", "self_service_disabled");
@@ -155,8 +157,8 @@ public class ResetPasswordController {
         }
     }
 
-    @RequestMapping(value = "/email_sent", method = RequestMethod.GET)
-    public String emailSentPage(@ModelAttribute("code") String code,
+    @GetMapping("/email_sent")
+    public String emailSentPage(@ModelAttribute String code,
             HttpServletResponse response) {
         response.addHeader("Content-Security-Policy", "frame-ancestors 'none'");
         return "email_sent";
@@ -167,10 +169,10 @@ public class ResetPasswordController {
         // Some mail providers initially send a HEAD request to check the validity of the link before redirecting users.
     }
 
-    @RequestMapping(value = "/reset_password", method = RequestMethod.GET, params = {"code"})
+    @GetMapping(value = "/reset_password", params = {"code"})
     public String resetPasswordPage(Model model,
             HttpServletResponse response,
-            @RequestParam("code") String code) {
+            @RequestParam String code) {
 
         ExpiringCode expiringCode = checkIfUserExists(codeStore.retrieveCode(code, IdentityZoneHolder.get().getId()));
         if (expiringCode == null) {
@@ -212,11 +214,11 @@ public class ResetPasswordController {
         return code;
     }
 
-    @RequestMapping(value = "/reset_password.do", method = RequestMethod.POST)
+    @PostMapping("/reset_password.do")
     public void resetPassword(Model model,
-            @RequestParam("code") String code,
-            @RequestParam("email") String email,
-            @RequestParam("password") String password,
+            @RequestParam String code,
+            @RequestParam String email,
+            @RequestParam String password,
             @RequestParam("password_confirmation") String passwordConfirmation,
             HttpServletRequest request,
             HttpServletResponse response,

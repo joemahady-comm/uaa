@@ -28,11 +28,11 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.RedirectStrategy;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.Date;
 import java.util.Objects;
@@ -99,10 +99,10 @@ public class SessionResetFilter extends OncePerRequestFilter {
         return passwordModTime > lastAuthTime;
     }
 
-    protected void handleRedirect(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    protected void handleRedirect(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
         HttpSession session = request.getSession(false);
         if (session != null) {
-            session.invalidate();
+            request.logout();
         }
         strategy.sendRedirect(request, response, getRedirectUrl());
     }

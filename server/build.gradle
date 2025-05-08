@@ -47,7 +47,7 @@ dependencies {
     implementation(libraries.thymeleafDialect) {
         exclude(module: "ognl")
     }
-    implementation(libraries.thymeleafExtrasSpringSecurity5) {
+    implementation(libraries.thymeleafExtrasSpringSecurity6) {
         exclude(module: "ognl")
     }
 
@@ -150,4 +150,7 @@ task tomcatListenerJar(type: Jar) {
 
 artifacts {
     archives(tomcatListenerJar)
+}
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
 }
