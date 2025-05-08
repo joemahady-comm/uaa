@@ -42,7 +42,6 @@ public class AccountSavingAuthenticationSuccessHandler implements Authentication
     private final CurrentUserCookieFactory currentUserCookieFactory;
     private final Logger logger = LoggerFactory.getLogger(AccountSavingAuthenticationSuccessHandler.class);
 
-    @Autowired
     public AccountSavingAuthenticationSuccessHandler(SavedRequestAwareAuthenticationSuccessHandler redirectingHandler, CurrentUserCookieFactory currentUserCookieFactory) {
         this.redirectingHandler = redirectingHandler;
         this.currentUserCookieFactory = currentUserCookieFactory;

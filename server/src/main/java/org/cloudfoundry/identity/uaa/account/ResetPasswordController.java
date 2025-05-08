@@ -216,9 +216,9 @@ public class ResetPasswordController {
 
     @PostMapping("/reset_password.do")
     public void resetPassword(Model model,
-            @RequestParam String code,
-            @RequestParam String email,
-            @RequestParam String password,
+            @RequestParam("code") String code,
+            @RequestParam("email") String email,
+            @RequestParam("password") String password,
             @RequestParam("password_confirmation") String passwordConfirmation,
             HttpServletRequest request,
             HttpServletResponse response,

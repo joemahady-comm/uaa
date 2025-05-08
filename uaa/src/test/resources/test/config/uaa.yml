@@ -12,7 +12,7 @@ encryption:
 foo: bar
 spring_profiles: hsqldb
 logging:
-  file.path: /tmp/uaa/logs
+  path: /tmp/uaa/logs
 oauth:
   client:
     autoapprove:
