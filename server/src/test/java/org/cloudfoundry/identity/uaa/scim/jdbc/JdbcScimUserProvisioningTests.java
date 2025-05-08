@@ -256,8 +256,7 @@ class JdbcScimUserProvisioningTests {
         assertThat(created.getOrigin()).isEqualTo(LOGIN_SERVER);
         assertThat(jdbcTemplate.queryForObject(
                 "select count(*) from users where origin=? and identity_zone_id=?",
-                Integer.class
-        ,
+                Integer.class,
                 new Object[]{LOGIN_SERVER, IdentityZone.getUaaZoneId()})).isOne();
         addMembership(jdbcTemplate, created.getId(), created.getOrigin(), IdentityZone.getUaaZoneId());
         assertThat(jdbcTemplate.queryForObject("select count(*) from group_membership where member_id=?", Integer.class, new Object[]{created.getId()})).isOne();

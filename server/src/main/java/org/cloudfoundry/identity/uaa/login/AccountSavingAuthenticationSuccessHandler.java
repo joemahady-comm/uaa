@@ -42,6 +42,7 @@ public class AccountSavingAuthenticationSuccessHandler implements Authentication
     private final CurrentUserCookieFactory currentUserCookieFactory;
     private final Logger logger = LoggerFactory.getLogger(AccountSavingAuthenticationSuccessHandler.class);
 
+    @Autowired
     public AccountSavingAuthenticationSuccessHandler(SavedRequestAwareAuthenticationSuccessHandler redirectingHandler, CurrentUserCookieFactory currentUserCookieFactory) {
         this.redirectingHandler = redirectingHandler;
         this.currentUserCookieFactory = currentUserCookieFactory;
@@ -83,7 +84,7 @@ public class AccountSavingAuthenticationSuccessHandler implements Authentication
         try {
             currentUserCookie = currentUserCookieFactory.getCookie(uaaPrincipal);
         } catch (CurrentUserCookieFactory.CurrentUserCookieEncodingException e) {
-            logger.error("There was an error while creating the Current-Account cookie for user %s".formatted(uaaPrincipal.getId()), e);
+            logger.error("There was an error while creating the Current-Account cookie for user {}", uaaPrincipal.getId(), e);
         }
         String headerValue = rfc6265CookieProcessor.generateHeader(currentUserCookie, request);
         response.addHeader(SET_COOKIE, headerValue);
