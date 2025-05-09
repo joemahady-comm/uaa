@@ -239,7 +239,7 @@ public class InvitationsController {
     }
 
     @PostMapping("/accept.do")
-    public String acceptInvitation(@RequestParam String password,
+    public String acceptInvitation(@RequestParam("password") String password,
             @RequestParam("password_confirmation") String passwordConfirmation,
             @RequestParam String code,
             @RequestParam(value = "does_user_consent", required = false) boolean doesUserConsent,
