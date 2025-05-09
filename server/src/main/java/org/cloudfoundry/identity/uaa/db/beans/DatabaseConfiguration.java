@@ -9,9 +9,9 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerA
 import org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration;
 import org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -55,9 +55,16 @@ import java.util.Properties;
 @EnableConfigurationProperties(DatabaseProperties.class)
 public class DatabaseConfiguration {
 
+    @Primary
     @Bean(destroyMethod = "close")
-    @DependsOnDatabaseInitialization
     org.apache.tomcat.jdbc.pool.DataSource dataSource(
+            DatabaseProperties databaseProperties,
+            List<JdbcUrlCustomizer> jdbcUrlCustomizers
+    ) {
+        return createDataSource(databaseProperties, jdbcUrlCustomizers);
+    }
+
+    static org.apache.tomcat.jdbc.pool.DataSource createDataSource(
             DatabaseProperties databaseProperties,
             List<JdbcUrlCustomizer> jdbcUrlCustomizers
     ) {
@@ -87,6 +94,15 @@ public class DatabaseConfiguration {
         return dataSource;
     }
 
+    @Bean
+    JdbcTemplate jdbcTemplate(DataSource dataSource) {
+        return new JdbcTemplate(dataSource);
+    }
+
+    @Bean
+    NamedParameterJdbcTemplate namedParameterJdbcTemplate(DataSource dataSource) {
+        return new NamedParameterJdbcTemplate(dataSource);
+    }
     /**
      * Add a platform-specific timeout to the JDBC url.
      */
