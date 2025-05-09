@@ -27,7 +27,6 @@ dependencies {
 
 test {
     exclude("org/cloudfoundry/identity/api/web/*IntegrationTests.class")
-    useJUnitPlatform()
 }
 
 integrationTest {

@@ -19,6 +19,3 @@ dependencies {
     testImplementation(identityServer.configurations.testImplementation.dependencies)
     testImplementation(identityServer.sourceSets.test.output)
 }
-tasks.withType(Test).configureEach {
-    useJUnitPlatform()
-}
