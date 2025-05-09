@@ -135,12 +135,7 @@ public class IntegrationTestUtils {
     public static final String OIDC_ACCEPTANCE_URL = "https://oidc10.uaa-acceptance.cf-app.com/";
     private static final Base64.Encoder BASE_64_ENCODER = Base64.getEncoder();
 
-    private static final DefaultResponseErrorHandler fiveHundredErrorHandler = new DefaultResponseErrorHandler() {
-        @Override
-        protected boolean hasError(HttpStatus statusCode) {
-            return statusCode.is5xxServerError();
-        }
-    };
+    private static final DefaultResponseErrorHandler fiveHundredErrorHandler = new DefaultResponseErrorHandler();
 
     public static void updateUserToForcePasswordChange(RestTemplate restTemplate, String baseUrl, String adminToken, String userId) {
         updateUserToForcePasswordChange(restTemplate, baseUrl, adminToken, userId, null);
@@ -781,12 +776,7 @@ public class IntegrationTestUtils {
                                                         UaaClientDetails client) {
 
         RestTemplate template = new RestTemplate();
-        template.setErrorHandler(new DefaultResponseErrorHandler() {
-            @Override
-            protected boolean hasError(HttpStatus statusCode) {
-                return statusCode.is5xxServerError();
-            }
-        });
+        template.setErrorHandler(new DefaultResponseErrorHandler());
         MultiValueMap<String, String> headers = new LinkedMultiValueMap<>();
         headers.add("Accept", APPLICATION_JSON_VALUE);
         headers.add("Authorization", "bearer " + adminToken);

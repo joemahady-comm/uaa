@@ -160,12 +160,7 @@ class RemoteAuthenticationEndpointTests {
         if (restTemplate instanceof OAuth2RestTemplate oAuth2RestTemplate) {
             oAuth2RestTemplate.setErrorHandler(new UaaOauth2ErrorHandler(oAuth2RestTemplate.getResource(), HttpStatus.Series.SERVER_ERROR));
         } else {
-            restTemplate.setErrorHandler(new DefaultResponseErrorHandler() {
-                @Override
-                protected boolean hasError(HttpStatus statusCode) {
-                    return statusCode.series() == HttpStatus.Series.SERVER_ERROR;
-                }
-            });
+            restTemplate.setErrorHandler(new DefaultResponseErrorHandler());
         }
         HttpHeaders headers = new HttpHeaders();
         if (additionalParams != null) {

@@ -74,7 +74,8 @@ public class AutologinRequestConverter extends AbstractHttpMessageConverter<Auto
 
         UnaryOperator<String> getValue;
         if (isJsonContent(inputMessage.getHeaders().get(HttpHeaders.CONTENT_TYPE))) {
-            Map<String, String> map = JsonUtils.readValue(stringConverter.read(String.class, inputMessage),
+            String jsonString = inputMessage.getBody() == null ? null :  stringConverter.read(String.class, inputMessage);
+            Map<String, String> map = jsonString == null ? null : JsonUtils.readValue(jsonString,
                     new TypeReference<Map<String, String>>() {
                     });
             if (map == null) {

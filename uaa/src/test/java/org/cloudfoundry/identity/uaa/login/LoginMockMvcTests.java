@@ -1120,7 +1120,7 @@ public class LoginMockMvcTests {
         MockHttpSession session = new MockHttpSession();
         SecurityContext securityContext = new SecurityContextImpl();
         securityContext.setAuthentication(principal);
-        session.putValue("SPRING_SECURITY_CONTEXT", securityContext);
+        session.setAttribute("SPRING_SECURITY_CONTEXT", securityContext);
         MockHttpServletRequestBuilder get = get("/oauth/authorize")
                 .accept(TEXT_HTML)
                 .param("response_type", "code")

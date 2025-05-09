@@ -172,12 +172,7 @@ public class InvitationsIT {
     @Test
     void invite_fails() {
         RestTemplate uaaTemplate = new RestTemplate();
-        uaaTemplate.setErrorHandler(new DefaultResponseErrorHandler() {
-            @Override
-            protected boolean hasError(HttpStatus statusCode) {
-                return statusCode.is5xxServerError();
-            }
-        });
+        uaaTemplate.setErrorHandler(new DefaultResponseErrorHandler());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(APPLICATION_JSON);
         HttpEntity<String> request = new HttpEntity<>("{\"emails\":[\"marissa@test.org\"]}", headers);

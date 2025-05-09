@@ -26,7 +26,7 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWit
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
-import static org.springframework.restdocs.request.RequestDocumentation.requestParameters;
+import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
 import static org.springframework.restdocs.snippet.Attributes.key;
 import static org.cloudfoundry.identity.uaa.oauth.common.util.OAuth2Utils.CLIENT_ID;
 import static org.cloudfoundry.identity.uaa.oauth.common.util.OAuth2Utils.REDIRECT_URI;
@@ -63,7 +63,7 @@ class InvitationsEndpointDocs extends EndpointDocs {
                 fieldWithPath("emails").attributes(key("constraints").value("Required")).description("User is invited by providing an email address. More than one email addresses can be provided.")
         );
 
-        Snippet requestParameters = requestParameters(
+        Snippet requestParameters = queryParameters(
                 parameterWithName("client_id").attributes(key("constraints").value("Optional"), key("type").value(STRING)).description("A unique string representing the registration information provided by the client"),
                 parameterWithName("redirect_uri").attributes(key("constraints").value("Required"), key("type").value(STRING)).description("The user will be redirected to this uri, when user accepts the invitation. The redirect_uri will be validated against allowed redirect_uri for the client.")
         );

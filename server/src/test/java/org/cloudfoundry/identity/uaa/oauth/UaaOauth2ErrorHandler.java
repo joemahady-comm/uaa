@@ -31,6 +31,6 @@ public class UaaOauth2ErrorHandler extends OAuth2ErrorHandler {
 
     @Override
     public boolean hasError(ClientHttpResponse response) throws IOException {
-        return errorAtLevel.value() - response.getStatusCode().series().value() <= 0;
+        return errorAtLevel.value() - response.getStatusCode().value() <= 0;
     }
 }

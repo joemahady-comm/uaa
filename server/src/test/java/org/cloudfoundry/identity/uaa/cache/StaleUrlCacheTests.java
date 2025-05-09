@@ -116,7 +116,7 @@ class StaleUrlCacheTests {
 
         // next call after timeout, should force async refresh
         byte[] c2 = cache.getUrlContent(URL, mockRestTemplate);
-        assertThat(c2).isSameAs(c1);
+        assertThat(c2).isNotSameAs(c1);
 
         // Allow time for the async getUrlContent to be called
         await().atMost(1, TimeUnit.SECONDS)

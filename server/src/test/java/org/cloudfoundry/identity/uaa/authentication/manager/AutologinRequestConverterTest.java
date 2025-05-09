@@ -7,6 +7,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpOutputMessage;
 import org.springframework.http.MediaType;
+import org.springframework.mock.http.MockHttpInputMessage;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -20,10 +21,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 class AutologinRequestConverterTest {
 
-    private final List<String> jsonMediaType = List.of(MediaType.APPLICATION_JSON_VALUE);
+    private final List<String> jsonMediaType = List.of(APPLICATION_JSON_VALUE);
     private final List<String> htmlMediaType = List.of(MediaType.APPLICATION_XHTML_XML_VALUE);
 
     private AutologinRequest autologinRequest;
@@ -65,9 +67,9 @@ class AutologinRequestConverterTest {
     @Test
     void readInternalFromJson() throws IOException {
         InputStream inputStream = new ByteArrayInputStream("{ \"username\": \"user\",\"password\": \"pwd\" }".getBytes(StandardCharsets.UTF_8));
-        when(httpHeaders.get(HttpHeaders.CONTENT_TYPE)).thenReturn(jsonMediaType);
-        when(inputMessage.getBody()).thenReturn(inputStream);
-        AutologinRequest autologin = autologinRequestConverter.readInternal(autologinRequest.getClass(), inputMessage);
+        MockHttpInputMessage inputMessageEx = new MockHttpInputMessage(inputStream);
+        inputMessageEx.getHeaders().add(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON_VALUE);
+        AutologinRequest autologin = autologinRequestConverter.readInternal(autologinRequest.getClass(), inputMessageEx);
         assertThat(autologin).isNotNull();
         assertThat(autologin.getUsername()).isEqualTo("user");
         assertThat(autologin.getPassword()).isEqualTo("pwd");

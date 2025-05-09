@@ -423,7 +423,7 @@ class LoginServerSecurityIntegrationTests {
         }
         @SuppressWarnings("rawtypes")
         ResponseEntity<Map> response = serverRunning.postForMap(serverRunning.getAccessTokenUri(), params, headers);
-        HttpStatus statusCode = response.getStatusCode();
+        HttpStatus statusCode = HttpStatus.valueOf(response.getStatusCode().value());
         assertThat(statusCode == HttpStatus.FORBIDDEN || statusCode == HttpStatus.UNAUTHORIZED).as("Status code should be 401 or 403.").isTrue();
     }
 
