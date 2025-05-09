@@ -95,7 +95,7 @@ public class HomeController {
     public String logout(Model model, HttpServletRequest request) throws ServletException {
         String redirect = request.getRequestURL().toString();
         model.addAttribute("cflogout", logoutUrl + "?client_id=app&redirect=" + redirect);
-        request.logout();
+        request.getSession().invalidate();
         return "loggedout";
     }
 

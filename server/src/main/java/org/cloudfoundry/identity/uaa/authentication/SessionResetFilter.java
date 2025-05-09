@@ -102,7 +102,7 @@ public class SessionResetFilter extends OncePerRequestFilter {
     protected void handleRedirect(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
         HttpSession session = request.getSession(false);
         if (session != null) {
-            request.logout();
+            request.getSession().invalidate();
         }
         strategy.sendRedirect(request, response, getRedirectUrl());
     }
