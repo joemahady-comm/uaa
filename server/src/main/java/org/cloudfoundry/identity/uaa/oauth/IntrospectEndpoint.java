@@ -30,7 +30,7 @@ public class IntrospectEndpoint {
 
     @PostMapping("/introspect")
     @ResponseBody
-    public IntrospectionClaims introspect(@RequestParam String token) {
+    public IntrospectionClaims introspect(@RequestParam("token") String token) {
         IntrospectionClaims introspectionClaims = new IntrospectionClaims();
 
         try {

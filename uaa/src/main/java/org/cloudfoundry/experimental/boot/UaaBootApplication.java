@@ -34,8 +34,6 @@ public class UaaBootApplication {
         );
         System.setProperty("spring.main.allow-bean-definition-overriding", "true");
         System.setProperty("spring.main.allow-circular-references", "true");
-        System.setProperty("spring.jpa.defer-datasource-initialization", "false");
-        System.setProperty("spring.flyway.depends-on", "entityManagerFactory");
         System.setProperty("server.servlet.context-path", "/uaa");
         SpringApplication application = new SpringApplication(UaaBootApplication.class);
         application.addInitializers(new YamlServletProfileInitializer());

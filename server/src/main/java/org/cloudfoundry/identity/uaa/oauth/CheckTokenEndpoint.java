@@ -83,7 +83,7 @@ public class CheckTokenEndpoint implements InitializingBean {
     @ResponseBody
     @Deprecated
     public Claims checkToken(@RequestParam(name = "token", required = false, defaultValue = "") String value,
-                             @RequestParam(required = false, defaultValue = "") List<String> scopes,
+                             @RequestParam(name = "scopes", required = false, defaultValue = "") List<String> scopes,
                              HttpServletRequest request) throws HttpRequestMethodNotSupportedException {
 
         if (!hadParsedAllArgs(request)) {

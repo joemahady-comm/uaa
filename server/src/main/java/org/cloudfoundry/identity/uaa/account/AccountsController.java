@@ -12,9 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,6 +23,9 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import java.util.List;
+
+import static org.springframework.web.bind.annotation.RequestMethod.GET;
+import static org.springframework.web.bind.annotation.RequestMethod.POST;
 
 @Controller
 public class AccountsController {
@@ -39,7 +40,7 @@ public class AccountsController {
         this.identityProviderProvisioning = identityProviderProvisioning;
     }
 
-    @GetMapping("/create_account")
+    @RequestMapping(value = "/create_account", method = GET)
     public String activationEmail(Model model,
                                   @RequestParam(value = "client_id", required = false) String clientId,
                                   @RequestParam(value = "redirect_uri", required = false) String redirectUri,
@@ -54,12 +55,12 @@ public class AccountsController {
         return "accounts/new_activation_email";
     }
 
-    @PostMapping("/create_account.do")
+    @RequestMapping(value = "/create_account.do", method = POST)
     public String sendActivationEmail(Model model, HttpServletResponse response,
                                       @RequestParam(value = "client_id", required = false) String clientId,
                                       @RequestParam(value = "redirect_uri", required = false) String redirectUri,
-                                      @Valid @ModelAttribute ValidEmail email, BindingResult result,
-                                      @RequestParam String password,
+                                      @Valid @ModelAttribute("email") ValidEmail email, BindingResult result,
+                                      @RequestParam("password") String password,
                                       @RequestParam("password_confirmation") String passwordConfirmation,
                                       @RequestParam(value = "does_user_consent", required = false) boolean doesUserConsent) {
 
@@ -94,7 +95,7 @@ public class AccountsController {
         return "redirect:accounts/email_sent";
     }
 
-    @GetMapping("/accounts/email_sent")
+    @RequestMapping(value = "/accounts/email_sent", method = RequestMethod.GET)
     public String emailSent() {
         return "accounts/email_sent";
     }
@@ -105,9 +106,9 @@ public class AccountsController {
         return "redirect:/login";
     }
 
-    @GetMapping("/verify_user")
+    @RequestMapping(value = "/verify_user", method = GET)
     public String verifyUser(Model model,
-                             @RequestParam String code,
+                             @RequestParam("code") String code,
                              HttpServletResponse response, HttpSession session) {
 
         AccountCreationService.AccountCreationResponse accountCreation;

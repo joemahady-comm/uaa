@@ -172,7 +172,7 @@ public class ResetPasswordController {
     @GetMapping(value = "/reset_password", params = {"code"})
     public String resetPasswordPage(Model model,
             HttpServletResponse response,
-            @RequestParam String code) {
+            @RequestParam("code") String code) {
 
         ExpiringCode expiringCode = checkIfUserExists(codeStore.retrieveCode(code, IdentityZoneHolder.get().getId()));
         if (expiringCode == null) {
