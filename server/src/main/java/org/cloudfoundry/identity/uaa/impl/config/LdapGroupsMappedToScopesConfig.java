@@ -10,6 +10,7 @@ import org.springframework.context.annotation.ConditionContext;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
 
@@ -26,7 +27,8 @@ public class LdapGroupsMappedToScopesConfig {
         }
     }
 
-    @Bean
+    @Primary
+    @Bean("configuredGroupRoleAttribute")
     public String configuredGroupRoleAttribute() {
         return "spring.security.ldap.dn";
     }

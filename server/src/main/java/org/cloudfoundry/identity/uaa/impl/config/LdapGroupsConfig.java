@@ -1,6 +1,7 @@
 package org.cloudfoundry.identity.uaa.impl.config;
 
 import org.cloudfoundry.identity.uaa.provider.ldap.extension.NestedLdapAuthoritiesPopulator;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 import org.springframework.ldap.core.ContextSource;
@@ -13,7 +14,7 @@ import static java.util.Optional.ofNullable;
 
 public class LdapGroupsConfig {
     @Bean
-    public LdapAuthoritiesPopulator nestedLdapAuthoritiesPopulator(ContextSource contextSource, Environment environment, String configuredGroupRoleAttribute) {
+    public LdapAuthoritiesPopulator nestedLdapAuthoritiesPopulator(ContextSource contextSource, Environment environment, @Qualifier("configuredGroupRoleAttribute") String configuredGroupRoleAttribute) {
         String searchBase = ofNullable(environment.getProperty("ldap.groups.searchBase")).orElse("ou=scopes,dc=test,dc=com");
         boolean searchSubtree = ofNullable(environment.getProperty("ldap.groups.searchSubtree")).map(Boolean::parseBoolean).orElse(true);
         String groupSearchFilter = ofNullable(environment.getProperty("ldap.groups.groupSearchFilter")).orElse("member={0}");

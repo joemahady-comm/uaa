@@ -6,6 +6,7 @@ import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
 import org.cloudfoundry.identity.uaa.util.ObjectUtils;
 import org.slf4j.Logger;
+import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -31,6 +32,7 @@ import static java.util.stream.Collectors.joining;
 import static org.cloudfoundry.identity.uaa.util.UaaStringUtils.isNotEmpty;
 
 @Slf4j
+@Primary
 @Component("identityProviderProvisioning")
 public class JdbcIdentityProviderProvisioning implements IdentityProviderProvisioning, SystemDeletable {
 

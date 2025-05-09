@@ -9,6 +9,7 @@ import org.cloudfoundry.identity.uaa.security.web.CookieBasedCsrfTokenRepository
 import org.cloudfoundry.identity.uaa.user.UaaUserDatabase;
 import org.cloudfoundry.identity.uaa.web.UaaSavedRequestAwareAuthenticationSuccessHandler;
 import org.cloudfoundry.identity.uaa.zone.beans.IdentityZoneManager;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -77,7 +78,7 @@ public class SamlAuthenticationFilterConfig {
         return samlUaaAuthenticationUserManager;
     }
 
-    @Bean
+    @Bean(name = "samlAuthenticationProvider")
     AuthenticationProvider samlAuthenticationProvider(IdentityZoneManager identityZoneManager,
             SamlUaaAuthenticationUserManager samlUaaAuthenticationUserManager,
             ApplicationEventPublisher applicationEventPublisher,
@@ -102,7 +103,7 @@ public class SamlAuthenticationFilterConfig {
      * Handles the return SAML2 Authentication Response from the IDP and creates the Authentication object.
      */
     @Bean
-    Filter saml2WebSsoAuthenticationFilter(AuthenticationProvider samlAuthenticationProvider,
+    Filter saml2WebSsoAuthenticationFilter(@Qualifier("samlAuthenticationProvider") AuthenticationProvider samlAuthenticationProvider,
             UaaRelyingPartyRegistrationResolver relyingPartyRegistrationResolver,
             SecurityContextRepository securityContextRepository,
             SamlLoginAuthenticationFailureHandler samlLoginAuthenticationFailureHandler,

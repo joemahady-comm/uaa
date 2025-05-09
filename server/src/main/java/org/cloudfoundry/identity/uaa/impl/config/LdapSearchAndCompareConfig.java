@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Condition;
 import org.springframework.context.annotation.ConditionContext;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 import org.springframework.ldap.core.support.BaseLdapPathContextSource;
@@ -15,6 +16,7 @@ import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMap
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.ldap.DefaultSpringSecurityContextSource;
 import org.springframework.security.ldap.authentication.LdapAuthenticationProvider;
+import org.springframework.security.ldap.authentication.NullLdapAuthoritiesPopulator;
 import org.springframework.security.ldap.search.FilterBasedLdapUserSearch;
 import org.springframework.security.ldap.userdetails.LdapAuthoritiesPopulator;
 
@@ -35,6 +37,7 @@ public class LdapSearchAndCompareConfig {
         }
     }
 
+    @Primary
     @Bean
     public DefaultSpringSecurityContextSource defaultSpringSecurityContextSource(Environment environment, Map ldapProperties,
             ProcessLdapProperties ldapPropertyProcessor) throws ClassNotFoundException, KeyManagementException, NoSuchAlgorithmException, InstantiationException, IllegalAccessException {
@@ -49,6 +52,12 @@ public class LdapSearchAndCompareConfig {
         contextSource.setPooled(false);
         contextSource.setAuthenticationStrategy(ldapPropertyProcessor.getAuthenticationStrategy());
         return contextSource;
+    }
+
+    @Primary
+    @Bean
+    public LdapAuthoritiesPopulator ldapAuthoritiesPopulator() {
+        return new NullLdapAuthoritiesPopulator();
     }
 
     @Bean
@@ -76,6 +85,7 @@ public class LdapSearchAndCompareConfig {
         return ldapAuthenticationProvider;
     }
 
+    @Primary
     @Bean
     public String testLdapProfile() {
         return "ldap-search-and-compare.xml";
