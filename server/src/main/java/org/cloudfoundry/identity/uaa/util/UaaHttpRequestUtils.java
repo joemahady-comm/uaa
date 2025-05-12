@@ -91,6 +91,7 @@ public abstract class UaaHttpRequestUtils {
     protected static HttpClientBuilder getClientBuilder(boolean skipSslValidation, int poolSize, int defaultMaxPerRoute, int maxKeepAlive, int validateAfterInactivity, int retryCount) {
         HttpClientBuilder builder = HttpClients.custom()
                 .useSystemProperties()
+                .setUserTokenHandler(() -> null)
                 .setRedirectStrategy(new DefaultRedirectStrategy());
         PoolingHttpClientConnectionManager cm;
         if (skipSslValidation) {
