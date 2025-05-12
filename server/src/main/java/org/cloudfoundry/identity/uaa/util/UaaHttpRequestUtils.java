@@ -15,6 +15,7 @@ package org.cloudfoundry.identity.uaa.util;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.hc.client5.http.impl.DefaultHttpRequestRetryStrategy;
+import org.apache.hc.client5.http.impl.NoopUserTokenHandler;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.core5.http.HeaderElement;
 import org.apache.hc.core5.http.HttpRequest;
@@ -91,7 +92,7 @@ public abstract class UaaHttpRequestUtils {
     protected static HttpClientBuilder getClientBuilder(boolean skipSslValidation, int poolSize, int defaultMaxPerRoute, int maxKeepAlive, int validateAfterInactivity, int retryCount) {
         HttpClientBuilder builder = HttpClients.custom()
                 .useSystemProperties()
-                .setUserTokenHandler(() -> null)
+                .setUserTokenHandler(new NoopUserTokenHandler())
                 .setRedirectStrategy(new DefaultRedirectStrategy());
         PoolingHttpClientConnectionManager cm;
         if (skipSslValidation) {
