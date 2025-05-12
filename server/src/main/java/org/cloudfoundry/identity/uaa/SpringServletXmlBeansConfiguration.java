@@ -209,6 +209,7 @@ public class SpringServletXmlBeansConfiguration {
     OAuth2AuthenticationEntryPoint oauthAuthenticationEntryPoint() {
         OAuth2AuthenticationEntryPoint bean = new OAuth2AuthenticationEntryPoint();
         bean.setRealmName("UAA/oauth");
+        bean.setExceptionTranslator(new UaaExceptionTranslator());
         return bean;
     }
 

@@ -2,7 +2,6 @@ package org.cloudfoundry.identity.uaa.oauth.provider.error;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.cloudfoundry.identity.uaa.authentication.UaaExceptionTranslator;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.servlet.HandlerExceptionResolver;
@@ -25,7 +24,7 @@ public abstract class AbstractOAuth2SecurityExceptionHandler {
     /** Logger available to subclasses */
     protected final Log logger = LogFactory.getLog(getClass());
 
-    private WebResponseExceptionTranslator<?> exceptionTranslator = new UaaExceptionTranslator();
+    private WebResponseExceptionTranslator<?> exceptionTranslator = new DefaultWebResponseExceptionTranslator();
 
     private OAuth2ExceptionRenderer exceptionRenderer = new DefaultOAuth2ExceptionRenderer();
 
