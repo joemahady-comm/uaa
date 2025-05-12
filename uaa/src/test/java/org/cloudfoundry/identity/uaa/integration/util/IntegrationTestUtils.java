@@ -51,6 +51,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
@@ -66,6 +67,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestOperations;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -135,7 +137,7 @@ public class IntegrationTestUtils {
     public static final String OIDC_ACCEPTANCE_URL = "https://oidc10.uaa-acceptance.cf-app.com/";
     private static final Base64.Encoder BASE_64_ENCODER = Base64.getEncoder();
 
-    private static final DefaultResponseErrorHandler fiveHundredErrorHandler = new DefaultResponseErrorHandler();
+    private static final DefaultResponseErrorHandler fiveHundredErrorHandler = new UaaResponseErrorHandler();
 
     public static void updateUserToForcePasswordChange(RestTemplate restTemplate, String baseUrl, String adminToken, String userId) {
         updateUserToForcePasswordChange(restTemplate, baseUrl, adminToken, userId, null);
@@ -776,7 +778,7 @@ public class IntegrationTestUtils {
                                                         UaaClientDetails client) {
 
         RestTemplate template = new RestTemplate();
-        template.setErrorHandler(new DefaultResponseErrorHandler());
+        template.setErrorHandler(new UaaResponseErrorHandler());
         MultiValueMap<String, String> headers = new LinkedMultiValueMap<>();
         headers.add("Accept", APPLICATION_JSON_VALUE);
         headers.add("Authorization", "bearer " + adminToken);
@@ -1642,6 +1644,20 @@ public class IntegrationTestUtils {
     public static class StatelessRequestFactory extends HttpRequestFactory {
         public StatelessRequestFactory() {
             super(true, true);
+        }
+    }
+
+    public static class UaaResponseErrorHandler extends DefaultResponseErrorHandler {
+        @Override
+        protected boolean hasError(int statusCode) {
+            HttpStatus.Series series = HttpStatus.Series.resolve(statusCode);
+            return (series == HttpStatus.Series.SERVER_ERROR);
+        }
+
+        @Override
+        public boolean hasError(ClientHttpResponse response) throws IOException {
+            HttpStatusCode statusCode = response.getStatusCode();
+            return statusCode.is5xxServerError();
         }
     }
 }
