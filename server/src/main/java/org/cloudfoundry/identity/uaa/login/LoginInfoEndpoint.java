@@ -58,6 +58,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import jakarta.servlet.http.Cookie;
@@ -827,7 +828,7 @@ public class LoginInfoEndpoint {
     }
 
     @PostMapping(value = "/login/idp_discovery")
-    public String discoverIdentityProvider(@RequestParam String email, @RequestParam(required = false) String skipDiscovery, @RequestParam(required = false, name = LOGIN_HINT_ATTRIBUTE) String loginHint, @RequestParam(required = false, name = USERNAME_PARAMETER) String username, Model model, HttpSession session, HttpServletRequest request) {
+    public String discoverIdentityProvider(@RequestParam String email, @RequestParam(required = false) String skipDiscovery, @RequestParam(required = false, name = LOGIN_HINT_ATTRIBUTE) String loginHint, @RequestParam(required = false, name = USERNAME_PARAMETER) String username, Model model, HttpSession session, RedirectAttributes redirectAttributes, HttpServletRequest request) {
         ClientDetails clientDetails = null;
         if (hasSavedOauthAuthorizeRequest(session)) {
             SavedRequest savedRequest = SessionUtils.getSavedRequestSession(session);
@@ -840,13 +841,16 @@ public class LoginInfoEndpoint {
         }
         if (StringUtils.hasText(loginHint)) {
             model.addAttribute(LOGIN_HINT_ATTRIBUTE, loginHint);
+            redirectAttributes.addAttribute(LOGIN_HINT_ATTRIBUTE, loginHint);
         }
         List<IdentityProvider> identityProviders = DomainFilter.filter(providerProvisioning.retrieveActive(IdentityZoneHolder.get().getId()), clientDetails, email, false);
 
         if (!StringUtils.hasText(skipDiscovery) && identityProviders.size() == 1) {
             IdentityProvider matchedIdp = identityProviders.get(0);
             if (matchedIdp.getType().equals(UAA)) {
-                model.addAttribute(LOGIN_HINT_ATTRIBUTE, new UaaLoginHint("uaa").toString());
+                String uaaLoginHint = new UaaLoginHint("uaa").toString();
+                model.addAttribute(LOGIN_HINT_ATTRIBUTE, uaaLoginHint);
+                redirectAttributes.addAttribute(LOGIN_HINT_ATTRIBUTE, uaaLoginHint);
                 return goToPasswordPage(email, model);
             } else {
                 String redirectUrl;
@@ -858,9 +862,11 @@ public class LoginInfoEndpoint {
 
         if (StringUtils.hasText(email)) {
             model.addAttribute(EMAIL_ATTRIBUTE, email);
+            redirectAttributes.addAttribute(EMAIL_ATTRIBUTE, email);
         }
         if (StringUtils.hasText(username)) {
             model.addAttribute(USERNAME_PARAMETER, username);
+            redirectAttributes.addAttribute(USERNAME_PARAMETER, username);
         }
         return "redirect:/login?discoveryPerformed=true";
     }
