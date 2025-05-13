@@ -32,8 +32,8 @@ public class OAuth2FilterConfig {
             UaaAuthorizationRequestManager authorizationRequestManager,
             Saml2BearerGrantAuthenticationConverter samlBearerGrantAuthenticationProvider,
             ExternalOAuthAuthenticationManager externalOAuthAuthenticationManager,
-            AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource,
-            AuthenticationEntryPoint basicAuthenticationEntryPoint) {
+            @Qualifier("authenticationDetailsSource") AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource,
+            @Qualifier("basicAuthenticationEntryPoint") AuthenticationEntryPoint basicAuthenticationEntryPoint) {
 
         BackwardsCompatibleTokenEndpointAuthenticationFilter authenticationFilter =
                 new BackwardsCompatibleTokenEndpointAuthenticationFilter("/oauth/token/alias/{registrationId}",
