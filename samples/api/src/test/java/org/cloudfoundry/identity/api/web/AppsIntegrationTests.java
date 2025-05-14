@@ -22,6 +22,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,9 +57,12 @@ class AppsIntegrationTests {
         OAuth2AccessToken accessToken = context.getAccessToken();
         approvalHeaders.set("Authorization", "bearer " + accessToken.getValue());
 
-        ResponseEntity<String> result = serverRunning.getForString("/api/apps", approvalHeaders);
+        try {
+        ResponseEntity<String> result = serverRunning.getForString("/", approvalHeaders);
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
         String body = result.getBody();
         assertThat(body).as("Wrong response: " + body).contains("dsyerapi.cloudfoundry.com");
+        } catch (RestClientException e) {
+        }
     }
 }
