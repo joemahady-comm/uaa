@@ -15,7 +15,6 @@ jar { enabled = false }
 war { archiveClassifier = '' }
 war { enabled = true }
 
-
 repositories {
     maven { url("https://repo.spring.io/libs-milestone") }
 }
@@ -97,6 +96,7 @@ dependencies {
     testImplementation(libraries.commonsIo)
     testImplementation(libraries.owaspEsapi)
     testImplementation(libraries.apacheHttpClient)
+    testImplementation(libraries.nimbusJwt)
 }
 
 ext {
