@@ -169,7 +169,7 @@ class HomeControllerViewTests extends TestClassNullifier {
 
     @Test
     void error500WithGenericException() throws Exception {
-        mockMvc.perform(get("/error500").requestAttr("jakarta.servlet..error.exception", new Exception("bad")))
+        mockMvc.perform(get("/error500").requestAttr("jakarta.servlet.error.exception", new Exception("bad")))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString(customFooterText)))
                 .andExpect(content().string(containsString(base64ProductLogo)));
@@ -177,7 +177,7 @@ class HomeControllerViewTests extends TestClassNullifier {
 
     @Test
     void error500WithSAMLExceptionAsCause() throws Exception {
-        mockMvc.perform(get("/error500").requestAttr("jakarta.servlet..error.exception", new Exception(new Saml2Exception("bad"))))
+        mockMvc.perform(get("/error500").requestAttr("jakarta.servlet.error.exception", new Exception(new Saml2Exception("bad"))))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(containsString(customFooterText)))
                 .andExpect(content().string(containsString(base64ProductLogo)));
@@ -185,7 +185,7 @@ class HomeControllerViewTests extends TestClassNullifier {
 
     @Test
     void error500WithMetadataProviderNotFoundExceptionCause() throws Exception {
-        mockMvc.perform(get("/error500").requestAttr("jakarta.servlet..error.exception", new Exception(new MetadataProviderNotFoundException("bad", new RuntimeException()))))
+        mockMvc.perform(get("/error500").requestAttr("jakarta.servlet.error.exception", new Exception(new MetadataProviderNotFoundException("bad", new RuntimeException()))))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(containsString(customFooterText)))
                 .andExpect(content().string(containsString(base64ProductLogo)));
