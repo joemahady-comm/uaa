@@ -1,15 +1,26 @@
 package org.cloudfoundry.identity.uaa;
 
 import org.apache.catalina.filters.HttpHeaderSecurityFilter;
+import org.cloudfoundry.identity.uaa.authentication.SessionResetFilter;
+import org.cloudfoundry.identity.uaa.authentication.UTF8ConversionFilter;
+import org.cloudfoundry.identity.uaa.metrics.UaaMetricsFilter;
+import org.cloudfoundry.identity.uaa.oauth.DisableIdTokenResponseTypeFilter;
 import org.cloudfoundry.identity.uaa.oauth.provider.authentication.OAuth2AuthenticationProcessingFilter;
 import org.cloudfoundry.identity.uaa.ratelimiting.RateLimitingFilter;
+import org.cloudfoundry.identity.uaa.scim.DisableInternalUserManagementFilter;
 import org.cloudfoundry.identity.uaa.scim.DisableUserManagementSecurityFilter;
+import org.cloudfoundry.identity.uaa.security.web.ContentSecurityPolicyFilter;
+import org.cloudfoundry.identity.uaa.security.web.CorsFilter;
 import org.cloudfoundry.identity.uaa.security.web.SecurityFilterChainPostProcessor;
 import org.cloudfoundry.identity.uaa.web.BackwardsCompatibleScopeParsingFilter;
 import org.cloudfoundry.identity.uaa.web.FilterChainOrder;
+import org.cloudfoundry.identity.uaa.web.HeaderFilter;
+import org.cloudfoundry.identity.uaa.web.LimitedModeUaaFilter;
 import org.cloudfoundry.identity.uaa.web.UaaFilterChain;
+import org.cloudfoundry.identity.uaa.zone.IdentityZoneResolvingFilter;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneSwitchingFilter;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -125,6 +136,8 @@ public class SpringServletXmlSecurityConfiguration {
             @Qualifier("springRequestContextFilter") RequestContextFilter springRequestContextFilter,
             @Qualifier("rateLimitingFilter")RateLimitingFilter rateLimitingFilter
     ) {
+        Filter utf8ConversionFilter = new UTF8ConversionFilter();
+
         SecurityFilterChainPostProcessor bean = new SecurityFilterChainPostProcessor();
         bean.setDumpRequests(rootLevel.dump_requests());
         bean.setRequireHttps(rootLevel.require_https());
@@ -143,22 +156,22 @@ public class SpringServletXmlSecurityConfiguration {
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), springRequestContextFilter);
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), httpHeaderSecurityFilter);
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), metricsFilter);
-        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), headerFilter);
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), headerFilter.getFilter());
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), new BackwardsCompatibleScopeParsingFilter());
-        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), contentSecurityPolicyFilter);
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), contentSecurityPolicyFilter.getFilter());
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), utf8ConversionFilter);
-        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), limitedModeUaaFilter);
-        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), identityZoneResolvingFilter);
-        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), corsFilter);
-        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), disableIdTokenResponseFilter);
-        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), saml2WebSsoAuthenticationRequestFilter);
-        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), saml2WebSsoAuthenticationFilter);
-        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.after(OAuth2AuthenticationProcessingFilter.class), identityZoneSwitchingFilter);
-        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.after(IdentityZoneSwitchingFilter.class), saml2LogoutRequestFilter);
-        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.after(Saml2LogoutRequestFilter.class), saml2LogoutResponseFilter);
-        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.after(Saml2LogoutResponseFilter.class), userManagementSecurityFilter);
-        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.after(DisableUserManagementSecurityFilter.class), userManagementFilter);
-        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(102), sessionResetFilter);
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), limitedModeUaaFilter.getFilter());
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), identityZoneResolvingFilter.getFilter());
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), corsFilter.getFilter());
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), disableIdTokenResponseFilter.getFilter());
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), saml2WebSsoAuthenticationRequestFilter.getFilter());
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), saml2WebSsoAuthenticationFilter.getFilter());
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.after(OAuth2AuthenticationProcessingFilter.class), identityZoneSwitchingFilter.getFilter());
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.after(IdentityZoneSwitchingFilter.class), saml2LogoutRequestFilter.getFilter());
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.after(Saml2LogoutRequestFilter.class), saml2LogoutResponseFilter.getFilter());
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.after(Saml2LogoutResponseFilter.class), userManagementSecurityFilter.getFilter());
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.after(DisableUserManagementSecurityFilter.class), userManagementFilter.getFilter());
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(102), sessionResetFilter.getFilter());
 
         bean.setAdditionalFilters(additionalFilters);
 
