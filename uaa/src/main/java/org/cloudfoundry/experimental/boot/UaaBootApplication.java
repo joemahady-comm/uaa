@@ -6,12 +6,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Import;
 
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
-import java.lang.reflect.Field;
-
-import static org.springframework.util.ReflectionUtils.findField;
-import static org.springframework.util.ReflectionUtils.getField;
 import java.io.File;
 
 @SpringBootApplication
@@ -50,5 +44,5 @@ public class UaaBootApplication {
         application.addInitializers(new YamlServletProfileInitializer());
         application.run(args);
     }
-        }
+
 }

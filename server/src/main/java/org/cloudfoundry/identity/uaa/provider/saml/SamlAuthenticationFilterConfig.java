@@ -107,7 +107,7 @@ public class SamlAuthenticationFilterConfig {
      * Handles the return SAML2 Authentication Response from the IDP and creates the Authentication object.
      */
     @Bean
-    Filter saml2WebSsoAuthenticationFilter(@Qualifier("samlAuthenticationProvider") AuthenticationProvider samlAuthenticationProvider,
+    FilterRegistrationBean saml2WebSsoAuthenticationFilter(@Qualifier("samlAuthenticationProvider") AuthenticationProvider samlAuthenticationProvider,
             UaaRelyingPartyRegistrationResolver relyingPartyRegistrationResolver,
             SecurityContextRepository securityContextRepository,
             SamlLoginAuthenticationFailureHandler samlLoginAuthenticationFailureHandler,
@@ -198,8 +198,6 @@ public class SamlAuthenticationFilterConfig {
                 logoutRequestValidator, logoutResponseResolver,
                 authenticationFailureHandler, securityContextLogoutHandlerWithHandler, csrfLogoutHandler,
                 cookieClearingLogoutHandlerWithHandler);
-        saml2LogoutRequestFilter.setLogoutRequestMatcher(new AntPathRequestMatcher("/saml/SingleLogout/alias/*"));
-        return saml2LogoutRequestFilter;
         filter.setLogoutRequestMatcher(new AntPathRequestMatcher("/saml/SingleLogout/alias/*"));
         FilterRegistrationBean<Saml2LogoutRequestFilter> bean = new FilterRegistrationBean<>(filter);
         bean.setEnabled(false);
