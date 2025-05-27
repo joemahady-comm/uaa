@@ -17,6 +17,7 @@ import org.cloudfoundry.identity.uaa.util.TimeService;
 import org.cloudfoundry.identity.uaa.util.UaaUrlUtils;
 import org.cloudfoundry.identity.uaa.web.HeaderFilter;
 import org.cloudfoundry.identity.uaa.web.LimitedModeUaaFilter;
+import org.cloudfoundry.identity.uaa.zone.IdentityZoneMismatchCheckFilter;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneProvisioning;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneResolvingFilter;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneSwitchingFilter;
@@ -181,6 +182,20 @@ public class SpringServletXmlFiltersConfiguration {
         )));
         filter.setAdditionalInternalHostnames(zoneProps.internal().hostnames());
         FilterRegistrationBean<IdentityZoneResolvingFilter> bean = new FilterRegistrationBean<>(filter);
+        bean.setEnabled(false);
+        return bean;
+    }
+
+    @Bean
+    FilterRegistrationBean<IdentityZoneMismatchCheckFilter> identityZoneMismatchCheckFilter(
+            final IdentityZoneManager identityZoneManager
+    ) {
+        final IdentityZoneMismatchCheckFilter filter = new IdentityZoneMismatchCheckFilter(
+                identityZoneManager,
+                new DefaultRedirectStrategy(),
+                "/login"
+        );
+        final FilterRegistrationBean<IdentityZoneMismatchCheckFilter> bean = new FilterRegistrationBean<>(filter);
         bean.setEnabled(false);
         return bean;
     }

@@ -17,6 +17,7 @@ import org.cloudfoundry.identity.uaa.web.FilterChainOrder;
 import org.cloudfoundry.identity.uaa.web.HeaderFilter;
 import org.cloudfoundry.identity.uaa.web.LimitedModeUaaFilter;
 import org.cloudfoundry.identity.uaa.web.UaaFilterChain;
+import org.cloudfoundry.identity.uaa.zone.IdentityZoneMismatchCheckFilter;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneResolvingFilter;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneSwitchingFilter;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -126,6 +127,7 @@ public class SpringServletXmlSecurityConfiguration {
             @Qualifier("disableIdTokenResponseFilter") FilterRegistrationBean<DisableIdTokenResponseTypeFilter> disableIdTokenResponseFilter,
             @Qualifier("saml2WebSsoAuthenticationRequestFilter") FilterRegistrationBean<Filter> saml2WebSsoAuthenticationRequestFilter,
             @Qualifier("saml2WebSsoAuthenticationFilter") FilterRegistrationBean<Filter> saml2WebSsoAuthenticationFilter,
+            @Qualifier("identityZoneMismatchCheckFilter") FilterRegistrationBean<IdentityZoneMismatchCheckFilter> identityZoneMismatchCheckFilter,
             @Qualifier("identityZoneSwitchingFilter") FilterRegistrationBean<IdentityZoneSwitchingFilter> identityZoneSwitchingFilter,
             @Qualifier("saml2LogoutRequestFilter") FilterRegistrationBean<Saml2LogoutRequestFilter> saml2LogoutRequestFilter,
             @Qualifier("saml2LogoutResponseFilter") FilterRegistrationBean<Saml2LogoutResponseFilter> saml2LogoutResponseFilter,
@@ -167,7 +169,8 @@ public class SpringServletXmlSecurityConfiguration {
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), disableIdTokenResponseFilter.getFilter());
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), saml2WebSsoAuthenticationRequestFilter.getFilter());
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), saml2WebSsoAuthenticationFilter.getFilter());
-        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.after(OAuth2AuthenticationProcessingFilter.class), identityZoneSwitchingFilter.getFilter());
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.after(OAuth2AuthenticationProcessingFilter.class), identityZoneMismatchCheckFilter.getFilter());
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.after(IdentityZoneMismatchCheckFilter.class), identityZoneSwitchingFilter.getFilter());
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.after(IdentityZoneSwitchingFilter.class), saml2LogoutRequestFilter.getFilter());
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.after(Saml2LogoutRequestFilter.class), saml2LogoutResponseFilter.getFilter());
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.after(Saml2LogoutResponseFilter.class), userManagementSecurityFilter.getFilter());
