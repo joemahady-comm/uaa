@@ -43,13 +43,16 @@ public class IdentityZoneResolvingFilter extends OncePerRequestFilter implements
      */
     private static final String X_ZID_HEADER = "X-zid";
 
+    private final boolean zidHeaderEnabled;
+
     private final IdentityZoneProvisioning dao;
     private final Set<String> staticResources = Set.of("/resources/", "/vendor/font-awesome/");
     private final Set<String> defaultZoneHostnames = new HashSet<>();
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    public IdentityZoneResolvingFilter(final IdentityZoneProvisioning dao) {
+    public IdentityZoneResolvingFilter(final IdentityZoneProvisioning dao, final boolean zidHeaderEnabled) {
         this.dao = dao;
+        this.zidHeaderEnabled = zidHeaderEnabled;
     }
 
     @Override

@@ -169,8 +169,11 @@ public class SpringServletXmlFiltersConfiguration {
     }
 
     @Bean
-    FilterRegistrationBean<IdentityZoneResolvingFilter> identityZoneResolvingFilter(IdentityZoneProvisioning provisioning) {
-        IdentityZoneResolvingFilter filter = new IdentityZoneResolvingFilter(provisioning);
+    FilterRegistrationBean<IdentityZoneResolvingFilter> identityZoneResolvingFilter(
+            final IdentityZoneProvisioning provisioning,
+            @Qualifier("zidHeaderEnabled") final boolean zidHeaderEnabled
+    ) {
+        IdentityZoneResolvingFilter filter = new IdentityZoneResolvingFilter(provisioning, zidHeaderEnabled);
         filter.setDefaultInternalHostnames(new HashSet<>(Arrays.asList(
                 UaaUrlUtils.getHostForURI(uaaProps.url()),
                 UaaUrlUtils.getHostForURI(loginProps.url()),
