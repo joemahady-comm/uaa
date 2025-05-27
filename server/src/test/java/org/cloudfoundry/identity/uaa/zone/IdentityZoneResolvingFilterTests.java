@@ -256,46 +256,95 @@ class IdentityZoneResolvingFilterTests {
         private final String zoneBId = UUID.randomUUID().toString();
         private final IdentityZone zoneB = MultitenancyFixture.identityZone(zoneBId, zoneBSubdomain);
 
-        private final IdentityZoneResolvingFilter filter;
         private final IdentityZoneProvisioning identityZoneProvisioning = mock(IdentityZoneProvisioning.class);
 
-        public XZidHeader() {
-            this.filter = new IdentityZoneResolvingFilter(identityZoneProvisioning, false);
-            filter.setAdditionalInternalHostnames(Set.of("uaa.mycf.com"));
+        private static class Base {
+            protected final IdentityZoneResolvingFilter filter;
+
+            public Base(final IdentityZoneProvisioning identityZoneProvisioning, final boolean zidHeaderEnabled) {
+                this.filter = new IdentityZoneResolvingFilter(identityZoneProvisioning, zidHeaderEnabled);
+                filter.setAdditionalInternalHostnames(Set.of("uaa.mycf.com"));
+            }
         }
 
-        @Test
-        void subdomainNotSet_XZidSetToZoneA_ZoneAExists_ShouldUseZoneA() throws ServletException, IOException {
-            arrangeZoneExists(zoneA);
-            assertZoneIsResolved("uaa.mycf.com", zoneAId, zoneA);
+        @Nested
+        class Enabled extends Base {
+            public Enabled() {
+                super(identityZoneProvisioning, true);
+            }
+
+            @Test
+            void subdomainNotSet_XZidSetToZoneA_ZoneAExists_ShouldUseZoneA() throws ServletException, IOException {
+                arrangeZoneExists(zoneA);
+                assertZoneIsResolved(filter, "uaa.mycf.com", zoneAId, zoneA);
+            }
+
+            @Test
+            void subdomainSetToZoneA_XZidSetToZoneB_BothZonesExist_ShouldUseZoneB() throws ServletException, IOException {
+                arrangeZoneExists(zoneA);
+                arrangeZoneExists(zoneB);
+                assertZoneIsResolved(filter, zoneA.getSubdomain() + ".uaa.mycf.com", zoneBId, zoneB);
+            }
+
+            @Test
+            void subdomainSetToZoneA_XZidSetToZoneB_ZoneBDoesNotExist_ShouldReturn404() throws ServletException, IOException {
+                arrangeZoneExists(zoneA);
+                arrangeZoneDoesNotExist(zoneB);
+                assertZoneIsNotFound(filter, zoneA.getSubdomain() + ".uaa.mycf.com", zoneBId);
+            }
+
+            @Test
+            void subdomainNotSet_XZidSetToZoneA_ZoneADoesNotExist_ShouldReturn404() throws ServletException, IOException {
+                arrangeZoneDoesNotExist(zoneA);
+                assertZoneIsNotFound(filter, "uaa.mycf.com", zoneAId);
+            }
+
+            @Test
+            void subdomainNotSet_XZidEmpty_ShouldReturn404() throws ServletException, IOException {
+                assertZoneIsNotFound(filter, "uaa.mycf.com", StringUtils.EMPTY);
+            }
         }
 
-        @Test
-        void subdomainSetToZoneA_XZidSetToZoneB_BothZonesExist_ShouldUseZoneB() throws ServletException, IOException {
-            arrangeZoneExists(zoneA);
-            arrangeZoneExists(zoneB);
-            assertZoneIsResolved(zoneA.getSubdomain() + ".uaa.mycf.com", zoneBId, zoneB);
-        }
+        @Nested
+        class Disabled extends Base {
+            public Disabled() {
+                super(identityZoneProvisioning, false);
+            }
 
-        @Test
-        void subdomainSetToZoneA_XZidSetToZoneB_ZoneBDoesNotExist_ShouldReturn404() throws ServletException, IOException {
-            arrangeZoneExists(zoneA);
-            arrangeZoneDoesNotExist(zoneB);
-            assertZoneIsNotFound(zoneA.getSubdomain() + ".uaa.mycf.com", zoneBId);
-        }
+            @Test
+            void subdomainNotSet_XZidSetToZoneA_ZoneAExists_ShouldIgnoreHeaderAndReturn404() throws ServletException, IOException {
+                arrangeZoneExists(zoneA);
+                assertZoneIsNotFound(filter, "uaa.mycf.com", zoneAId);
+            }
 
-        @Test
-        void subdomainNotSet_XZidSetToZoneA_ZoneADoesNotExist_ShouldReturn404() throws ServletException, IOException {
-            arrangeZoneDoesNotExist(zoneA);
-            assertZoneIsNotFound("uaa.mycf.com", zoneAId);
-        }
+            @Test
+            void subdomainSetToZoneA_XZidSetToZoneB_BothZonesExist_ShouldIgnoreHeaderAndUseZoneA() throws ServletException, IOException {
+                arrangeZoneExists(zoneA);
+                arrangeZoneExists(zoneB);
+                assertZoneIsResolved(filter, zoneA.getSubdomain() + ".uaa.mycf.com", zoneBId, zoneA);
+            }
 
-        @Test
-        void subdomainNotSet_XZidEmpty_ShouldReturn404() throws ServletException, IOException {
-            assertZoneIsNotFound("uaa.mycf.com", StringUtils.EMPTY);
+            @Test
+            void subdomainSetToZoneA_XZidSetToZoneB_ZoneBDoesNotExist_ShouldIgnoreHeaderAndUseZoneA() throws ServletException, IOException {
+                arrangeZoneExists(zoneA);
+                arrangeZoneDoesNotExist(zoneB);
+                assertZoneIsResolved(filter, zoneA.getSubdomain() + ".uaa.mycf.com", zoneBId, zoneA);
+            }
+
+            @Test
+            void subdomainNotSet_XZidSetToZoneA_ZoneADoesNotExist_ShouldReturn404() throws ServletException, IOException {
+                arrangeZoneDoesNotExist(zoneA);
+                assertZoneIsNotFound(filter, "uaa.mycf.com", zoneAId);
+            }
+
+            @Test
+            void subdomainNotSet_XZidEmpty_ShouldReturn404() throws ServletException, IOException {
+                assertZoneIsNotFound(filter, "uaa.mycf.com", StringUtils.EMPTY);
+            }
         }
 
         private void assertZoneIsResolved(
+                final IdentityZoneResolvingFilter filter,
                 final String hostname,
                 final String xZidHeader, // null -> no header
                 final IdentityZone expectedZone
@@ -325,6 +374,7 @@ class IdentityZoneResolvingFilterTests {
         }
 
         private void assertZoneIsNotFound(
+                final IdentityZoneResolvingFilter filter,
                 final String hostname,
                 final String xZidHeader // null -> no header
         ) throws ServletException, IOException {

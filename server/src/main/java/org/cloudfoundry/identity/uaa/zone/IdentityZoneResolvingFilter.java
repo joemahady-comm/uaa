@@ -68,7 +68,7 @@ public class IdentityZoneResolvingFilter extends OncePerRequestFilter implements
         IdentityZone identityZone = null;
         String zoneResolvingDescription = null; // for logging and error messages
         try {
-            if (zidFromHeader != null) {
+            if (zidHeaderEnabled && zidFromHeader != null) {
                 zoneResolvingDescription = "zid '%s'".formatted(zidFromHeader);
                 identityZone = dao.retrieve(zidFromHeader);
             } else {
