@@ -206,7 +206,6 @@ public class SpringServletXmlFiltersConfiguration {
     ) {
         SessionResetFilter filter = new SessionResetFilter(
                 new DefaultRedirectStrategy(),
-                identityZoneManager,
                 "/login",
                 userDatabase
         );

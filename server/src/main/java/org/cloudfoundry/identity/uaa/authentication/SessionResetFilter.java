@@ -19,7 +19,6 @@ import lombok.Getter;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.user.UaaUserDatabase;
 import org.cloudfoundry.identity.uaa.user.UaaUserPrototype;
-import org.cloudfoundry.identity.uaa.zone.beans.IdentityZoneManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContext;
@@ -35,21 +34,18 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.Date;
-import java.util.Objects;
 
 public class SessionResetFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(SessionResetFilter.class);
 
     private final RedirectStrategy strategy;
-    private final IdentityZoneManager identityZoneManager;
     @Getter
     private final String redirectUrl;
     private final UaaUserDatabase userDatabase;
 
-    public SessionResetFilter(RedirectStrategy strategy, IdentityZoneManager identityZoneManager, String redirectUrl, UaaUserDatabase userDatabase) {
+    public SessionResetFilter(RedirectStrategy strategy, String redirectUrl, UaaUserDatabase userDatabase) {
         this.strategy = strategy;
-        this.identityZoneManager = identityZoneManager;
         this.redirectUrl = redirectUrl;
         this.userDatabase = userDatabase;
     }
@@ -58,12 +54,6 @@ public class SessionResetFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         SecurityContext context = SecurityContextHolder.getContext();
         if (context != null && context.getAuthentication() != null && context.getAuthentication() instanceof UaaAuthentication authentication) {
-            // zone check
-            if (!Objects.equals(identityZoneManager.getCurrentIdentityZoneId(), authentication.getPrincipal().getZoneId())) {
-                handleRedirect(request, response);
-                return;
-            }
-
             // is authenticated UAA user
             if (authentication.isAuthenticated() &&
                     OriginKeys.UAA.equals(authentication.getPrincipal().getOrigin()) &&
