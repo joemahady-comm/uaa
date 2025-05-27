@@ -379,8 +379,15 @@ public final class MockMvcUtils {
     public static IdentityZone createZoneUsingWebRequest(MockMvc mockMvc, String accessToken) throws Exception {
         final String zoneId = new AlphanumericRandomValueStringGenerator(12).generate().toLowerCase();
         IdentityZone identityZone = MultitenancyFixture.identityZone(zoneId, zoneId);
+        return createZoneUsingWebRequest(mockMvc, accessToken, identityZone);
+    }
 
-        MvcResult result = mockMvc.perform(post("/identity-zones")
+    public static IdentityZone createZoneUsingWebRequest(
+            final MockMvc mockMvc,
+            final String accessToken,
+            final IdentityZone identityZone
+    ) throws Exception {
+        final MvcResult result = mockMvc.perform(post("/identity-zones")
                 .header("Authorization", "Bearer " + accessToken)
                 .contentType(APPLICATION_JSON)
                 .content(JsonUtils.writeValueAsString(identityZone)))
