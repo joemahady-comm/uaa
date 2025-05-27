@@ -377,6 +377,7 @@ login:
 #  idpDiscoveryEnabled: true
 #  accountChooserEnabled: true
 #  aliasEntitiesEnabled: true
+#  zidHeaderEnabled: true
 
   # SAML Key Configuration
   # The location and credentials of the certificate for this SP
