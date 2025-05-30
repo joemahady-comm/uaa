@@ -28,13 +28,13 @@ import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 @PropertySource("classpath:integration.test.properties")
 public class DefaultIntegrationTestConfig {
-    static final int IMPLICIT_WAIT_TIME = 30;
-    static final int PAGE_LOAD_TIMEOUT = 40;
-    static final int SCRIPT_TIMEOUT = 30;
+    static final Duration IMPLICIT_WAIT_TIME = Duration.ofSeconds(30L);
+    static final Duration PAGE_LOAD_TIMEOUT = Duration.ofSeconds(40L);
+    static final Duration SCRIPT_TIMEOUT = Duration.ofSeconds(30L);
 
     private final int timeoutMultiplier;
 
@@ -76,11 +76,10 @@ public class DefaultIntegrationTestConfig {
         options.setAcceptInsecureCerts(true);
 
         ChromeDriver driver = new ChromeDriver(options);
-
         driver.manage().timeouts()
-                .implicitlyWait(IMPLICIT_WAIT_TIME * timeoutMultiplier, TimeUnit.SECONDS)
-                .pageLoadTimeout(PAGE_LOAD_TIMEOUT * timeoutMultiplier, TimeUnit.SECONDS)
-                .setScriptTimeout(SCRIPT_TIMEOUT * timeoutMultiplier, TimeUnit.SECONDS);
+                .implicitlyWait(IMPLICIT_WAIT_TIME.multipliedBy(timeoutMultiplier))
+                .pageLoadTimeout(PAGE_LOAD_TIMEOUT.multipliedBy(timeoutMultiplier))
+                .scriptTimeout(SCRIPT_TIMEOUT.multipliedBy(timeoutMultiplier));
         return new UaaWebDriver(driver);
     }
 
@@ -106,6 +105,7 @@ public class DefaultIntegrationTestConfig {
     }
 
     public static class HttpClientFactory extends SimpleClientHttpRequestFactory {
+        @Override
         protected void prepareConnection(HttpURLConnection connection, String httpMethod) throws IOException {
             super.prepareConnection(connection, httpMethod);
             connection.setInstanceFollowRedirects(false);
