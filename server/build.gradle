@@ -99,6 +99,8 @@ dependencies {
 
     testImplementation(libraries.springTest)
 
+    testImplementation(libraries.bytebuddy)
+    testImplementation(libraries.bytebuddyagent)
     testImplementation(libraries.junit)
     testImplementation(libraries.mockito)
 
