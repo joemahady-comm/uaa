@@ -6,6 +6,9 @@ import org.apache.catalina.core.ApplicationContext;
 import org.apache.catalina.core.ApplicationContextFacade;
 import org.apache.catalina.core.StandardContext;
 import org.apache.tomcat.util.descriptor.web.ErrorPage;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.boot.web.servlet.DelegatingFilterProxyRegistrationBean;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
@@ -13,23 +16,29 @@ import org.springframework.boot.web.servlet.server.ConfigurableServletWebServerF
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
-import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import javax.servlet.DispatcherType;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
 import java.lang.reflect.Field;
 
 import static org.springframework.util.ReflectionUtils.findField;
 import static org.springframework.util.ReflectionUtils.getField;
 
 @Configuration
+@EnableConfigurationProperties({UaaBootConfiguration.ServerHttp.class})
 public class UaaBootConfiguration implements ServletContextInitializer, WebMvcConfigurer {
 
-    @Override
-    public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        String base = System.getProperty("user.dir");
-        registry.addResourceHandler("/**")
-                .addResourceLocations("file:"+base+"/uaa/src/main/webapp/");
-    }
+    @ConfigurationProperties(prefix = "server.http")
+    record ServerHttp(
+            @DefaultValue("-1") int port,
+            @DefaultValue("12000") int keepAliveTimeout,
+            @DefaultValue("20000") int connectionTimeout,
+            @DefaultValue("14336") int maxHttpHeaderSize,
+            @DefaultValue("127.0.0.1") String address,
+            @DefaultValue("true") boolean bindOnInit
+    ) {}
 
     @Bean
     WebServerFactoryCustomizer<ConfigurableServletWebServerFactory> enableDefaultServlet() {
@@ -38,9 +47,12 @@ public class UaaBootConfiguration implements ServletContextInitializer, WebMvcCo
 
     @Bean
     DelegatingFilterProxyRegistrationBean springSessionRepositoryFilterRegistration() {
-        return new DelegatingFilterProxyRegistrationBean(
+        DelegatingFilterProxyRegistrationBean filter = new DelegatingFilterProxyRegistrationBean(
                 "springSessionRepositoryFilter"
         );
+        filter.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.ERROR);
+        filter.addUrlPatterns("/*");
+        return filter;
     }
 
     @Bean
@@ -69,13 +81,13 @@ public class UaaBootConfiguration implements ServletContextInitializer, WebMvcCo
             standardContext.addErrorPage(error500);
 
             ErrorPage error404 = new ErrorPage();
-            error500.setErrorCode(404);
-            error500.setLocation("/error404");
+            error404.setErrorCode(404);
+            error404.setLocation("/error404");
             standardContext.addErrorPage(error404);
 
             ErrorPage error429 = new ErrorPage();
-            error500.setErrorCode(429);
-            error500.setLocation("/error429");
+            error429.setErrorCode(429);
+            error429.setLocation("/error429");
             standardContext.addErrorPage(error429);
 
             ErrorPage error = new ErrorPage();

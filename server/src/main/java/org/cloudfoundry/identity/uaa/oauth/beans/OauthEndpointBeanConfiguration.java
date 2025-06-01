@@ -546,6 +546,7 @@ public class OauthEndpointBeanConfiguration {
     @Bean("externalOAuthAuthenticationManager")
     ExternalOAuthAuthenticationManager externalOAuthAuthenticationManager(
         @Qualifier("externalOAuthProviderConfigurator") IdentityProviderProvisioning providerProvisioning,
+        @Qualifier("identityZoneManager") IdentityZoneManager identityZoneManager,
         @Qualifier("trustingRestTemplate") RestTemplate trustingRestTemplate,
         @Qualifier("nonTrustingRestTemplate") RestTemplate nonTrustingRestTemplate,
         @Qualifier("tokenEndpointBuilder") TokenEndpointBuilder tokenEndpointBuilder,
@@ -556,6 +557,7 @@ public class OauthEndpointBeanConfiguration {
     ) {
         ExternalOAuthAuthenticationManager bean = new ExternalOAuthAuthenticationManager(
                 providerProvisioning,
+                identityZoneManager,
                 trustingRestTemplate,
                 nonTrustingRestTemplate,
                 tokenEndpointBuilder,
@@ -603,7 +605,7 @@ public class OauthEndpointBeanConfiguration {
     @Bean("authorizationCodeServices")
     @DependsOnDatabaseInitialization
     UaaTokenStore authorizationCodeServices() {
-        return new UaaTokenStore(dataSource, timeService);
+        return new UaaTokenStore(dataSource, timeService, identityZoneManager);
     }
 
     @Bean("userApprovalHandler")
@@ -785,7 +787,7 @@ public class OauthEndpointBeanConfiguration {
 
     @Bean("approvalService")
     ApprovalService approvalService(@Qualifier("approvalStore") JdbcApprovalStore approvalStore) {
-        return new ApprovalService(timeService, approvalStore);
+        return new ApprovalService(timeService, approvalStore, identityZoneManager);
     }
 
     @Bean("tokenServices")
