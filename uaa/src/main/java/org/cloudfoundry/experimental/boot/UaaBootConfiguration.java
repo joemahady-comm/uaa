@@ -1,5 +1,6 @@
 package org.cloudfoundry.experimental.boot;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import org.apache.catalina.core.ApplicationContext;
@@ -18,9 +19,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import javax.servlet.DispatcherType;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
 import java.lang.reflect.Field;
 
 import static org.springframework.util.ReflectionUtils.findField;
