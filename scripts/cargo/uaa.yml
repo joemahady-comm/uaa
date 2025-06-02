@@ -56,6 +56,7 @@ jwt:
         - excluded-claim1
         - excluded-claim2
 login:
+  zidHeaderEnabled: true
   saml:
     activeKeyId: key1
     keys:
