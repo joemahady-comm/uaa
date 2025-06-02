@@ -1,6 +1,5 @@
 package org.cloudfoundry.experimental.boot;
 
-import jakarta.servlet.DispatcherType;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import org.apache.catalina.core.ApplicationContext;
@@ -11,7 +10,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
-import org.springframework.boot.web.servlet.DelegatingFilterProxyRegistrationBean;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
 import org.springframework.boot.web.servlet.server.ConfigurableServletWebServerFactory;
 import org.springframework.context.annotation.Bean;
@@ -41,16 +39,6 @@ public class UaaBootConfiguration implements ServletContextInitializer, WebMvcCo
     @Bean
     WebServerFactoryCustomizer<ConfigurableServletWebServerFactory> enableDefaultServlet() {
         return (factory) -> factory.setRegisterDefaultServlet(true);
-    }
-
-    @Bean
-    DelegatingFilterProxyRegistrationBean springSessionRepositoryFilterRegistration() {
-        DelegatingFilterProxyRegistrationBean filter = new DelegatingFilterProxyRegistrationBean(
-                "springSessionRepositoryFilter"
-        );
-        filter.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.ERROR);
-        filter.addUrlPatterns("/*");
-        return filter;
     }
 
     @Bean
