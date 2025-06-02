@@ -14,13 +14,18 @@
 package org.cloudfoundry.identity.uaa.integration.feature;
 
 import com.dumbster.smtp.SimpleSmtpServer;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.cloudfoundry.identity.uaa.client.UaaClientDetails;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.integration.util.IntegrationTestUtils;
 import org.cloudfoundry.identity.uaa.oauth.client.test.TestAccounts;
+import org.cloudfoundry.identity.uaa.oauth.common.util.RandomValueStringGenerator;
 import org.cloudfoundry.identity.uaa.security.web.CookieBasedCsrfTokenRepository;
 import org.cloudfoundry.identity.uaa.test.UaaWebDriver;
+import org.cloudfoundry.identity.uaa.util.AlphanumericRandomValueStringGenerator;
 import org.cloudfoundry.identity.uaa.zone.BrandingInformation;
 import org.cloudfoundry.identity.uaa.zone.BrandingInformation.Banner;
+import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneConfiguration;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.junit.jupiter.api.AfterEach;
@@ -39,16 +44,20 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.ResponseErrorHandler;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import static java.util.Collections.singleton;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.cloudfoundry.identity.uaa.integration.util.IntegrationTestUtils.doesSupportZoneDNS;
 import static org.springframework.http.HttpMethod.GET;
@@ -209,6 +218,148 @@ class LoginIT {
         assertThat(lastLoginDate).isNotEmpty();
 
         IntegrationTestUtils.validateAccountChooserCookie(baseUrl, webDriver, IdentityZoneHolder.get());
+    }
+
+    @Test
+    void ShouldReject_SessionReusedForDifferentZoneViaZidHeader_Home() {
+        // create second identity zone
+        final String idzId = createCustomIdentityZone();
+
+        // create RestTemplate with disabled automatic redirects
+        final RestTemplate template = new RestTemplate(new HttpComponentsClientHttpRequestFactory(
+                HttpClientBuilder.create().disableRedirectHandling().build()
+        ));
+
+        // GET /login to get the CSRF cookie
+        final HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.ACCEPT, MediaType.TEXT_HTML_VALUE);
+        ResponseEntity<String> loginResponse = template.exchange(
+                baseUrl + "/login",
+                GET,
+                new HttpEntity<>(null, headers),
+                String.class
+        );
+        IntegrationTestUtils.copyCookies(loginResponse, headers);
+        final String csrfCookie = IntegrationTestUtils.extractCookieCsrf(loginResponse.getBody());
+
+        // log in to the UAA zone
+        final LinkedMultiValueMap<String, String> requestBody = new LinkedMultiValueMap<>();
+        requestBody.add("username", testAccounts.getUserName());
+        requestBody.add("password", testAccounts.getPassword());
+        requestBody.add(CookieBasedCsrfTokenRepository.DEFAULT_CSRF_COOKIE_NAME, csrfCookie);
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        loginResponse = template.exchange(
+                baseUrl + "/login.do",
+                POST,
+                new HttpEntity<>(requestBody, headers),
+                String.class
+        );
+
+        // try to access the home page of the UAA zone -> should work
+        IntegrationTestUtils.copyCookies(loginResponse, headers);
+        final ResponseEntity<String> homeUaaZoneResponse = template.exchange(
+                baseUrl + "/home",
+                GET,
+                new HttpEntity<>(null, headers),
+                String.class
+        );
+        assertThat(homeUaaZoneResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(homeUaaZoneResponse.getBody()).contains("<h1>Where to?</h1>");
+
+        /* try to access the home page of another zone (via X-Zid header) with the session cookie of the UAA zone
+         * -> should redirect to /login */
+        headers.set("X-Zid", idzId);
+        final ResponseEntity<String> homeCustomZoneResponse = template.exchange(
+                baseUrl + "/home",
+                GET,
+                new HttpEntity<>(null, headers),
+                String.class
+        );
+        assertRedirectsToLoginPage(homeCustomZoneResponse);
+
+        // try to access the home page of the UAA zone again -> should not work as the session is invalidated
+        headers.remove("X-Zid");
+        final ResponseEntity<String> homeUaaZoneAfterInvalidationResponse = template.exchange(
+                baseUrl + "/home",
+                GET,
+                new HttpEntity<>(null, headers),
+                String.class
+        );
+        assertRedirectsToLoginPage(homeUaaZoneAfterInvalidationResponse);
+    }
+
+    @Test
+    void ShouldReject_SessionReusedForDifferentZoneViaZidHeader_OAuthAuthorize() throws MalformedURLException {
+        // create second identity zone
+        final String idzId = createCustomIdentityZone();
+
+        // create an OAuth client in both zones (with the same client ID)
+        final String redirectUri = "http://localhost:9000/login/callback";
+        final String clientId = new RandomValueStringGenerator().generate();
+        createOAuthClientInUaaAndCustomZone(clientId, redirectUri, idzId);
+
+        // create RestTemplate with disabled automatic redirects
+        final RestTemplate template = new RestTemplate(new HttpComponentsClientHttpRequestFactory(
+                HttpClientBuilder.create().disableRedirectHandling().build()
+        ));
+
+        // GET /login to get the CSRF cookie
+        final HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.ACCEPT, MediaType.TEXT_HTML_VALUE);
+        ResponseEntity<String> loginResponse = template.exchange(
+                baseUrl + "/login",
+                GET,
+                new HttpEntity<>(null, headers),
+                String.class
+        );
+        IntegrationTestUtils.copyCookies(loginResponse, headers);
+        final String csrfCookie = IntegrationTestUtils.extractCookieCsrf(loginResponse.getBody());
+
+        // log in to the UAA zone
+        final LinkedMultiValueMap<String, String> requestBody = new LinkedMultiValueMap<>();
+        requestBody.add("username", testAccounts.getUserName());
+        requestBody.add("password", testAccounts.getPassword());
+        requestBody.add(CookieBasedCsrfTokenRepository.DEFAULT_CSRF_COOKIE_NAME, csrfCookie);
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        loginResponse = template.exchange(
+                baseUrl + "/login.do",
+                POST,
+                new HttpEntity<>(requestBody, headers),
+                String.class
+        );
+
+        // call /oauth/authorize for the UAA zone -> should directly provide the auth code since we are logged in
+        IntegrationTestUtils.copyCookies(loginResponse, headers);
+        final String oauthAuthorizeUrl = "%s/oauth/authorize?response_type=code&client_id=%s&redirect_uri=%s"
+                .formatted(baseUrl, clientId, redirectUri);
+        final ResponseEntity<String> oauthAuthorizeUaaZoneResponse = template.exchange(
+                oauthAuthorizeUrl,
+                GET,
+                new HttpEntity<>(null, headers),
+                String.class
+        );
+        assertRedirectsToRedirectUriWithCode(oauthAuthorizeUaaZoneResponse, redirectUri);
+
+        /* try to call /oauth/authorize for the custom zone (via X-Zid header) with the session cookie of the UAA zone
+         * -> should redirect to /login */
+        headers.set("X-Zid", idzId);
+        final ResponseEntity<String> homeCustomZoneResponse = template.exchange(
+                oauthAuthorizeUrl,
+                GET,
+                new HttpEntity<>(null, headers),
+                String.class
+        );
+        assertRedirectsToLoginPage(homeCustomZoneResponse);
+
+        // try to call /oauth/authorize in the UAA zone again -> should redirect to /login as the session is invalidated
+        headers.remove("X-Zid");
+        final ResponseEntity<String> oauthAuthorizeUaaZoneAfterInvalidationResponse = template.exchange(
+                oauthAuthorizeUrl,
+                GET,
+                new HttpEntity<>(null, headers),
+                String.class
+        );
+        assertRedirectsToLoginPage(oauthAuthorizeUaaZoneAfterInvalidationResponse);
     }
 
     @Test
@@ -487,5 +638,64 @@ class LoginIT {
         webDriver.clickAndWait(By.cssSelector(".form-group input[value='Next']"));
         webDriver.findElement(By.id("password")).sendKeys(password);
         webDriver.clickAndWait(By.xpath("//input[@value='Sign in']"));
+    }
+
+    private static void assertRedirectsToRedirectUriWithCode(
+            final ResponseEntity<String> response,
+            final String expectedRedirectUri
+    ) throws MalformedURLException {
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FOUND);
+        final List<String> locationHeaderValues = response.getHeaders().get("Location");
+        assertThat(locationHeaderValues).isNotNull().hasSize(1);
+        final String locationHeader = locationHeaderValues.get(0);
+        assertThat(locationHeader).startsWith(expectedRedirectUri);
+        final URL redirectUriWithCode = new URL(locationHeader);
+        final String[] queryParameters = redirectUriWithCode.getQuery().split("&");
+        assertThat(queryParameters).hasSize(1);
+        final String queryParameter = queryParameters[0];
+        assertThat(queryParameter).startsWith("code=");
+    }
+
+    private static void assertRedirectsToLoginPage(final ResponseEntity<String> response) {
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FOUND);
+        assertThat(response.getHeaders()).containsKey("Location");
+        final List<String> locationHeaderValues = response.getHeaders().get("Location");
+        assertThat(locationHeaderValues).isNotNull().hasSize(1);
+        final String locationHeader = locationHeaderValues.get(0);
+        assertThat(locationHeader).endsWith("/login");
+    }
+
+    private void createOAuthClientInUaaAndCustomZone(
+            final String clientId,
+            final String redirectUri,
+            final String customZoneId
+    ) {
+        final UaaClientDetails zoneClient = new UaaClientDetails(
+                clientId,
+                null,
+                "openid,user_attributes",
+                "authorization_code,client_credentials",
+                "uaa.admin,scim.read,scim.write,uaa.resource",
+                redirectUri
+        );
+        zoneClient.setClientSecret("secret");
+        zoneClient.setAutoApproveScopes(singleton("true"));
+        final String clientCredentialsToken = IntegrationTestUtils.getClientCredentialsToken(baseUrl, "admin", "adminsecret");
+        IntegrationTestUtils.createClientAsZoneAdmin(clientCredentialsToken, baseUrl, customZoneId, zoneClient);
+        IntegrationTestUtils.createClientAsZoneAdmin(clientCredentialsToken, baseUrl, IdentityZone.getUaaZoneId(), zoneClient);
+    }
+
+    private String createCustomIdentityZone() {
+        final String idzId = new AlphanumericRandomValueStringGenerator(8).generate().toLowerCase();
+        final RestTemplate identityClient = IntegrationTestUtils.getClientCredentialsTemplate(
+                IntegrationTestUtils.getClientCredentialsResource(
+                        baseUrl,
+                        new String[]{"zones.write", "zones.read", "scim.zones"},
+                        "identity",
+                        "identitysecret"
+                )
+        );
+        IntegrationTestUtils.createZoneOrUpdateSubdomain(identityClient, baseUrl, idzId, idzId, new IdentityZoneConfiguration());
+        return idzId;
     }
 }
