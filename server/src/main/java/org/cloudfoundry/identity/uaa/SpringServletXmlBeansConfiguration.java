@@ -31,6 +31,7 @@ import org.cloudfoundry.identity.uaa.scim.jdbc.JdbcScimUserProvisioning;
 import org.cloudfoundry.identity.uaa.security.ContextSensitiveOAuth2WebSecurityExpressionHandler;
 import org.cloudfoundry.identity.uaa.security.beans.SecurityContextAccessor;
 import org.cloudfoundry.identity.uaa.user.JdbcUaaUserDatabase;
+import org.cloudfoundry.identity.uaa.web.beans.UaaRequestRejectedHandler;
 import org.cloudfoundry.identity.uaa.zone.ClientSecretPolicy;
 import org.cloudfoundry.identity.uaa.zone.ClientSecretValidator;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneProvisioning;
@@ -56,6 +57,7 @@ import org.springframework.security.access.vote.RoleVoter;
 import org.springframework.security.access.vote.UnanimousBased;
 import org.springframework.security.web.authentication.Http403ForbiddenEntryPoint;
 import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
+import org.springframework.security.web.firewall.RequestRejectedHandler;
 import org.springframework.web.accept.ContentNegotiationManagerFactoryBean;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
@@ -430,4 +432,8 @@ public class SpringServletXmlBeansConfiguration {
         return bean;
     }
 
+    @Bean
+    public RequestRejectedHandler requestRejectedHandler() {
+        return new UaaRequestRejectedHandler();
+    }
 }

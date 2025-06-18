@@ -1,5 +1,6 @@
 package org.cloudfoundry.identity.uaa.home;
 
+import jakarta.servlet.RequestDispatcher;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.saml2.Saml2Exception;
+import org.springframework.security.web.firewall.RequestRejectedException;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,6 +30,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -173,6 +177,19 @@ public class HomeController {
             model.addAttribute(oauthError, exception);
             request.getSession().removeAttribute(oauthError);
         }
+        return EXTERNAL_AUTH_ERROR;
+    }
+
+    @RequestMapping("/rejected")
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public String handleRequestRejected(Model model, HttpServletRequest request) {
+        RequestRejectedException ex = request.getAttribute(RequestDispatcher.ERROR_EXCEPTION) instanceof RequestRejectedException exception ? exception : null;
+        String uri = request.getAttribute(RequestDispatcher.ERROR_REQUEST_URI) instanceof String uriString ? uriString : null;
+        if (ex != null && uri != null) {
+            logger.error("Request with encoded URI [{}] rejected. {}", URLEncoder.encode(uri, StandardCharsets.UTF_8), ex.getMessage());
+        }
+        model.addAttribute("oauth_error", "The request was rejected because it contained a potentially malicious character.");
+
         return EXTERNAL_AUTH_ERROR;
     }
 

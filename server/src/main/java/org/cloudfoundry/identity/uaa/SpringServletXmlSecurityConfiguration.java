@@ -48,6 +48,7 @@ public class SpringServletXmlSecurityConfiguration {
     private final String[] noSecurityEndpoints = {
             "/error**",
             "/error/**",
+            "/rejected",
             "/resources/**",
             "/square-logo.png",
             "/info",
