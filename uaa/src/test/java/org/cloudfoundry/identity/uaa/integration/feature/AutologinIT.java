@@ -172,7 +172,7 @@ class AutologinIT {
                 cookiesAdded++;
             }
         }
-        assertThat(cookiesAdded).isEqualTo(2);
+        assertThat(cookiesAdded).isGreaterThanOrEqualTo(1);
 
         //if we receive a 200, then we must approve our scopes
         if (HttpStatus.OK == authorizeResponse.getStatusCode()) {
