@@ -158,7 +158,7 @@ public class JdbcScimGroupExternalMembershipManager
             } else if (count == 0) {
                 throw new ScimResourceNotFoundException("No group mappings deleted.");
             } else {
-                throw new InvalidResultSetAccessException("unmapExternalGroup", "More than one mapping deleted count=" + count, new SQLException());
+                throw new InvalidResultSetAccessException("More than one mapping deleted count=" + count, DELETE_EXTERNAL_GROUP_MAPPING_SQL, new SQLException());
             }
         } else {
             return null;

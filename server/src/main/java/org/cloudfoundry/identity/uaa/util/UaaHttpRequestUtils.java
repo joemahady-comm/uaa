@@ -14,33 +14,33 @@
 package org.cloudfoundry.identity.uaa.util;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import org.apache.hc.client5.http.impl.DefaultHttpRequestRetryStrategy;
+import jakarta.servlet.http.HttpServletRequest;
+import org.apache.hc.client5.http.ConnectionKeepAliveStrategy;
+import org.apache.hc.client5.http.HttpRequestRetryStrategy;
+import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
 import org.apache.hc.client5.http.impl.NoopUserTokenHandler;
+import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
-import org.apache.hc.core5.http.HeaderElement;
-import org.apache.hc.core5.http.HttpRequest;
-import org.apache.hc.core5.http.HttpResponse;
+import org.apache.hc.client5.http.socket.ConnectionSocketFactory;
+import org.apache.hc.client5.http.socket.PlainConnectionSocketFactory;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
 import org.apache.hc.client5.http.ssl.TrustSelfSignedStrategy;
+import org.apache.hc.core5.http.HeaderElement;
+import org.apache.hc.core5.http.HttpRequest;
+import org.apache.hc.core5.http.HttpResponse;
 import org.apache.hc.core5.http.config.Registry;
 import org.apache.hc.core5.http.config.RegistryBuilder;
-import org.apache.hc.client5.http.ConnectionKeepAliveStrategy;
-import org.apache.hc.client5.http.socket.ConnectionSocketFactory;
-import org.apache.hc.client5.http.socket.PlainConnectionSocketFactory;
 import org.apache.hc.core5.http.message.BasicHeaderElementIterator;
 import org.apache.hc.core5.http.protocol.HttpContext;
+import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.apache.hc.core5.util.TextUtils;
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.http.protocol.HTTP;
 import org.cloudfoundry.identity.uaa.impl.config.RestTemplateConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.hc.core5.ssl.SSLContextBuilder;
-import org.apache.hc.client5.http.HttpRequestRetryStrategy;
-import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
-import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.context.request.RequestAttributes;
@@ -48,7 +48,6 @@ import org.springframework.web.context.request.RequestContextHolder;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
-import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -92,7 +91,7 @@ public abstract class UaaHttpRequestUtils {
     protected static HttpClientBuilder getClientBuilder(boolean skipSslValidation, int poolSize, int defaultMaxPerRoute, int maxKeepAlive, int validateAfterInactivity, int retryCount) {
         HttpClientBuilder builder = HttpClients.custom()
                 .useSystemProperties()
-                .setUserTokenHandler(new NoopUserTokenHandler())
+                .setUserTokenHandler(NoopUserTokenHandler.INSTANCE)
                 .setRedirectStrategy(new DefaultRedirectStrategy());
         PoolingHttpClientConnectionManager cm;
         if (skipSslValidation) {
@@ -111,11 +110,11 @@ public abstract class UaaHttpRequestUtils {
         }
         cm.setMaxTotal(poolSize);
         cm.setDefaultMaxPerRoute(defaultMaxPerRoute);
-        cm.setValidateAfterInactivity(TimeValue.ofMilliseconds(validateAfterInactivity));
+        cm.setValidateAfterInactivity(TimeValue.of(validateAfterInactivity, TimeUnit.MILLISECONDS));
         builder.setConnectionManager(cm);
 
         if (maxKeepAlive <= 0) {
-            builder.setConnectionReuseStrategy((httpRequest, httpResponse, httpContext) -> false);
+            builder.setConnectionReuseStrategy((request, response, context) -> false);
         } else {
             builder.setKeepAliveStrategy(new UaaConnectionKeepAliveStrategy(maxKeepAlive));
         }
@@ -190,39 +189,40 @@ public abstract class UaaHttpRequestUtils {
                     break;
                 }
             }
-            return TimeValue.ofMilliseconds(result);
+            return TimeValue.of(result, TimeUnit.MILLISECONDS);
         }
     }
 
     private static class UaaHttpRequestRetryHandler implements HttpRequestRetryStrategy {
 
         private final int executionCount;
-        private final HttpRequestRetryStrategy defaultRetryHandler;
 
         public UaaHttpRequestRetryHandler(int executionCount) {
-            defaultRetryHandler = new DefaultHttpRequestRetryStrategy(executionCount, TimeValue.ofSeconds(1L));
             this.executionCount = executionCount;
         }
 
         @Override
-        public boolean retryRequest(HttpRequest httpRequest, IOException exception, int executionCount, HttpContext context) {
-            if (executionCount > this.executionCount) {
+        public boolean retryRequest(HttpRequest request, IOException exception, int execCount, HttpContext context) {
+            if (execCount > this.executionCount) {
                 return false;
             }
             if (exception instanceof org.apache.hc.core5.http.NoHttpResponseException) {
                 return true;
             }
-            return defaultRetryHandler.retryRequest(httpRequest, exception, executionCount, context);
+            return false;
         }
 
         @Override
-        public boolean retryRequest(HttpResponse httpResponse, int executionCount, HttpContext context) {
-            return defaultRetryHandler.retryRequest(httpResponse, executionCount, context);
+        public boolean retryRequest(HttpResponse response, int execCount, HttpContext context) {
+            if (execCount > this.executionCount) {
+                return false;
+            }
+            return false;
         }
 
         @Override
-        public TimeValue getRetryInterval(HttpResponse httpResponse, int executionCount, HttpContext context) {
-            return TimeValue.ofMilliseconds(500);
+        public TimeValue getRetryInterval(HttpResponse response, int execCount, HttpContext context) {
+            return TimeValue.of(1, TimeUnit.SECONDS);
         }
     }
 

@@ -27,6 +27,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -160,7 +161,12 @@ class RemoteAuthenticationEndpointTests {
         if (restTemplate instanceof OAuth2RestTemplate oAuth2RestTemplate) {
             oAuth2RestTemplate.setErrorHandler(new UaaOauth2ErrorHandler(oAuth2RestTemplate.getResource(), HttpStatus.Series.SERVER_ERROR));
         } else {
-            restTemplate.setErrorHandler(new DefaultResponseErrorHandler());
+            restTemplate.setErrorHandler(new DefaultResponseErrorHandler() {
+                @Override
+                protected boolean hasError(HttpStatusCode statusCode) {
+                    return statusCode.is5xxServerError();
+                }
+            });
         }
         HttpHeaders headers = new HttpHeaders();
         if (additionalParams != null) {

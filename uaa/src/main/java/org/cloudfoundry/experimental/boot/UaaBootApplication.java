@@ -48,5 +48,4 @@ public class UaaBootApplication {
         application.addInitializers(new YamlServletProfileInitializer());
         application.run(args);
     }
-
 }

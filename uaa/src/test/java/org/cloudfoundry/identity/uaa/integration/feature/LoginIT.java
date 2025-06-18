@@ -278,7 +278,12 @@ class LoginIT {
         template.setErrorHandler(new ResponseErrorHandler() {
             @Override
             public boolean hasError(ClientHttpResponse response) throws IOException {
-                return response.getStatusCode().value() >= 500;
+                return response.getStatusCode().is5xxServerError();
+            }
+
+            @Override
+            public void handleError(ClientHttpResponse response) {
+                // pass through
             }
         });
         LinkedMultiValueMap<String, String> body = new LinkedMultiValueMap<>();

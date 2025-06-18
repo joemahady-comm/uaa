@@ -1,5 +1,6 @@
 package org.cloudfoundry.identity.uaa.oauth.provider.config.xml;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.cloudfoundry.identity.uaa.authentication.BackwardsCompatibleTokenEndpointAuthenticationFilter;
 import org.cloudfoundry.identity.uaa.authentication.manager.PasswordGrantAuthenticationManager;
 import org.cloudfoundry.identity.uaa.oauth.UaaAuthorizationRequestManager;
@@ -23,7 +24,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.web.AuthenticationEntryPoint;
-import jakarta.servlet.http.HttpServletRequest;
 
 @Configuration
 public class OAuth2FilterConfig {

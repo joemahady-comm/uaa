@@ -1,5 +1,6 @@
 package org.cloudfoundry.identity.uaa.login;
 
+import jakarta.annotation.PostConstruct;
 import org.cloudfoundry.identity.uaa.TestClassNullifier;
 import org.cloudfoundry.identity.uaa.client.ClientMetadata;
 import org.cloudfoundry.identity.uaa.client.JdbcClientMetadataProvisioning;
@@ -37,6 +38,7 @@ import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.DefaultServletHandlerConfigurer;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -231,6 +233,14 @@ class HomeControllerViewTests extends TestClassNullifier {
     @EnableWebMvc
     @Import(ThymeleafConfig.class)
     static class ContextConfiguration implements WebMvcConfigurer {
+
+        @Autowired
+        private RequestMappingHandlerAdapter requestMappingHandlerAdapter;
+
+        @PostConstruct
+        public void init() {
+            requestMappingHandlerAdapter.setIgnoreDefaultModelOnRedirect(false);
+        }
 
         @Override
         public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {

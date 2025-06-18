@@ -26,7 +26,7 @@ public class LdapGroupsAsScopesConfig {
         }
     }
 
-    @Bean(name = "configuredGroupRoleAttribute")
+    @Bean
     public String configuredGroupRoleAttribute(Environment environment) {
         return Optional.ofNullable(environment.getProperty("ldap.groups.groupRoleAttribute")).orElse("description");
     }

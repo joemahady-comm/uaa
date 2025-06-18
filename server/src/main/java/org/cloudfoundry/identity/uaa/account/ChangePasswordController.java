@@ -1,6 +1,7 @@
 package org.cloudfoundry.identity.uaa.account;
 
-import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthenticationDetails;
 import org.cloudfoundry.identity.uaa.scim.exception.InvalidPasswordException;
@@ -14,9 +15,6 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 
 @Controller
 public class ChangePasswordController {
@@ -39,7 +37,7 @@ public class ChangePasswordController {
             @RequestParam("new_password") String newPassword,
             @RequestParam("confirm_password") String confirmPassword,
             HttpServletResponse response,
-            HttpServletRequest request) throws ServletException {
+            HttpServletRequest request) {
 
         PasswordConfirmationValidation validation = new PasswordConfirmationValidation(newPassword, confirmPassword);
         if (!validation.valid()) {
@@ -55,6 +53,7 @@ public class ChangePasswordController {
         try {
             changePasswordService.changePassword(username, currentPassword, newPassword);
             request.getSession().invalidate();
+            //request.logout();
             request.getSession(true);
             if (authentication instanceof UaaAuthentication uaaAuthentication) {
                 uaaAuthentication.setAuthenticatedTime(System.currentTimeMillis());

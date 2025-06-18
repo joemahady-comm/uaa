@@ -543,7 +543,7 @@ public class ScimGroupEndpoints {
         return updateGroup(group, group.getId(), String.valueOf(group.getVersion()), httpServletResponse);
     }
 
-    @RequestMapping("/Groups/{groupId}/members/{memberId}")
+    @RequestMapping({"/Groups/{groupId}/members/{memberId}", "/Groups/{groupId}/members/{memberId}/"})
     public ResponseEntity<ScimGroupMember> getGroupMembership(@PathVariable String groupId, @PathVariable String memberId) {
         ScimGroupMember membership = membershipManager.getMemberById(groupId,
                 memberId,
@@ -551,7 +551,7 @@ public class ScimGroupEndpoints {
         return new ResponseEntity<>(membership, HttpStatus.OK);
     }
 
-    @GetMapping("/Groups/{groupId}/members")
+    @GetMapping({"/Groups/{groupId}/members", "/Groups/{groupId}/members/"})
     public ResponseEntity<List<ScimGroupMember>> listGroupMemberships(@PathVariable String groupId,
             @RequestParam(required = false, defaultValue = "false") boolean returnEntities,
             @RequestParam(required = false, defaultValue = "", name = "filter") String deprecatedFilter) {
@@ -562,7 +562,7 @@ public class ScimGroupEndpoints {
         return new ResponseEntity<>(members, HttpStatus.OK);
     }
 
-    @PostMapping("/Groups/{groupId}/members")
+    @PostMapping({"/Groups/{groupId}/members", "/Groups/{groupId}/members/"})
     @ResponseStatus(HttpStatus.CREATED)
     @ResponseBody
     public ScimGroupMember addMemberToGroup(@PathVariable String groupId, @RequestBody ScimGroupMember member) {
@@ -570,7 +570,7 @@ public class ScimGroupEndpoints {
         return membershipManager.addMember(groupId, member, identityZoneManager.getCurrentIdentityZoneId());
     }
 
-    @DeleteMapping("/Groups/{groupId}/members/{memberId}")
+    @DeleteMapping({"/Groups/{groupId}/members/{memberId}", "/Groups/{groupId}/members/{memberId}/"})
     @ResponseBody
     @ResponseStatus(HttpStatus.OK)
     public ScimGroupMember deleteGroupMembership(@PathVariable String groupId, @PathVariable String memberId) {

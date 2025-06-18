@@ -22,7 +22,6 @@ import org.cloudfoundry.identity.uaa.zone.beans.IdentityZoneManager;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import jakarta.annotation.PostConstruct;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -110,7 +109,6 @@ public class CorsFilter extends OncePerRequestFilter {
         this.enforceSystemZoneSettings = enforceSystemZoneSettings;
     }
 
-    @PostConstruct
     public void initialize() {
         // initialize the configs for default zone
         for (CorsConfiguration configuration : Arrays.asList(xhrConfiguration, defaultConfiguration)) {

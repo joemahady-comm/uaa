@@ -12,17 +12,18 @@
  *     subcomponent's license, as noted in the LICENSE file.
  *******************************************************************************/
 package org.cloudfoundry.identity.uaa.integration;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
-import org.apache.hc.core5.http.ClassicHttpRequest;
-import org.apache.hc.core5.http.Header;
-import org.apache.hc.core5.http.HttpHeaders;
-import org.apache.hc.client5.http.config.RequestConfig;
+
 import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.cookie.BasicCookieStore;
 import org.apache.hc.client5.http.cookie.Cookie;
 import org.apache.hc.client5.http.cookie.StandardCookieSpec;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.http.ClassicHttpRequest;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.support.ClassicRequestBuilder;
 import org.apache.hc.core5.http.message.BasicHeader;
@@ -66,6 +67,7 @@ class FormLoginIntegrationTests {
                 .setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(StandardCookieSpec.RELAXED).build())
                 .setDefaultHeaders(headers)
                 .setDefaultCookieStore(cookieStore)
+                .disableRedirectHandling()
                 .build();
     }
 
@@ -85,14 +87,14 @@ class FormLoginIntegrationTests {
         assertThat(response.getCode()).isEqualTo(FOUND.value());
         location = response.getFirstHeader("Location").getValue();
         response.close();
-        httpget.clear();
+        httpget.reset();
         assertThat(location).contains("/login");
     }
 
     @Test
     void successfulAuthenticationFlow() throws Exception {
         //request home page /
-        String location = serverRunning.getBaseUrl() + "/";
+        String location = serverRunning.getBaseUrl() + "/login";
         HttpGet httpget = new HttpGet(location);
         CloseableHttpResponse response = httpclient.execute(httpget);
 
@@ -101,7 +103,7 @@ class FormLoginIntegrationTests {
         String body = EntityUtils.toString(response.getEntity());
         EntityUtils.consume(response.getEntity());
         response.close();
-        httpget.clear();
+        httpget.reset();
 
         assertThat(body).contains("/login.do")
                 .contains("username")

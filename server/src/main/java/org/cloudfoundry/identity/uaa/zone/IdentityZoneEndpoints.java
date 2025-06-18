@@ -60,7 +60,7 @@ import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY;
 
 @RestController("identityZoneEndpoints")
-@RequestMapping("/identity-zones")
+@RequestMapping({"/identity-zones", "/identity-zones/"})
 public class IdentityZoneEndpoints implements ApplicationEventPublisherAware {
 
     private static final SanitizedLogFactory.SanitizedLog logger = SanitizedLogFactory.getLog(IdentityZoneEndpoints.class);

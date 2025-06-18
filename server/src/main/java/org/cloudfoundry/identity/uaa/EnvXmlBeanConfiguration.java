@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.PropertiesFactoryBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Role;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 import org.springframework.core.env.Environment;
@@ -25,7 +24,6 @@ import java.util.Properties;
 @Configuration
 public class EnvXmlBeanConfiguration {
 
-    @Primary
     @Bean
     // <bean id="applicationProperties" class="org.springframework.beans.factory.config.PropertiesFactoryBean">
     PropertiesFactoryBean applicationProperties(Environment environment) throws IOException {

@@ -254,16 +254,19 @@ public class SamlIdentityProviderConfiguratorTests {
         slowHttpServer.run();
         // Set connection timeout to very low value to cause connect timeout
         samlConfiguration.setSocketConnectionTimeout(1);
-        FixedHttpMetaDataProvider realFixedHttpMetaDataProvider = createNonMockFixedHttpMetaDataProvider(samlConfiguration);
-        configurator = new SamlIdentityProviderConfigurator(provisioning, new IdentityZoneManagerImpl(), realFixedHttpMetaDataProvider);
+        fixedHttpMetaDataProvider = createNonMockFixedHttpMetaDataProvider(samlConfiguration);
+        configurator = new SamlIdentityProviderConfigurator(provisioning, new IdentityZoneManagerImpl(), fixedHttpMetaDataProvider);
 
         SamlIdentityProviderDefinition def = new SamlIdentityProviderDefinition();
-        def.setMetaDataLocation(slowHttpServer.getUrl());
+        def.setMetaDataLocation("http://10.255.255.1/something");
         def.setSkipSslValidation(true);
 
-        assertTimeoutPreemptively(ofSeconds(1), () -> assertThatThrownBy(() -> configurator.configureURLMetadata(def))
-                .isInstanceOf(ResourceAccessException.class)
-                .hasCauseInstanceOf(ConnectTimeoutException.class));
+        assertTimeoutPreemptively(
+                ofSeconds(1),
+                () -> assertThatThrownBy(() -> configurator.configureURLMetadata(def))
+                    .isInstanceOf(ResourceAccessException.class)
+                    .hasCauseInstanceOf(ConnectTimeoutException.class)
+        );
     }
 
     private String getSimpleSamlPhpMetadata(String domain) {

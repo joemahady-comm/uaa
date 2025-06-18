@@ -15,13 +15,15 @@
 package org.cloudfoundry.identity.statsd;
 
 import com.timgroup.statsd.NonBlockingStatsDClient;
-import java.lang.management.ManagementFactory;
-import java.util.Calendar;
-import java.util.Date;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
+
+import java.lang.management.ManagementFactory;
+import java.time.Instant;
+import java.util.Calendar;
+import java.util.Date;
 
 @Configuration
 @EnableScheduling
@@ -44,15 +46,15 @@ public class StatsdConfiguration {
                         return null;
                     }
                     return triggerContext.lastCompletionTime() != null
-                            ? getFiveSecondsFrom(triggerContext.lastCompletionTime()).toInstant()
-                            : getFiveSecondsFrom(new Date()).toInstant();
+                            ? getFiveSecondsFrom(triggerContext.lastCompletionTime())
+                            : getFiveSecondsFrom(new Date());
                 });
     }
 
-    private Date getFiveSecondsFrom(Date date) {
+    private Instant getFiveSecondsFrom(Date date) {
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(date);
         calendar.add(Calendar.SECOND, 5);
-        return calendar.getTime();
+        return calendar.getTime().toInstant();
     }
 }

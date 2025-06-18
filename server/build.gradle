@@ -80,9 +80,6 @@ dependencies {
     implementation(libraries.slf4jImpl)
     implementation(libraries.log4jCore)
 
-    implementation(libraries.javaxXmlBindApi)
-    implementation(libraries.glassfishJaxb)
-
     implementation(libraries.nimbusJwt)
     implementation(libraries.orgJson)
 

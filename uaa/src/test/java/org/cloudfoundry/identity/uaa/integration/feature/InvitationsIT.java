@@ -38,6 +38,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import org.springframework.web.client.DefaultResponseErrorHandler;
@@ -165,7 +166,12 @@ public class InvitationsIT {
     @Test
     void invite_fails() {
         RestTemplate uaaTemplate = new RestTemplate();
-        uaaTemplate.setErrorHandler(new DefaultResponseErrorHandler());
+        uaaTemplate.setErrorHandler(new DefaultResponseErrorHandler() {
+            @Override
+            protected boolean hasError(HttpStatusCode statusCode) {
+                return statusCode.is5xxServerError();
+            }
+        });
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(APPLICATION_JSON);
         HttpEntity<String> request = new HttpEntity<>("{\"emails\":[\"marissa@test.org\"]}", headers);

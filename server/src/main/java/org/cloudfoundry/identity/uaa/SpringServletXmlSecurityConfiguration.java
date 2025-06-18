@@ -33,16 +33,16 @@ import org.springframework.security.saml2.provider.service.web.authentication.lo
 import org.springframework.security.saml2.provider.service.web.authentication.logout.Saml2LogoutResponseFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.filter.RequestContextFilter;
-import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 @Configuration
 @EnableWebSecurity
-@EnableWebMvc
 public class SpringServletXmlSecurityConfiguration {
 
     private final String[] noSecurityEndpoints = {
@@ -102,6 +102,7 @@ public class SpringServletXmlSecurityConfiguration {
                 .sessionManagement(session -> session
                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                .securityContext(sc -> sc.requireExplicitSave(false))
                 .build();
 
         return new UaaFilterChain(chain, "secFilterOpen06SAMLMetadata");
@@ -111,14 +112,15 @@ public class SpringServletXmlSecurityConfiguration {
     @Order(FilterChainOrder.NO_SECURITY)
     UaaFilterChain noSecurityFilters(HttpSecurity http) throws Exception {
         SecurityFilterChain chain = http
-                .headers(headers -> headers.frameOptions().disable())
+                .headers(headers -> headers.frameOptions(withDefaults()))
                 .securityMatcher(noSecurityEndpoints)
                 .authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
                 .anonymous(AnonymousConfigurer::disable)
                 .csrf(csrf -> csrf.ignoringRequestMatchers(noSecurityEndpoints))
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                .securityContext(sc -> sc.requireExplicitSave(false))
                 .build();
 
         return new UaaFilterChain(chain, "noSecurityFilters");
@@ -127,6 +129,7 @@ public class SpringServletXmlSecurityConfiguration {
     @Bean
     SecurityFilterChainPostProcessor securityFilterChainPostProcessor(
             UaaProperties.RootLevel rootLevel,
+            @Qualifier("tracingFilter") FilterRegistrationBean<Filter> tracingFilter,
             @Qualifier("metricsFilter") FilterRegistrationBean<UaaMetricsFilter> metricsFilter,
             @Qualifier("headerFilter") FilterRegistrationBean<HeaderFilter> headerFilter,
             @Qualifier("contentSecurityPolicyFilter") FilterRegistrationBean<ContentSecurityPolicyFilter> contentSecurityPolicyFilter,
@@ -147,6 +150,7 @@ public class SpringServletXmlSecurityConfiguration {
             @Qualifier("rateLimitingFilter") FilterRegistrationBean<RateLimitingFilter> rateLimitingFilter
     ) {
         Filter utf8ConversionFilter = new UTF8ConversionFilter();
+
         SecurityFilterChainPostProcessor bean = new SecurityFilterChainPostProcessor();
         bean.setDumpRequests(rootLevel.dump_requests());
         bean.setRequireHttps(rootLevel.require_https());
@@ -164,6 +168,7 @@ public class SpringServletXmlSecurityConfiguration {
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), rateLimitingFilter.getFilter());
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), springRequestContextFilter.getFilter());
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), httpHeaderSecurityFilter.getFilter());
+        additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), tracingFilter.getFilter());
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), metricsFilter.getFilter());
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), headerFilter.getFilter());
         additionalFilters.put(SecurityFilterChainPostProcessor.FilterPosition.position(filterPos++), new BackwardsCompatibleScopeParsingFilter());

@@ -1,9 +1,12 @@
 package org.cloudfoundry.identity.uaa.ratelimiting;
 
-import java.io.IOException;
-import java.time.Instant;
-import java.util.Collections;
-import java.util.Enumeration;
+import lombok.RequiredArgsConstructor;
+import org.cloudfoundry.identity.uaa.ratelimiting.core.Limiter;
+import org.cloudfoundry.identity.uaa.ratelimiting.core.RateLimiter;
+import org.cloudfoundry.identity.uaa.ratelimiting.internal.RateLimiterStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
 import jakarta.servlet.ServletContext;
@@ -11,13 +14,10 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
-import lombok.RequiredArgsConstructor;
-import org.cloudfoundry.identity.uaa.ratelimiting.core.Limiter;
-import org.cloudfoundry.identity.uaa.ratelimiting.core.RateLimiter;
-import org.cloudfoundry.identity.uaa.ratelimiting.internal.RateLimiterStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.io.IOException;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.Enumeration;
 
 public class RateLimitingFilter extends HttpFilter {
     private static final Logger log = LoggerFactory.getLogger(RateLimitingFilter.class);

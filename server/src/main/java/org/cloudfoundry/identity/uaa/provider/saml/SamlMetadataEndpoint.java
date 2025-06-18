@@ -46,7 +46,7 @@ public class SamlMetadataEndpoint implements ZoneAware {
         return ResponseEntity.status(HttpServletResponse.SC_UNAUTHORIZED).build();
     }
 
-    @GetMapping(value = "/saml/metadata", produces = APPLICATION_XML_CHARSET_UTF_8)
+    @GetMapping(value = {"/saml/metadata", "/saml/metadata/"}, produces = APPLICATION_XML_CHARSET_UTF_8)
     public ResponseEntity<String> metadataEndpoint(HttpServletRequest request) {
         RelyingPartyRegistration relyingPartyRegistration = relyingPartyRegistrationResolver.resolve(request, DEFAULT_REGISTRATION_ID);
         if (relyingPartyRegistration == null) {

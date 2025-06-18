@@ -183,7 +183,6 @@ public class SpringServletXmlBeansConfiguration {
         return bean;
     }
 
-    @Primary
     @Bean
     UaaAuthenticationDetailsSource authenticationDetailsSource() {
         return new UaaAuthenticationDetailsSource();
@@ -205,7 +204,6 @@ public class SpringServletXmlBeansConfiguration {
         return bean;
     }
 
-    @Primary
     @Bean
     OAuth2AuthenticationEntryPoint oauthAuthenticationEntryPoint() {
         OAuth2AuthenticationEntryPoint bean = new OAuth2AuthenticationEntryPoint();

@@ -11,7 +11,6 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -63,7 +62,7 @@ class ErrorRoutingIT {
         final String rejectedEndpoint = "/login;endpoint=x"; // spring securiy throws RequestRejectedException and by default status 500, but now 400
         webDriver.get(baseUrl + rejectedEndpoint);
 
-        assertThat(webDriver.findElement(By.tagName("h2")).getText()).as("Check if on the error page").contains("Something went amiss.");
+        assertThat(webDriver.findElement(By.tagName("h2")).getText()).as("Check if on the error page").contains("The request was rejected because it contained a potentially malicious character.");
 
         CallErrorPageAndCheckHttpStatusCode(rejectedEndpoint, "GET", 400);
     }
@@ -81,13 +80,9 @@ class ErrorRoutingIT {
     private String getResponseBody(HttpURLConnection connection) throws IOException {
         BufferedReader reader;
         if (200 <= connection.getResponseCode() && connection.getResponseCode() <= 299) {
-            reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            reader = new BufferedReader(new InputStreamReader((connection.getInputStream())));
         } else {
-            InputStream inputStream = connection.getErrorStream();
-            if (inputStream == null) {
-                return "";
-            }
-            reader = new BufferedReader(new InputStreamReader(inputStream));
+            reader = new BufferedReader(new InputStreamReader((connection.getErrorStream())));
         }
 
         StringBuilder sb = new StringBuilder();
