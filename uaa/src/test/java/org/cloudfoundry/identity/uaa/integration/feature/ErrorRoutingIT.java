@@ -11,6 +11,7 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -82,6 +83,10 @@ class ErrorRoutingIT {
         if (200 <= connection.getResponseCode() && connection.getResponseCode() <= 299) {
             reader = new BufferedReader(new InputStreamReader((connection.getInputStream())));
         } else {
+            InputStream inputStream = connection.getErrorStream();
+            if (inputStream == null) {
+                return "";
+            }
             reader = new BufferedReader(new InputStreamReader((connection.getErrorStream())));
         }
 
