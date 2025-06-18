@@ -110,9 +110,7 @@ public class RateLimitingFilter extends HttpFilter {
         public final void doFilter(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
                 throws ServletException, IOException {
             try {
-                Limiter limiter = log.isInfoEnabled() ?
-                        getLimiterWithLogging(request) :
-                        getLimiterNoLogging(request);
+                Limiter limiter = getLimiterWithLogging(request);
                 if (limiter.shouldLimit()) {
                     limitRequest(request, response, "429 - Too Many Request - Request limited by Rate Limiter configuration: " + limiter.getLimitingKey().errorString());
                     return;
@@ -124,14 +122,14 @@ public class RateLimitingFilter extends HttpFilter {
             filterChain.doFilter(request, response); // just forward it!
         }
 
-        private Limiter getLimiterNoLogging(HttpServletRequest request) {
-            return rateLimiter.checkRequest(request);
-        }
-
         private Limiter getLimiterWithLogging(HttpServletRequest request) {
             Instant startTime = Instant.now();
             Limiter limiter = rateLimiter.checkRequest(request);
-            limiter.log(request.getRequestURI(), log::info, startTime);
+            if (limiter.shouldLimit() && log.isInfoEnabled()) {
+                limiter.log(request.getRequestURI(), log::info, startTime);
+            } else if (log.isDebugEnabled()) {
+                limiter.log(request.getRequestURI(), log::debug, startTime);
+            }
             return limiter;
         }
 
