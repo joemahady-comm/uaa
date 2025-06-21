@@ -214,10 +214,7 @@ public abstract class UaaHttpRequestUtils {
 
         @Override
         public boolean retryRequest(HttpResponse response, int execCount, HttpContext context) {
-            if (execCount > this.executionCount) {
-                return false;
-            }
-            return false;
+            return execCount <= this.executionCount;
         }
 
         @Override

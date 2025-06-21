@@ -63,7 +63,7 @@ class InvitationsEndpointDocs extends EndpointDocs {
                 fieldWithPath("emails").attributes(key("constraints").value("Required")).description("User is invited by providing an email address. More than one email addresses can be provided.")
         );
 
-        Snippet requestParameters = queryParameters(
+        Snippet queryParameters = queryParameters(
                 parameterWithName("client_id").attributes(key("constraints").value("Optional"), key("type").value(STRING)).description("A unique string representing the registration information provided by the client"),
                 parameterWithName("redirect_uri").attributes(key("constraints").value("Required"), key("type").value(STRING)).description("The user will be redirected to this uri, when user accepts the invitation. The redirect_uri will be validated against allowed redirect_uri for the client.")
         );
@@ -92,7 +92,7 @@ class InvitationsEndpointDocs extends EndpointDocs {
                                 headerWithName(IdentityZoneSwitchingFilter.HEADER).optional().description("If using a `zones.<zoneId>.admin` scope/token, indicates what zone this request goes to by supplying a zone_id."),
                                 headerWithName(IdentityZoneSwitchingFilter.SUBDOMAIN_HEADER).optional().description("If using a `zones.<zoneId>.admin` scope/token, indicates what zone this request goes to by supplying a subdomain.")
                         ),
-                        requestParameters,
+                        queryParameters,
                         requestFields,
                         responseFields));
     }

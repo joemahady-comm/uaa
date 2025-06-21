@@ -85,7 +85,7 @@ public class SpringServletXmlSecurityConfiguration {
                 .anonymous(AnonymousConfigurer::disable)
                 .csrf(csrf -> csrf.ignoringRequestMatchers(secFilterOpenHealthzEndPoints))
                 .sessionManagement(session -> session
-                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .build();
 
@@ -101,7 +101,7 @@ public class SpringServletXmlSecurityConfiguration {
                 .anonymous(AnonymousConfigurer::disable)
                 .csrf(csrf -> csrf.ignoringRequestMatchers(secFilterOpenSamlEndPoints))
                 .sessionManagement(session -> session
-                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .securityContext(sc -> sc.requireExplicitSave(false))
                 .build();
@@ -119,7 +119,7 @@ public class SpringServletXmlSecurityConfiguration {
                 .anonymous(AnonymousConfigurer::disable)
                 .csrf(csrf -> csrf.ignoringRequestMatchers(noSecurityEndpoints))
                 .sessionManagement(session -> session
-                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .securityContext(sc -> sc.requireExplicitSave(false))
                 .build();
@@ -158,7 +158,7 @@ public class SpringServletXmlSecurityConfiguration {
         bean.setHttpsPort(rootLevel.https_port());
 
         Map<Class<? extends Exception>, SecurityFilterChainPostProcessor.ReasonPhrase> errorMap = new HashMap<>();
-        errorMap.put(org.springframework.dao.NonTransientDataAccessException .class, new SecurityFilterChainPostProcessor.ReasonPhrase(503, "Database unavailable. Retry later."));
+        errorMap.put(org.springframework.dao.NonTransientDataAccessException.class, new SecurityFilterChainPostProcessor.ReasonPhrase(503, "Database unavailable. Retry later."));
         bean.setErrorMap(errorMap);
 
         //TODO
