@@ -41,13 +41,13 @@ dependencies {
     implementation(libraries.thymeLeaf) {
         exclude(module: "ognl")
     }
-    implementation(libraries.thymeleafSpring6) {
+    implementation(libraries.thymeleafSpring) {
         exclude(module: "ognl")
     }
     implementation(libraries.thymeleafDialect) {
         exclude(module: "ognl")
     }
-    implementation(libraries.thymeleafExtrasSpringSecurity6) {
+    implementation(libraries.thymeleafExtrasSpringSecurity) {
         exclude(module: "ognl")
     }
 
