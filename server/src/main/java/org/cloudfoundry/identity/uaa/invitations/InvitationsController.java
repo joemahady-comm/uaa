@@ -1,6 +1,9 @@
 package org.cloudfoundry.identity.uaa.invitations;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.cloudfoundry.identity.uaa.account.PasswordConfirmationValidation;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
@@ -50,9 +53,6 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletRequestWrapper;
-import jakarta.servlet.http.HttpServletResponse;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
