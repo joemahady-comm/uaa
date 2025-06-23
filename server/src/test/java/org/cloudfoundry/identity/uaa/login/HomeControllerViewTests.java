@@ -25,6 +25,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.saml2.Saml2Exception;
@@ -35,6 +36,7 @@ import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.ui.Model;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.DefaultServletHandlerConfigurer;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
@@ -46,6 +48,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -192,6 +195,20 @@ class HomeControllerViewTests extends TestClassNullifier {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(containsString(customFooterText)))
                 .andExpect(content().string(containsString(base64ProductLogo)));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "/rejected"
+    })
+    void errorRejection(final String errorUrl) throws Exception {
+        mockMvc.perform(get(errorUrl))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void handleRequestRejected() {
+        assertThat(homeController.handleRequestRejected(mock(Model.class), new MockHttpServletRequest())).isEqualTo("external_auth_error");
     }
 
     @Test
