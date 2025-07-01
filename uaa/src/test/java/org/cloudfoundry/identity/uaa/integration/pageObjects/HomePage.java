@@ -13,7 +13,7 @@ public class HomePage extends Page {
 
     public HomePage(WebDriver driver) {
         super(driver);
-        validateUrl(driver, endsWith(urlPath));
+        assertThatUrlEventuallySatisfies(assertUrl -> assertUrl.endsWith(urlPath));
         validatePageSource(driver, containsString("Where to?"));
     }
 

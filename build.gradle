@@ -75,6 +75,7 @@ subprojects {
         testRuntimeOnly(libraries.junitVintageEngine)
         testImplementation(libraries.unboundIdLdapSdk)
         testRuntimeOnly(libraries.jacocoAgent)
+        testImplementation(libraries.awaitility)
 
         compileOnly("org.projectlombok:lombok")
         annotationProcessor("org.projectlombok:lombok")

@@ -10,7 +10,7 @@ public class PasscodePage extends Page {
 
     public PasscodePage(WebDriver driver) {
         super(driver);
-        validateUrl(driver, endsWith(urlPath));
+        assertThatUrlEventuallySatisfies(assertUrl -> assertUrl.endsWith(urlPath));
         validatePageSource(driver, containsString("Temporary Authentication Code") );
     }
 

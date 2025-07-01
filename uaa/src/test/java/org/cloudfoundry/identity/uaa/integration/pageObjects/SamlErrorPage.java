@@ -9,7 +9,7 @@ public class SamlErrorPage extends Page {
 
     public SamlErrorPage(WebDriver driver) {
         super(driver);
-        validateUrl(driver, endsWith(urlPath));
+        assertThatUrlEventuallySatisfies(assertUrl -> assertUrl.endsWith(urlPath));
     }
 }
 

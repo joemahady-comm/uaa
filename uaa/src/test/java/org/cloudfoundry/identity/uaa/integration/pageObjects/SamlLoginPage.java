@@ -13,7 +13,7 @@ public class SamlLoginPage extends Page {
 
     public SamlLoginPage(WebDriver driver) {
         super(driver);
-        validateUrl(driver, containsString(urlPath));
+        assertThatUrlEventuallySatisfies(assertUrl -> assertUrl.contains(urlPath));
     }
 
     public HomePage login_goesToHomePage(String username, String password) {
@@ -25,9 +25,9 @@ public class SamlLoginPage extends Page {
         sendLoginCredentials(username, password);
         return new PasscodePage(driver);
     }
-    public CustomErrorPage login_goesToCustomErrorPage(String username, String password, Matcher urlMatcher) {
+    public CustomErrorPage login_goesToCustomErrorPage(String username, String password, String urlContent) {
         sendLoginCredentials(username, password);
-        return new CustomErrorPage(driver, urlMatcher);
+        return new CustomErrorPage(driver, urlContent);
     }
     public SamlErrorPage login_goesToSamlErrorPage(String username, String password) {
         sendLoginCredentials(username, password);
