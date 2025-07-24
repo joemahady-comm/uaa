@@ -78,7 +78,6 @@ class StaleUrlCacheTests {
 
         @Override
         public void onRemoval(@Nullable Object key, @Nullable Object value, RemovalCause cause) {
-            System.out.println(String.format("Removed Key: %s Value: %s Cause: %s", key, value, cause));
             removalCount++;
         }
     }
