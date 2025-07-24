@@ -132,6 +132,7 @@ class StaleUrlCacheTests {
         ticker.advance(CACHE_EXPIRED);
 
         // the next call after timeout should force async refresh and return the new value
+        // This call is necessary to trigger the cache refresh operation after the timeout period.
         cache.getUrlContent(URL, mockRestTemplate);
         await().atMost(5, TimeUnit.SECONDS).untilAsserted(
                 () -> assertThat(listener.removalCount).isGreaterThan(0)
