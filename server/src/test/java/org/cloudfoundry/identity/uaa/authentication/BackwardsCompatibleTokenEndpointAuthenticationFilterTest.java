@@ -15,6 +15,7 @@
 
 package org.cloudfoundry.identity.uaa.authentication;
 
+import jakarta.servlet.FilterChain;
 import org.cloudfoundry.identity.uaa.oauth.TokenTestSupport;
 import org.cloudfoundry.identity.uaa.oauth.provider.AuthorizationRequest;
 import org.cloudfoundry.identity.uaa.oauth.provider.OAuth2Authentication;
@@ -43,7 +44,6 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 
-import jakarta.servlet.FilterChain;
 import java.util.Collections;
 import java.util.Map;
 
@@ -96,6 +96,7 @@ class BackwardsCompatibleTokenEndpointAuthenticationFilterTest {
                         passwordAuthManager,
                         requestFactory,
                         saml2BearerGrantAuthenticationConverter,
+                        externalOAuthAuthenticationManager,
                         externalOAuthAuthenticationManager
                 )
         );

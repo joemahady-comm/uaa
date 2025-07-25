@@ -71,6 +71,9 @@ import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYP
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_IMPLICIT;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_PASSWORD;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_REFRESH_TOKEN;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_TOKEN_EXCHANGE;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.ISSUED_TOKEN_TYPE;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.TOKEN_TYPE_ACCESS;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -89,6 +92,34 @@ class UaaTokenServicesTests {
     private JdbcUaaUserDatabase jdbcUaaUserDatabase;
     @Autowired
     private MultitenantClientServices jdbcClientDetailsService;
+
+    @Nested
+    @DisplayName("when performing a token exchange")
+    @DefaultTestContext
+    class WhenPerformingATokenExchange {
+        private String requestedScope;
+
+        @BeforeEach
+        void setupRequest() throws InterruptedException {
+            requestedScope = "openid";
+            assumeTrue(waitForClient(clientId, 3), "Test client jku_test not up yet");
+        }
+
+        @DisplayName("issued_token_type is set")
+        @Test
+        void issuedTokenTypeIsSet() {
+            AuthorizationRequest authorizationRequest = constructAuthorizationRequest(clientId, GRANT_TYPE_TOKEN_EXCHANGE, requestedScope);
+
+            OAuth2Authentication auth2Authentication = constructUserAuthenticationFromAuthzRequest(authorizationRequest, "admin", "uaa");
+
+            CompositeToken accessToken = (CompositeToken) tokenServices.createAccessToken(auth2Authentication);
+
+            String issuedTokenType = (String)accessToken.getAdditionalInformation().get(ISSUED_TOKEN_TYPE);
+            assertThat(issuedTokenType)
+                    .isNotNull()
+                    .isEqualTo(TOKEN_TYPE_ACCESS);
+        }
+    }
 
     @Nested
     @DisplayName("when building an id token")

@@ -40,7 +40,10 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOf
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_AUTHORIZATION_CODE;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_IMPLICIT;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_JWT_BEARER;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_PASSWORD;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_REFRESH_TOKEN;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_SAML2_BEARER;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_TOKEN_EXCHANGE;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_USER_TOKEN;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -107,6 +110,35 @@ class ClientAdminEndpointsValidatorTests {
         validator.validate(client, true, true);
     }
 
+    @Test
+    void validate_token_exchange_grant_type() {
+        client.setAuthorizedGrantTypes(Collections.singletonList(GRANT_TYPE_TOKEN_EXCHANGE));
+        client.setScope(Collections.singletonList(caller.getClientId() + ".read"));
+        client.setRegisteredRedirectUri(Collections.singleton("http://anything.com"));
+        validator.validate(client, true, true);
+    }
+
+    @Test
+    void validate_token_exchange_grant_type_with_refresh() {
+        client.setAuthorizedGrantTypes(List.of(GRANT_TYPE_TOKEN_EXCHANGE, GRANT_TYPE_REFRESH_TOKEN));
+        client.setScope(Collections.singletonList(caller.getClientId() + ".read"));
+        client.setRegisteredRedirectUri(Collections.singleton("http://anything.com"));
+        validator.validate(client, true, true);
+    }
+
+    @Test
+    void token_exchange_cannot_contain_other_grant_types() {
+        client.setAuthorizedGrantTypes(List.of(GRANT_TYPE_TOKEN_EXCHANGE, GRANT_TYPE_PASSWORD));
+        client.setScope(Collections.singletonList(caller.getClientId() + ".read"));
+        client.setRegisteredRedirectUri(Collections.singleton("http://anything.com"));
+        assertThatThrownBy(
+                () -> validator.validate(client, true, true)
+        )
+                .isInstanceOf(InvalidClientDetailsException.class)
+                .hasMessageContaining(GRANT_TYPE_TOKEN_EXCHANGE+ " is a privileged grant_type, and cannot be used in conjunction with other grant types.");
+    }
+
+    @Test
     public void validate_rejectsMalformedUrls() {
         client.setAuthorizedGrantTypes(Collections.singletonList(GRANT_TYPE_AUTHORIZATION_CODE));
         client.setRegisteredRedirectUri(Collections.singleton("httasdfasp://anything.comadfsfdasfdsa"));

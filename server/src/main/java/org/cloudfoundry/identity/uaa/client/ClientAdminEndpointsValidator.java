@@ -41,6 +41,7 @@ import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYP
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_PASSWORD;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_REFRESH_TOKEN;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_SAML2_BEARER;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_TOKEN_EXCHANGE;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_USER_TOKEN;
 
 public class ClientAdminEndpointsValidator implements InitializingBean, ClientDetailsValidator {
@@ -58,7 +59,8 @@ public class ClientAdminEndpointsValidator implements InitializingBean, ClientDe
                             GRANT_TYPE_REFRESH_TOKEN,
                             GRANT_TYPE_USER_TOKEN,
                             GRANT_TYPE_SAML2_BEARER,
-                            GRANT_TYPE_JWT_BEARER
+                            GRANT_TYPE_JWT_BEARER,
+                            GRANT_TYPE_TOKEN_EXCHANGE
                     )
             );
 
@@ -146,6 +148,18 @@ public class ClientAdminEndpointsValidator implements InitializingBean, ClientDe
         if (requestedGrantTypes.contains(GRANT_TYPE_JWT_BEARER) && (client.getScope() == null || client.getScope().isEmpty())) {
             logger.debug("Invalid client: {}. Scope cannot be empty for grant_type {}", clientId, GRANT_TYPE_JWT_BEARER);
             throw new InvalidClientDetailsException("Scope cannot be empty for grant_type " + GRANT_TYPE_JWT_BEARER);
+        }
+
+        if (requestedGrantTypes.contains(GRANT_TYPE_TOKEN_EXCHANGE)) {
+            if (
+                    (requestedGrantTypes.contains(GRANT_TYPE_REFRESH_TOKEN) && requestedGrantTypes.size()>2) ||
+                    (!requestedGrantTypes.contains(GRANT_TYPE_REFRESH_TOKEN) && requestedGrantTypes.size()>1)
+            ) {
+                throw new InvalidClientDetailsException(
+                        GRANT_TYPE_TOKEN_EXCHANGE +
+                                " is a privileged grant_type, and cannot be used in conjunction with other grant types."
+                );
+            }
         }
 
         if (checkAdmin &&

@@ -13,16 +13,19 @@ import org.cloudfoundry.identity.uaa.oauth.token.JwtTokenGranter;
 import org.cloudfoundry.identity.uaa.oauth.token.PkceEnhancedAuthorizationCodeTokenGranter;
 import org.cloudfoundry.identity.uaa.oauth.token.RevocableTokenProvisioning;
 import org.cloudfoundry.identity.uaa.oauth.token.Saml2TokenGranter;
+import org.cloudfoundry.identity.uaa.oauth.token.TokenExchangeGranter;
 import org.cloudfoundry.identity.uaa.oauth.token.UserTokenGranter;
 import org.cloudfoundry.identity.uaa.provider.oauth.ExternalOAuthAuthenticationManager;
 import org.cloudfoundry.identity.uaa.provider.saml.Saml2BearerGrantAuthenticationConverter;
 import org.cloudfoundry.identity.uaa.security.beans.SecurityContextAccessor;
 import org.cloudfoundry.identity.uaa.zone.MultitenantClientServices;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.web.AuthenticationEntryPoint;
 
 @Configuration
@@ -34,6 +37,7 @@ public class OAuth2FilterConfig {
             UaaAuthorizationRequestManager authorizationRequestManager,
             Saml2BearerGrantAuthenticationConverter samlBearerGrantAuthenticationProvider,
             ExternalOAuthAuthenticationManager externalOAuthAuthenticationManager,
+            @Qualifier("tokenExchangeAuthenticationManager") AuthenticationManager tokenExchangeAuthenticationManager,
             AuthenticationDetailsSource<HttpServletRequest, ?> authenticationDetailsSource,
             AuthenticationEntryPoint basicAuthenticationEntryPoint
     ) {
@@ -41,7 +45,7 @@ public class OAuth2FilterConfig {
         BackwardsCompatibleTokenEndpointAuthenticationFilter filter =
                 new BackwardsCompatibleTokenEndpointAuthenticationFilter("/oauth/token/alias/{registrationId}",
                         passwordGrantAuthenticationManager, authorizationRequestManager, samlBearerGrantAuthenticationProvider,
-                        externalOAuthAuthenticationManager);
+                        externalOAuthAuthenticationManager, tokenExchangeAuthenticationManager);
         filter.setAuthenticationDetailsSource(authenticationDetailsSource);
         filter.setAuthenticationEntryPoint(basicAuthenticationEntryPoint);
         FilterRegistrationBean<BackwardsCompatibleTokenEndpointAuthenticationFilter> bean = new FilterRegistrationBean<>(filter);
@@ -84,6 +88,18 @@ public class OAuth2FilterConfig {
         compositeTokenGranter.addTokenGranter(tokenGranter);
 
         return tokenGranter;
+    }
+
+    @Bean("tokenExchangeGranterBean")
+    @ConditionalOnMissingBean(name = "tokenExchangeGranterBean")
+    public TokenExchangeGranter tokenExchangeGranter(
+            @Qualifier("oauth2TokenGranter") CompositeTokenGranter compositeTokenGranter,
+            @Qualifier("tokenServices") AuthorizationServerTokenServices tokenServices,
+            @Qualifier("jdbcClientDetailsService") MultitenantClientServices clientDetailsService,
+            @Qualifier("authorizationRequestManager") OAuth2RequestFactory requestFactory) {
+        TokenExchangeGranter tokenExchangeGranter = new TokenExchangeGranter(tokenServices, clientDetailsService, requestFactory);
+        compositeTokenGranter.addTokenGranter(tokenExchangeGranter);
+        return tokenExchangeGranter;
     }
 
     @Bean

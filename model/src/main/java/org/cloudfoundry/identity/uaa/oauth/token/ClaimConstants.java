@@ -57,4 +57,6 @@ public class ClaimConstants {
     public static final String ACR = "acr";
     public static final String PREVIOUS_LOGON_TIME = "previous_logon_time";
     public static final String CLIENT_AUTH_METHOD = "client_auth_method";
+
+    public static final String ACT = "act";
 }

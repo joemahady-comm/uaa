@@ -20,7 +20,8 @@ public class ExternalOAuthIdentityProviderConfigValidator extends BaseIdentityPr
 
     private static final Set<String> oAuthStandardParameters = Set.of("redirect_uri", "code", "client_id", "client_secret", "response_type",
             "grant_type", "code_verifier", "client_assertion", "client_assertion_type", "code_challenge", "code_challenge_method", "nonce", "state",
-            "scope", "assertion", "subject_token", "actor_token", "username", "password");
+            "scope", "assertion", "subject_token", "actor_token", "username", "password", "subject_token_type", "audience",
+            "requested_token_type", "resource");
 
     @Override
     public void validate(AbstractIdentityProviderDefinition definition) {
