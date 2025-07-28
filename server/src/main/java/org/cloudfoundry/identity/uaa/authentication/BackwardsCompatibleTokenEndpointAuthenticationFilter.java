@@ -35,6 +35,7 @@ import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
 import org.cloudfoundry.identity.uaa.provider.OIDCIdentityProviderDefinition;
 import org.cloudfoundry.identity.uaa.provider.oauth.ExternalOAuthAuthenticationManager;
 import org.cloudfoundry.identity.uaa.provider.oauth.ExternalOAuthCodeToken;
+import org.cloudfoundry.identity.uaa.provider.oauth.TokenExchangeData;
 import org.cloudfoundry.identity.uaa.provider.saml.Saml2BearerGrantAuthenticationConverter;
 import org.cloudfoundry.identity.uaa.util.SessionUtils;
 import org.cloudfoundry.identity.uaa.util.UaaSecurityContextUtils;
@@ -65,6 +66,7 @@ import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYP
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_TOKEN_EXCHANGE;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.TOKEN_TYPE_ACCESS;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.TOKEN_TYPE_ID;
+import static org.cloudfoundry.identity.uaa.util.UaaStringUtils.hasText;
 
 /**
  * Provides an implementation that sets the UserAuthentication
@@ -291,32 +293,13 @@ public class BackwardsCompatibleTokenEndpointAuthenticationFilter implements Fil
                 throw new InsufficientAuthenticationException("Assertion is missing");
             }
         } else if (GRANT_TYPE_TOKEN_EXCHANGE.equals(grantType)) {
-            String subjectToken = request.getParameter("subject_token");
-            String subjectTokenType = request.getParameter("subject_token_type");
-            if (subjectToken != null && this.tokenExchangeAuthenticationManager != null) {
-                String idToken = null;
-                String accessToken = null;
-                if (TOKEN_TYPE_ACCESS.equals(subjectTokenType)) {
-                    accessToken = subjectToken;
-                } else if (TOKEN_TYPE_ID.equals(subjectTokenType)) {
-                    idToken = subjectToken;
-                }
-                ExternalOAuthCodeToken token = new ExternalOAuthCodeToken(
-                        null,
-                        null,
-                        null,
-                        idToken,
-                        accessToken,
-                        null,
-                        new UaaAuthenticationDetails(request)
-                );
-                token.setRequestContextPath(getContextPath(request));
+            TokenExchangeData token = getSubjectToken(request);
+            if (token != null && this.tokenExchangeAuthenticationManager != null) {
                 authResult = this.tokenExchangeAuthenticationManager.authenticate(token);
             } else {
                 log.debug("No subject_token or authentication manager, not attempting JWT token-exchange for token endpoint.");
-                throw new InsufficientAuthenticationException("subject_token is missing");
+                throw new InsufficientAuthenticationException("Invalid or missing subject_token");
             }
-
         }
 
         if (authResult != null && authResult.isAuthenticated()) {
@@ -324,6 +307,32 @@ public class BackwardsCompatibleTokenEndpointAuthenticationFilter implements Fil
             return authResult;
         }
         return null;
+    }
+
+    protected TokenExchangeData getSubjectToken(HttpServletRequest request) {
+        String subjectToken = request.getParameter("subject_token");
+        if (!hasText(subjectToken)) {
+            return null;
+        }
+        String subjectTokenType = request.getParameter("subject_token_type");
+        String idToken = null;
+        String accessToken = null;
+        if (TOKEN_TYPE_ACCESS.equals(subjectTokenType)) {
+            accessToken = subjectToken;
+        } else if (TOKEN_TYPE_ID.equals(subjectTokenType)) {
+            idToken = subjectToken;
+        }
+        TokenExchangeData token = new TokenExchangeData(
+                null,
+                null,
+                null,
+                idToken,
+                accessToken,
+                null,
+                new UaaAuthenticationDetails(request)
+        );
+        token.setRequestContextPath(getContextPath(request));
+        return token;
     }
 
     private void resolveRegistrationId(HttpServletRequest request) {

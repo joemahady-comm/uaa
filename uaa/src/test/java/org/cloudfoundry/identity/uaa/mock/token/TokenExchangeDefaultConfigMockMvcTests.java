@@ -15,12 +15,11 @@
 
 package org.cloudfoundry.identity.uaa.mock.token;
 
+import com.nimbusds.jwt.JWTClaimsSet;
 import org.cloudfoundry.identity.uaa.client.UaaClientDetails;
-import org.cloudfoundry.identity.uaa.oauth.KeyInfo;
-import org.cloudfoundry.identity.uaa.oauth.KeyInfoBuilder;
-import org.cloudfoundry.identity.uaa.oauth.jwk.JsonWebKey;
 import org.cloudfoundry.identity.uaa.oauth.jwt.Jwt;
 import org.cloudfoundry.identity.uaa.oauth.jwt.JwtHelper;
+import org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
 import org.cloudfoundry.identity.uaa.zone.MultitenantJdbcClientDetailsService;
 import org.junit.jupiter.api.Test;
@@ -31,7 +30,6 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.cloudfoundry.identity.uaa.oauth.common.OAuth2AccessToken.BEARER_TYPE;
 import static org.cloudfoundry.identity.uaa.oauth.common.OAuth2AccessToken.TOKEN_TYPE;
-import static org.cloudfoundry.identity.uaa.oauth.jwk.RsaJsonWebKeyTestUtils.SAMPLE_RSA_PRIVATE_KEY;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.ISSUED_TOKEN_TYPE;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.TOKEN_TYPE_ACCESS;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.TOKEN_TYPE_ID;
@@ -84,17 +82,19 @@ public class TokenExchangeDefaultConfigMockMvcTests extends TokenExchangeMockMvc
         assertThat(claims.get("email")).isEqualTo(thirdParty.user().getEmails().get(0).getValue());
         assertThat(claims.get("origin")).isEqualTo(workerServer.identityProvider().getOriginKey());
 
-//        Map<String, Object> act = (Map<String, Object>) claims.get("act");
-//        assertThat(act).isNotNull();
-//        assertThat(act).isNotEmpty();
-//        JWTClaimsSet controlServerClaims = multiAuthSetup.getTokenClaims(
-//                (String)multiAuthSetup.controlServerTokens().get("id_token"),
-//                "id_token",
-//                "controlServer"
-//        ).getClaimSet();
-//        assertThat(act.get("sub")).isEqualTo(controlServerClaims.getClaim("sub"));
-//        assertThat(act.get("iss")).isEqualTo(controlServerClaims.getClaim("iss"));
-//        assertThat(act.get("cid")).isEqualTo(controlServerClaims.getClaim("cid"));
+        Map<String, Object> act = (Map<String, Object>) claims.get("act");
+        assertThat(act).isNotNull();
+        assertThat(act).isNotEmpty();
+        Map<String, Object> controlServerClaims = JsonUtils.readValueAsMap(
+                multiAuthSetup.getTokenClaims(
+                        (String)multiAuthSetup.controlServerTokens().get("id_token"),
+                "id_token",
+                "controlServer"
+                ).getClaims()
+        );
+        assertThat(act.get("sub")).isEqualTo(controlServerClaims.get("sub"));
+        assertThat(act.get("iss")).isEqualTo(controlServerClaims.get("iss"));
+        assertThat(act.get("client_id")).isEqualTo(workerServer.client().getClientId());
     }
 
     @Test
@@ -148,7 +148,7 @@ public class TokenExchangeDefaultConfigMockMvcTests extends TokenExchangeMockMvc
 
         //use the id_token(hub) to make a token-exchange on foundation-uaa
         String idToken = (String) multiAuthSetup.controlServerTokens().get("id_token");
-        String tokenType = TOKEN_TYPE_ID;
+        String tokenType = TOKEN_TYPE_ACCESS;
         String requestTokenType = TOKEN_TYPE_ACCESS;
         String audience = null;
         String scope = null;
@@ -175,12 +175,20 @@ public class TokenExchangeDefaultConfigMockMvcTests extends TokenExchangeMockMvc
         assertThat(tokens.get(ISSUED_TOKEN_TYPE)).isEqualTo(TOKEN_TYPE_ACCESS);
         assertThat(tokens.get(TOKEN_TYPE)).isEqualTo(BEARER_TYPE.toLowerCase());
 
-        Jwt tokenClaims = JwtHelper.decode((String) tokens.get("id_token"));
+        Jwt tokenClaims = JwtHelper.decode((String) tokens.get("access_token"));
         Map<String, Object> claims = JsonUtils.readValueAsMap(tokenClaims.getClaims());
 
         assertThat(claims.get("user_name")).isEqualTo(thirdParty.user().getUserName());
         assertThat(claims.get("email")).isEqualTo(thirdParty.user().getEmails().get(0).getValue());
         assertThat(claims.get("origin")).isEqualTo(workerServer.identityProvider().getOriginKey());
+
+        Map<String, Object> subjectTokenClaims = JsonUtils.readValueAsMap(JwtHelper.decode(idToken).getClaims());
+        Map<String, Object> actClaim = (Map<String, Object>) claims.get(ClaimConstants.ACT);
+        assertThat(actClaim.get(ClaimConstants.CLIENT_ID)).isEqualTo(workerServer.client().getClientId());
+        assertThat(actClaim.get(ClaimConstants.SUB)).isEqualTo(subjectTokenClaims.get(ClaimConstants.SUB));
+        assertThat(actClaim.get(ClaimConstants.USER_NAME)).isEqualTo(subjectTokenClaims.get(ClaimConstants.USER_NAME));
+        assertThat(actClaim.get(ClaimConstants.USER_ID)).isEqualTo(subjectTokenClaims.get(ClaimConstants.USER_ID));
+        assertThat(actClaim.get(ClaimConstants.ORIGIN)).isEqualTo(subjectTokenClaims.get(ClaimConstants.ORIGIN));
     }
 
     @Test
@@ -232,8 +240,16 @@ public class TokenExchangeDefaultConfigMockMvcTests extends TokenExchangeMockMvc
         assertThat(claims.get("user_name")).isEqualTo(thirdParty.user().getUserName());
         assertThat(claims.get("email")).isEqualTo(thirdParty.user().getEmails().get(0).getValue());
         assertThat(claims.get("origin")).isEqualTo(workerServer.identityProvider().getOriginKey());
-//        assertThat(claims.get("client_id")).isEqualTo(audience);
-//        assertThat(claims.get("cid")).isEqualTo(audience);
+        assertThat(claims.get("client_id")).isEqualTo(audience.getClientId());
+        assertThat(claims.get("cid")).isEqualTo(audience.getClientId());
+
+        Map<String, Object> subjectTokenClaims = JsonUtils.readValueAsMap(JwtHelper.decode(accessToken).getClaims());
+        Map<String, Object> actClaim = (Map<String, Object>) claims.get(ClaimConstants.ACT);
+        assertThat(actClaim.get(ClaimConstants.CLIENT_ID)).isEqualTo(workerServer.client().getClientId());
+        assertThat(actClaim.get(ClaimConstants.SUB)).isEqualTo(subjectTokenClaims.get(ClaimConstants.SUB));
+        assertThat(actClaim.get(ClaimConstants.USER_NAME)).isEqualTo(subjectTokenClaims.get(ClaimConstants.USER_NAME));
+        assertThat(actClaim.get(ClaimConstants.USER_ID)).isEqualTo(subjectTokenClaims.get(ClaimConstants.USER_ID));
+        assertThat(actClaim.get(ClaimConstants.ORIGIN)).isEqualTo(subjectTokenClaims.get(ClaimConstants.ORIGIN));
 
     }
 

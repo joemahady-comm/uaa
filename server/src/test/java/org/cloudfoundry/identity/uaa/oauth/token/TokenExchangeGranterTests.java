@@ -153,9 +153,9 @@ class TokenExchangeGranterTests {
     }
 
     @Test
-    void get_oauth2_authentication_validates_request() {
+    void grant_validates_request() {
         SecurityContextHolder.clearContext();
-        assertThatThrownBy(() -> granter.getOAuth2Authentication(client, tokenRequest))
+        assertThatThrownBy(() -> granter.grant(GRANT_TYPE_TOKEN_EXCHANGE, tokenRequest))
                 .isInstanceOf(InvalidGrantException.class)
                 .hasMessageContaining("User authentication not found");
         verify(granter, times(1)).validateRequest(same(tokenRequest));

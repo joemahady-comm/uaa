@@ -272,7 +272,7 @@ class DeprecatedUaaTokenServicesTests {
     void refreshAccessToken_buildsIdToken_withRolesAndAttributesAndACR(TestTokenEnhancer enhancer) throws Exception {
         initDeprecatedUaaTokenServicesTests(enhancer);
         IdTokenCreator idTokenCreator = mock(IdTokenCreator.class);
-        when(idTokenCreator.create(any(), any(), any())).thenReturn(mock(IdToken.class));
+        when(idTokenCreator.create(any(), any(), any(), any())).thenReturn(mock(IdToken.class));
 
         UaaClientDetails clientDetails = new UaaClientDetails();
         clientDetails.setScope(Sets.newHashSet("openid"));
@@ -349,7 +349,7 @@ class DeprecatedUaaTokenServicesTests {
         String refreshToken = getOAuth2AccessToken().getRefreshToken().getValue();
         uaaTokenServices.refreshAccessToken(refreshToken, getRefreshTokenRequest());
 
-        verify(idTokenCreator).create(eq(clientDetails), any(), userAuthenticationDataArgumentCaptor.capture());
+        verify(idTokenCreator).create(eq(clientDetails), any(), userAuthenticationDataArgumentCaptor.capture(), any());
         UserAuthenticationData userData = userAuthenticationDataArgumentCaptor.getValue();
         Set<String> expectedRoles = Sets.newHashSet("custom_role");
         assertThat(userData.roles).isEqualTo(expectedRoles);

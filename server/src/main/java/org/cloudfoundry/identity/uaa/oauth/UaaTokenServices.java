@@ -48,6 +48,7 @@ import org.cloudfoundry.identity.uaa.oauth.token.CompositeToken;
 import org.cloudfoundry.identity.uaa.oauth.token.RevocableToken;
 import org.cloudfoundry.identity.uaa.oauth.token.RevocableTokenProvisioning;
 import org.cloudfoundry.identity.uaa.provider.oauth.ExternalOAuthUserAuthority;
+import org.cloudfoundry.identity.uaa.provider.oauth.TokenActor;
 import org.cloudfoundry.identity.uaa.user.UaaAuthority;
 import org.cloudfoundry.identity.uaa.user.UaaUser;
 import org.cloudfoundry.identity.uaa.user.UaaUserDatabase;
@@ -317,17 +318,13 @@ public class UaaTokenServices implements AuthorizationServerTokenServices, Resou
 
     private Map<String, Object> addTokenExchangeClaims(Map<String, Object> additionalRootClaims, OAuth2Request oAuth2Request) {
         String subjectToken = oAuth2Request.getRequestParameters().get(SUBJECT_TOKEN);
-        if (!hasText(subjectToken)) {
+        if (!hasText(subjectToken) || oAuth2Request.getTokenActor() == null) {
             return additionalRootClaims;
         }
         if (additionalRootClaims == null) {
             additionalRootClaims = new HashMap<>();
         }
-        String localClientId = "";
-        String authenticatedClientId = "";
-        String remoteSubject = "";
-        String remoteIssuer = "";
-
+        additionalRootClaims.put(ACT, oAuth2Request.getTokenActor().getClaims());
         return additionalRootClaims;
     }
 
@@ -448,8 +445,12 @@ public class UaaTokenServices implements AuthorizationServerTokenServices, Resou
             info.put(NONCE, nonce);
         }
 
+        TokenActor tokenActor = null;
         if (GRANT_TYPE_TOKEN_EXCHANGE.equals(userAuthenticationData.grantType)) {
             info.put(ISSUED_TOKEN_TYPE, TOKEN_TYPE_ACCESS);
+            if (additionalRootClaims != null) {
+                tokenActor = new TokenActor((Map<String, Object>) additionalRootClaims.get(ACT));
+            }
         }
 
         compositeToken.setAdditionalInformation(info);
@@ -473,7 +474,7 @@ public class UaaTokenServices implements AuthorizationServerTokenServices, Resou
         if (idTokenGranter.shouldSendIdToken(user, clientDetails, requestedScopes, grantType)) {
             IdToken idTokenContent;
             try {
-                idTokenContent = idTokenCreator.create(clientDetails, user, userAuthenticationData);
+                idTokenContent = idTokenCreator.create(clientDetails, user, userAuthenticationData, tokenActor);
             } catch (RuntimeException | IdTokenCreationException ignored) {
                 throw new IllegalStateException("Cannot convert id token to JSON");
             }
@@ -677,7 +678,8 @@ public class UaaTokenServices implements AuthorizationServerTokenServices, Resou
                 nonce,
                 grantType,
                 clientAuthentication,
-                tokenId);
+                tokenId
+        );
 
         String refreshTokenValue = refreshToken != null ? refreshToken.getValue() : null;
 

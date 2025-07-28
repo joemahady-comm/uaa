@@ -1,6 +1,9 @@
 package org.cloudfoundry.identity.uaa.oauth.token;
 
+import com.nimbusds.jwt.JWTClaimsSet;
+import org.cloudfoundry.identity.uaa.oauth.common.OAuth2AccessToken;
 import org.cloudfoundry.identity.uaa.oauth.common.exceptions.InvalidGrantException;
+import org.cloudfoundry.identity.uaa.oauth.jwt.JwtHelper;
 import org.cloudfoundry.identity.uaa.oauth.provider.ClientDetails;
 import org.cloudfoundry.identity.uaa.oauth.provider.OAuth2Authentication;
 import org.cloudfoundry.identity.uaa.oauth.provider.OAuth2Request;
@@ -9,10 +12,13 @@ import org.cloudfoundry.identity.uaa.oauth.provider.TokenRequest;
 import org.cloudfoundry.identity.uaa.oauth.provider.token.AbstractTokenGranter;
 import org.cloudfoundry.identity.uaa.oauth.provider.token.AuthorizationServerTokenServices;
 import org.cloudfoundry.identity.uaa.provider.ClientRegistrationException;
+import org.cloudfoundry.identity.uaa.provider.oauth.TokenActor;
 import org.cloudfoundry.identity.uaa.security.beans.DefaultSecurityContextAccessor;
 import org.cloudfoundry.identity.uaa.zone.MultitenantClientServices;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+
+import java.text.ParseException;
 
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_TOKEN_EXCHANGE;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.TOKEN_EXCHANGE_IMPERSONATE_CLIENT_PERMISSION;
@@ -64,14 +70,17 @@ public class TokenExchangeGranter extends AbstractTokenGranter {
                 throw new InvalidGrantException("Invalid requested token type, only " + TOKEN_TYPE_ACCESS + " is supported");
             }
 
+            ClientDetails client;
+            try {
+                client = clientDetailsService.loadClientByClientId(request.getClientId());
+                if (!client.getAuthorizedGrantTypes().contains(GRANT_TYPE_TOKEN_EXCHANGE)) {
+                    throw new InvalidGrantException("Unsupported grant type");
+                }
+            } catch (ClientRegistrationException e) {
+                throw new InvalidGrantException("Invalid client_id");
+            }
             String audience = request.getRequestParameters().get("audience");
             if (hasText(audience)) {
-                ClientDetails client;
-                try {
-                    client = clientDetailsService.loadClientByClientId(request.getClientId());
-                } catch (ClientRegistrationException e) {
-                    throw new InvalidGrantException("Invalid client_id");
-                }
                 try {
                     clientDetailsService.loadClientByClientId(audience);
                 } catch (ClientRegistrationException e) {
@@ -97,8 +106,52 @@ public class TokenExchangeGranter extends AbstractTokenGranter {
     }
 
     @Override
+    public OAuth2AccessToken grant(String grantType, TokenRequest tokenRequest) {
+        if (!GRANT_TYPE_TOKEN_EXCHANGE.equals(grantType)) {
+            return null;
+        }
+        validateRequest(tokenRequest);
+        TokenActor tokenActor = getTokenActor(tokenRequest);
+        String clientId = tokenRequest.getRequestParameters().get("audience");
+        if (hasText(clientId)) {
+            tokenRequest = new TokenRequest(
+                    tokenRequest.getRequestParameters(),
+                    clientId,
+                    tokenRequest.getScope(),
+                    tokenRequest.getGrantType()
+            );
+        }
+        tokenRequest.setTokenActor(tokenActor);
+        return super.grant(grantType, tokenRequest);
+    }
+
+    protected TokenActor getTokenActor(TokenRequest tokenRequest) {
+        String subjectToken = tokenRequest.getRequestParameters().get("subject_token");
+        JWTClaimsSet claims = JwtHelper.decode(subjectToken).getClaimSet();
+        String clientId = tokenRequest.getClientId();
+        try {
+            return new TokenActor(
+                    claims.getSubject(),
+                    claims.getIssuer(),
+                    clientId,
+                    claims.getClaimAsString(ClaimConstants.USER_NAME),
+                    claims.getClaimAsString(ClaimConstants.USER_ID),
+                    claims.getClaimAsString(ClaimConstants.ORIGIN)
+            );
+        } catch (ParseException p) {
+            logger.debug("Unable to parse subject_token claims", p);
+            throw new InvalidGrantException("Unable to parse subject_token claims");
+        }
+    }
+
+    @Override
+    protected void validateGrantType(String grantType, ClientDetails clientDetails) {
+
+    }
+
+    @Override
     protected OAuth2Authentication getOAuth2Authentication(ClientDetails client, TokenRequest tokenRequest) {
-        Authentication userAuth = validateRequest(tokenRequest);
+        Authentication userAuth = SecurityContextHolder.getContext().getAuthentication();
         OAuth2Request storedOAuth2Request = getRequestFactory().createOAuth2Request(client, tokenRequest);
         return new OAuth2Authentication(storedOAuth2Request, userAuth);
     }

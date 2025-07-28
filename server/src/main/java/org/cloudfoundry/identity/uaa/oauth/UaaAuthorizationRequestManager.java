@@ -2,14 +2,19 @@ package org.cloudfoundry.identity.uaa.oauth;
 
 import org.cloudfoundry.identity.uaa.client.UaaClientDetails;
 import org.cloudfoundry.identity.uaa.oauth.client.ClientConstants;
+import org.cloudfoundry.identity.uaa.oauth.common.exceptions.InvalidClientException;
+import org.cloudfoundry.identity.uaa.oauth.common.exceptions.InvalidScopeException;
+import org.cloudfoundry.identity.uaa.oauth.common.exceptions.UnauthorizedClientException;
 import org.cloudfoundry.identity.uaa.oauth.common.util.OAuth2Utils;
 import org.cloudfoundry.identity.uaa.oauth.provider.AuthorizationRequest;
+import org.cloudfoundry.identity.uaa.oauth.provider.ClientDetails;
 import org.cloudfoundry.identity.uaa.oauth.provider.OAuth2Request;
 import org.cloudfoundry.identity.uaa.oauth.provider.OAuth2RequestFactory;
 import org.cloudfoundry.identity.uaa.oauth.provider.TokenRequest;
 import org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants;
 import org.cloudfoundry.identity.uaa.oauth.token.TokenConstants;
 import org.cloudfoundry.identity.uaa.provider.AbstractIdentityProviderDefinition;
+import org.cloudfoundry.identity.uaa.provider.ClientRegistrationException;
 import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
 import org.cloudfoundry.identity.uaa.provider.IdentityProviderProvisioning;
 import org.cloudfoundry.identity.uaa.security.beans.SecurityContextAccessor;
@@ -27,10 +32,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
-import org.cloudfoundry.identity.uaa.oauth.common.exceptions.InvalidClientException;
-import org.cloudfoundry.identity.uaa.oauth.common.exceptions.InvalidScopeException;
-import org.cloudfoundry.identity.uaa.oauth.common.exceptions.UnauthorizedClientException;
-import org.cloudfoundry.identity.uaa.oauth.provider.ClientDetails;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -49,6 +50,8 @@ import static java.util.Optional.ofNullable;
 import static org.cloudfoundry.identity.uaa.oauth.client.ClientConstants.REQUIRED_USER_GROUPS;
 import static org.cloudfoundry.identity.uaa.oauth.common.util.OAuth2Utils.GRANT_TYPE;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_CLIENT_CREDENTIALS;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_TOKEN_EXCHANGE;
+import static org.cloudfoundry.identity.uaa.util.UaaStringUtils.hasText;
 
 /**
  * An {@link OAuth2RequestFactory} that applies various UAA-specific
@@ -309,6 +312,15 @@ public class UaaAuthorizationRequestManager implements OAuth2RequestFactory {
             if (TokenConstants.GRANT_TYPE_USER_TOKEN.equals(grantType)) {
                 targetClient = clientDetailsService.loadClientByClientId(clientId, identityZoneManager.getCurrentIdentityZoneId());
                 requestParameters.put(TokenConstants.USER_TOKEN_REQUESTING_CLIENT_ID, authenticatedClient.getClientId());
+            } else if (GRANT_TYPE_TOKEN_EXCHANGE.equals(grantType)) {
+                String audience = requestParameters.get("audience");
+                if (hasText(audience)) {
+                    try {
+                        targetClient = clientDetailsService.loadClientByClientId(audience, identityZoneManager.getCurrentIdentityZoneId());
+                    } catch (ClientRegistrationException r) {
+                        throw new InvalidClientException("Invalid audience("+audience+") for "+ GRANT_TYPE_TOKEN_EXCHANGE+ " grant.");
+                    }
+                }
             } else if (!clientId.equals(authenticatedClient.getClientId())) {
                 // otherwise, make sure that they match
                 throw new InvalidClientException("Given client ID does not match authenticated client");
@@ -388,7 +400,9 @@ public class UaaAuthorizationRequestManager implements OAuth2RequestFactory {
                     resourceIds,
                     request.getRedirectUri(),
                     responseTypes,
-                    request.getExtensions());
+                    request.getExtensions(),
+                    this.getTokenActor()
+            );
         }
 
         @Override

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import org.cloudfoundry.identity.uaa.oauth.AuthTimeDateConverter;
+import org.cloudfoundry.identity.uaa.provider.oauth.TokenActor;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
 
 import java.util.Date;
@@ -14,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.ACR;
+import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.ACT;
 import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.AUTH_TIME;
 import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.CID;
 import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.CLIENT_ID;
@@ -70,6 +72,7 @@ public class IdToken {
     public final String jti;
     @JsonProperty(REVOCATION_SIGNATURE)
     public final String revSig;
+    private Map<String,Object> tokenActor;
 
     public IdToken(String sub,
             List<String> aud,
@@ -156,6 +159,19 @@ public class IdToken {
     @JsonProperty(USER_ID)
     public String userId() {
         return sub;
+    }
+
+    @JsonProperty(ACT)
+    public Map<String, Object> getTokenActor() {
+        return this.tokenActor;
+    }
+
+    public void setTokenActor(Map<String, Object> tokenActor) {
+        this.tokenActor = tokenActor;
+    }
+
+    public void setTokenActor(TokenActor tokenActor) {
+        this.tokenActor = tokenActor == null ? null : tokenActor.getClaims();
     }
 
     @JsonIgnore
