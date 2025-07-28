@@ -59,8 +59,8 @@ import org.cloudfoundry.identity.uaa.provider.IdentityProviderProvisioning;
 import org.cloudfoundry.identity.uaa.provider.LockoutPolicy;
 import org.cloudfoundry.identity.uaa.provider.oauth.ExternalOAuthAuthenticationFilter;
 import org.cloudfoundry.identity.uaa.provider.oauth.ExternalOAuthAuthenticationManager;
-import org.cloudfoundry.identity.uaa.provider.oauth.ExternalOAuthCodeToken;
 import org.cloudfoundry.identity.uaa.provider.oauth.OidcMetadataFetcher;
+import org.cloudfoundry.identity.uaa.provider.oauth.TokenExchangeWrapperForExternalOauth;
 import org.cloudfoundry.identity.uaa.resources.jdbc.LimitSqlAdapter;
 import org.cloudfoundry.identity.uaa.scim.ScimGroupExternalMembershipManager;
 import org.cloudfoundry.identity.uaa.scim.ScimGroupProvisioning;
@@ -98,8 +98,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.web.client.RestTemplate;
 
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Proxy;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 import java.util.Arrays;
@@ -579,34 +577,7 @@ public class OauthEndpointBeanConfiguration {
     AuthenticationManager tokenExchangeAuthenticationManager(
             @Qualifier("externalOAuthAuthenticationManager") final ExternalOAuthAuthenticationManager authenticationManager
     ) {
-        InvocationHandler handler = (proxy, method, args) -> {
-            Object[] newArgs = args;
-            //if we are using the ExternalOAuthAuthenticationManager
-            //and we only have an access token, we trick it to use the access token as
-            //an id_token
-            if ("authenticate".equals(method.getName()) && args.length==1 && args[0] instanceof ExternalOAuthCodeToken) {
-                ExternalOAuthCodeToken token = (ExternalOAuthCodeToken)args[0];
-                if (token.getIdToken() == null) {
-                    token = new ExternalOAuthCodeToken(
-                            token.getCode(),
-                            token.getOrigin(),
-                            token.getRedirectUrl(),
-                            token.getAccessToken(),
-                            token.getAccessToken(),
-                            token.getSignedRequest(),
-                            token.getUaaAuthenticationDetails()
-                    );
-                    newArgs = new Object[] {token};
-                }
-            }
-            return method.invoke(authenticationManager, newArgs);
-        };
-
-        return (AuthenticationManager)Proxy.newProxyInstance(
-                authenticationManager.getClass().getClassLoader(),
-                new Class[] {AuthenticationManager.class},
-                handler
-        );
+        return new TokenExchangeWrapperForExternalOauth(authenticationManager);
     }
 
     @Bean("externalOAuthCallbackAuthenticationFilter")
