@@ -112,7 +112,7 @@ public class BackwardsCompatibleTokenEndpointAuthenticationFilter implements Fil
             OAuth2RequestFactory oAuth2RequestFactory,
             Saml2BearerGrantAuthenticationConverter saml2BearerGrantAuthenticationConverter,
             ExternalOAuthAuthenticationManager externalOAuthAuthenticationManager,
-            ExternalOAuthAuthenticationManager tokenExchangeAuthenticationManager) {
+            AuthenticationManager tokenExchangeAuthenticationManager) {
         this(
                 DEFAULT_FILTER_PROCESSES_URI,
                 authenticationManager,
