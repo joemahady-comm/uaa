@@ -23,14 +23,17 @@ import org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
 import org.cloudfoundry.identity.uaa.zone.MultitenantJdbcClientDetailsService;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.cloudfoundry.identity.uaa.oauth.common.OAuth2AccessToken.BEARER_TYPE;
 import static org.cloudfoundry.identity.uaa.oauth.common.OAuth2AccessToken.TOKEN_TYPE;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.ISSUED_TOKEN_TYPE;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.TOKEN_EXCHANGE_IMPERSONATE_CLIENT_PERMISSION;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.TOKEN_TYPE_ACCESS;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.TOKEN_TYPE_ID;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -201,7 +204,7 @@ public class TokenExchangeDefaultConfigMockMvcTests extends TokenExchangeMockMvc
         UaaClientDetails audience = new UaaClientDetails(
                 "audienceClient-" + workerServer.zone().getIdentityZone().getSubdomain(),
                 "",
-                "openid,cloud_controller.read,,cloud_controller.write,uaa.user",
+                "openid,cloud_controller.read,cloud_controller.write,uaa.user",
                 "password,refresh_token",
                 null
         );
@@ -209,6 +212,15 @@ public class TokenExchangeDefaultConfigMockMvcTests extends TokenExchangeMockMvc
         audience.setClientSecret(SECRET);
         webApplicationContext.getBean(MultitenantJdbcClientDetailsService.class).addClientDetails(
                 audience,
+                workerServer.zone().getIdentityZone().getId()
+        );
+
+        //update the worker server client to have `token_exchange.impersonate.<audience.getClientId()> authority
+        String requiredImpersonationAuthority = String.format(TOKEN_EXCHANGE_IMPERSONATE_CLIENT_PERMISSION, audience.getClientId());
+        UaaClientDetails workerClient = (UaaClientDetails) workerServer.client();
+        workerClient.setAuthorities(List.of(new SimpleGrantedAuthority(requiredImpersonationAuthority)));
+        webApplicationContext.getBean(MultitenantJdbcClientDetailsService.class).updateClientDetails(
+                workerClient,
                 workerServer.zone().getIdentityZone().getId()
         );
 

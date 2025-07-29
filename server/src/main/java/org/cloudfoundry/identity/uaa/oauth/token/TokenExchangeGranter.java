@@ -86,14 +86,16 @@ public class TokenExchangeGranter extends AbstractTokenGranter {
                 } catch (ClientRegistrationException e) {
                     throw new InvalidGrantException("Invalid audience");
                 }
+                String requiredImpersonationAuthority =
+                        String.format(TOKEN_EXCHANGE_IMPERSONATE_CLIENT_PERMISSION, audience);
                 long count = client.getAuthorities()==null ? 0l : client
                         .getAuthorities()
                         .stream()
-                        .filter(ga -> TOKEN_EXCHANGE_IMPERSONATE_CLIENT_PERMISSION.equals(ga.getAuthority()))
+                        .filter(ga -> requiredImpersonationAuthority.equals(ga.getAuthority()))
                         .count();
                 if (count == 0) {
                     throw new InvalidGrantException(
-                            "Insufficient permissions, " + TOKEN_EXCHANGE_IMPERSONATE_CLIENT_PERMISSION +
+                            "Insufficient permissions, " + requiredImpersonationAuthority +
                                     " is missing."
                     );
 

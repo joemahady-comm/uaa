@@ -86,6 +86,6 @@ public class TokenConstants {
 
     public static final String SUBJECT_TOKEN = "subject_token";
     public static final String SUBJECT_TOKEN_TYPE = "subject_token_type";
-    public static final String TOKEN_EXCHANGE_IMPERSONATE_CLIENT_PERMISSION = "token_exchange.impersonate.client";
+    public static final String TOKEN_EXCHANGE_IMPERSONATE_CLIENT_PERMISSION = "token_exchange.impersonate.%s";
 
 }

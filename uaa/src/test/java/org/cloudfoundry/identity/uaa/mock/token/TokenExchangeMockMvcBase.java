@@ -25,7 +25,6 @@ import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.cloudfoundry.identity.uaa.zone.MultitenancyFixture;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
@@ -44,7 +43,6 @@ import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYP
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_PASSWORD;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_REFRESH_TOKEN;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_TOKEN_EXCHANGE;
-import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.TOKEN_EXCHANGE_IMPERSONATE_CLIENT_PERMISSION;
 import static org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -189,7 +187,6 @@ public class TokenExchangeMockMvcBase extends AbstractTokenMockMvcTests {
                 },
                 (client) -> {
                     client.setScope(List.of("openid"));
-                    client.setAuthorities(List.of(new SimpleGrantedAuthority(TOKEN_EXCHANGE_IMPERSONATE_CLIENT_PERMISSION)));
                     client.setAuthorizedGrantTypes(List.of(TokenConstants.GRANT_TYPE_TOKEN_EXCHANGE, GRANT_TYPE_REFRESH_TOKEN));
                     //TODO
                     JsonWebKeySet<JsonWebKey> jwkKeySet = new JsonWebKeySet<>(List.of(getJsonWebKey()));
