@@ -4,15 +4,19 @@ import org.cloudfoundry.identity.uaa.DefaultTestContext;
 import org.cloudfoundry.identity.uaa.client.UaaClientDetails;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils;
+import org.cloudfoundry.identity.uaa.oauth.KeyInfoService;
 import org.cloudfoundry.identity.uaa.oauth.UaaTokenServices;
 import org.cloudfoundry.identity.uaa.oauth.client.ClientConstants;
 import org.cloudfoundry.identity.uaa.oauth.token.JdbcRevocableTokenProvisioning;
 import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
 import org.cloudfoundry.identity.uaa.provider.IdentityProviderProvisioning;
+import org.cloudfoundry.identity.uaa.provider.JdbcIdentityProviderProvisioning;
 import org.cloudfoundry.identity.uaa.provider.NoSuchClientException;
+import org.cloudfoundry.identity.uaa.provider.OIDCIdentityProviderDefinition;
 import org.cloudfoundry.identity.uaa.scim.ScimGroup;
 import org.cloudfoundry.identity.uaa.scim.ScimGroupMember;
 import org.cloudfoundry.identity.uaa.scim.ScimUser;
+import org.cloudfoundry.identity.uaa.scim.ScimUserProvisioning;
 import org.cloudfoundry.identity.uaa.scim.exception.MemberAlreadyExistsException;
 import org.cloudfoundry.identity.uaa.scim.jdbc.JdbcScimGroupMembershipManager;
 import org.cloudfoundry.identity.uaa.scim.jdbc.JdbcScimGroupProvisioning;
@@ -24,6 +28,7 @@ import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneConfiguration;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneProvisioning;
+import org.cloudfoundry.identity.uaa.zone.MultitenancyFixture;
 import org.cloudfoundry.identity.uaa.zone.MultitenantClientServices;
 import org.cloudfoundry.identity.uaa.zone.UserConfig;
 import org.junit.jupiter.api.AfterEach;
@@ -35,6 +40,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.net.URI;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -138,6 +144,22 @@ public abstract class AbstractTokenMockMvcTests {
         return username;
     }
 
+    ScimUser createUser(IdentityZone zone) {
+        String userName = generator.generate().toLowerCase();
+        ScimUser user = new ScimUser(null, userName, "first", "last");
+        user.setPrimaryEmail(userName + "@test.org");
+        return createUser(user, zone);
+    }
+
+    ScimUser createUser(ScimUser user, IdentityZone zone) {
+        IdentityZoneHolder.set(zone);
+        try {
+            return webApplicationContext.getBean(ScimUserProvisioning.class).createUser(user, SECRET, IdentityZoneHolder.get().getId());
+        } finally {
+            IdentityZoneHolder.clear();
+        }
+    }
+
     IdentityZone setupIdentityZone(String subdomain) {
         return setupIdentityZone(subdomain, UserConfig.DEFAULT_ZONE_GROUPS);
     }
@@ -171,6 +193,52 @@ public abstract class AbstractTokenMockMvcTests {
         return identityProviderProvisioning.create(defaultIdp, defaultIdp.getIdentityZoneId());
     }
 
+
+    IdentityProvider<OIDCIdentityProviderDefinition> createOIDCProvider(IdentityZone zone, String tokenKey, String issuer, String relyingPartyId) throws Exception {
+        return createOIDCProvider(
+                generator.generate(),
+                zone,
+                tokenKey,
+                issuer,
+                relyingPartyId
+        );
+    }
+
+    IdentityProvider<OIDCIdentityProviderDefinition> createOIDCProvider(String originKey, IdentityZone zone, String tokenKey, String issuer, String relyingPartyId) throws Exception {
+        OIDCIdentityProviderDefinition definition = new OIDCIdentityProviderDefinition();
+        definition.setIssuer(issuer);
+        definition.setAuthUrl(URI.create("http://myauthurl.com").toURL());
+        definition.setTokenKey(tokenKey);
+        definition.setTokenUrl(null);
+        definition.setRelyingPartyId(relyingPartyId);
+        definition.setRelyingPartySecret("secret");
+        definition.setLinkText("my oidc provider");
+        definition.setResponseType("id_token");
+        definition.addAttributeMapping("user_name", "email");
+        IdentityProvider<OIDCIdentityProviderDefinition> identityProvider = MultitenancyFixture.identityProvider(originKey, zone.getId());
+        identityProvider.setType(OriginKeys.OIDC10);
+        identityProvider.setConfig(definition);
+        return createOIDCProvider(zone, identityProvider);
+    }
+
+    IdentityProvider<OIDCIdentityProviderDefinition> createOIDCProvider(IdentityZone zone, IdentityProvider<OIDCIdentityProviderDefinition> identityProvider) throws Exception {
+        IdentityZoneHolder.set(zone);
+        try {
+            return webApplicationContext.getBean(JdbcIdentityProviderProvisioning.class).create(identityProvider, zone.getId());
+        } finally {
+            IdentityZoneHolder.clear();
+        }
+    }
+
+    String getTokenVerificationKey(IdentityZone zone) {
+        IdentityZoneHolder.set(zone);
+        try {
+            return new KeyInfoService("https://someurl").getActiveKey().verifierKey();
+        } finally {
+            IdentityZoneHolder.clear();
+        }
+    }
+
     protected UaaClientDetails setUpClients(String id, String authorities, String scopes, String grantTypes, Boolean autoapprove) {
         return setUpClients(id, authorities, scopes, grantTypes, autoapprove, null);
     }
@@ -192,6 +260,18 @@ public abstract class AbstractTokenMockMvcTests {
     }
 
     protected UaaClientDetails setUpClients(String id, String authorities, String scopes, String grantTypes, Boolean autoapprove, String redirectUri, List<String> allowedIdps, int accessTokenValidity, IdentityZone zone, Map<String, Object> additionalInfo) {
+        return setUpClients(
+                id, authorities, scopes, grantTypes,
+                Collections.singletonList(autoapprove.toString()),
+                redirectUri,
+                allowedIdps,
+                accessTokenValidity,
+                zone,
+                additionalInfo
+        );
+    }
+
+    protected UaaClientDetails setUpClients(String id, String authorities, String scopes, String grantTypes, List<String> autoapprove, String redirectUri, List<String> allowedIdps, int accessTokenValidity, IdentityZone zone, Map<String, Object> additionalInfo) {
         IdentityZone original = IdentityZoneHolder.get();
         if (zone != null) {
             IdentityZoneHolder.set(zone);
@@ -201,7 +281,7 @@ public abstract class AbstractTokenMockMvcTests {
             c.setClientSecret(SECRET);
         }
         c.setRegisteredRedirectUri(new HashSet<>(Collections.singletonList(TEST_REDIRECT_URI)));
-        c.setAutoApproveScopes(Collections.singleton(autoapprove.toString()));
+        c.setAutoApproveScopes(autoapprove);
         Map<String, Object> additional = new HashMap<>();
         if (allowedIdps != null && !allowedIdps.isEmpty()) {
             additional.put(ClientConstants.ALLOWED_PROVIDERS, allowedIdps);
@@ -315,4 +395,5 @@ public abstract class AbstractTokenMockMvcTests {
             }
         }
     }
+
 }

@@ -1,5 +1,6 @@
 package org.cloudfoundry.identity.uaa.oauth.beans;
 
+import jakarta.servlet.http.HttpSession;
 import org.apache.tomcat.jdbc.pool.DataSource;
 import org.cloudfoundry.identity.uaa.approval.ApprovalService;
 import org.cloudfoundry.identity.uaa.approval.JdbcApprovalStore;
@@ -59,6 +60,7 @@ import org.cloudfoundry.identity.uaa.provider.LockoutPolicy;
 import org.cloudfoundry.identity.uaa.provider.oauth.ExternalOAuthAuthenticationFilter;
 import org.cloudfoundry.identity.uaa.provider.oauth.ExternalOAuthAuthenticationManager;
 import org.cloudfoundry.identity.uaa.provider.oauth.OidcMetadataFetcher;
+import org.cloudfoundry.identity.uaa.provider.oauth.TokenExchangeWrapperForExternalOauth;
 import org.cloudfoundry.identity.uaa.resources.jdbc.LimitSqlAdapter;
 import org.cloudfoundry.identity.uaa.scim.ScimGroupExternalMembershipManager;
 import org.cloudfoundry.identity.uaa.scim.ScimGroupProvisioning;
@@ -79,6 +81,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.SetFactoryBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -95,7 +98,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.web.client.RestTemplate;
 
-import jakarta.servlet.http.HttpSession;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 import java.util.Arrays;
@@ -567,6 +569,15 @@ public class OauthEndpointBeanConfiguration {
         bean.setUserDatabase(userDatabase);
         bean.setExternalMembershipManager(externalMembershipManager);
         return bean;
+    }
+
+    @Bean("tokenExchangeAuthenticationManager")
+    @ConditionalOnMissingBean(name = {"tokenExchangeAuthenticationManager"})
+    @SuppressWarnings("unchecked")
+    AuthenticationManager tokenExchangeAuthenticationManager(
+            @Qualifier("externalOAuthAuthenticationManager") final ExternalOAuthAuthenticationManager authenticationManager
+    ) {
+        return new TokenExchangeWrapperForExternalOauth(authenticationManager);
     }
 
     @Bean("externalOAuthCallbackAuthenticationFilter")

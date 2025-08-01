@@ -15,6 +15,7 @@
 
 package org.cloudfoundry.identity.uaa.authentication;
 
+import jakarta.servlet.FilterChain;
 import org.cloudfoundry.identity.uaa.oauth.TokenTestSupport;
 import org.cloudfoundry.identity.uaa.oauth.provider.AuthorizationRequest;
 import org.cloudfoundry.identity.uaa.oauth.provider.OAuth2Authentication;
@@ -24,6 +25,7 @@ import org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants;
 import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
 import org.cloudfoundry.identity.uaa.provider.oauth.ExternalOAuthAuthenticationManager;
 import org.cloudfoundry.identity.uaa.provider.oauth.ExternalOAuthCodeToken;
+import org.cloudfoundry.identity.uaa.provider.oauth.TokenExchangeData;
 import org.cloudfoundry.identity.uaa.provider.saml.Saml2BearerGrantAuthenticationConverter;
 import org.cloudfoundry.identity.uaa.util.SessionUtils;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
@@ -43,7 +45,6 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 
-import jakarta.servlet.FilterChain;
 import java.util.Collections;
 import java.util.Map;
 
@@ -54,6 +55,9 @@ import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.GRANT_TYP
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.CLIENT_AUTH_NONE;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_JWT_BEARER;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_SAML2_BEARER;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_TOKEN_EXCHANGE;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.TOKEN_TYPE_ACCESS;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.TOKEN_TYPE_ID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.same;
@@ -80,6 +84,9 @@ class BackwardsCompatibleTokenEndpointAuthenticationFilterTest {
     private ExternalOAuthAuthenticationManager externalOAuthAuthenticationManager;
 
     @Mock
+    private AuthenticationManager tokenExchangeAuthenticationManager;
+
+    @Mock
     private FilterChain chain;
     @Mock
     private AuthenticationEntryPoint entryPoint;
@@ -96,7 +103,8 @@ class BackwardsCompatibleTokenEndpointAuthenticationFilterTest {
                         passwordAuthManager,
                         requestFactory,
                         saml2BearerGrantAuthenticationConverter,
-                        externalOAuthAuthenticationManager
+                        externalOAuthAuthenticationManager,
+                        tokenExchangeAuthenticationManager
                 )
         );
 
@@ -255,5 +263,57 @@ class BackwardsCompatibleTokenEndpointAuthenticationFilterTest {
         verify(entryPoint, times(1)).commence(same(request), same(response), exceptionArgumentCaptor.capture());
         assertThat(exceptionArgumentCaptor.getValue()).isInstanceOf(InsufficientAuthenticationException.class);
         assertThat(exceptionArgumentCaptor.getValue().getMessage()).isEqualTo("Assertion is missing");
+    }
+
+    @Test
+    void attemptTokenExchangeAuthenticationWithIdToken() throws Exception {
+        support = new TokenTestSupport(null, null);
+        String idToken = support.getIdTokenAsString(Collections.singletonList(OPENID));
+        request.addParameter(GRANT_TYPE, GRANT_TYPE_TOKEN_EXCHANGE);
+        request.addParameter("subject_token", idToken);
+        request.addParameter("subject_token_type", TOKEN_TYPE_ID);
+        filter.doFilter(request, response, chain);
+        verify(filter, times(1)).attemptTokenAuthentication(same(request), same(response));
+        ArgumentCaptor<TokenExchangeData> authenticateData = ArgumentCaptor.forClass(TokenExchangeData.class);
+        verify(tokenExchangeAuthenticationManager, times(1)).authenticate(authenticateData.capture());
+        verifyNoInteractions(externalOAuthAuthenticationManager);
+        verifyNoInteractions(passwordAuthManager);
+        verifyNoMoreInteractions(tokenExchangeAuthenticationManager);
+        assertThat(authenticateData.getValue().getIdToken()).isEqualTo(idToken);
+        assertThat(authenticateData.getValue().getAccessToken()).isNull();
+        assertThat(authenticateData.getValue().getOrigin()).isNull();
+    }
+
+    @Test
+    void attemptTokenExchangeAuthenticationWithAccessToken() throws Exception {
+        support = new TokenTestSupport(null, null);
+        String idToken = support.getIdTokenAsString(Collections.singletonList(OPENID));
+        request.addParameter(GRANT_TYPE, GRANT_TYPE_TOKEN_EXCHANGE);
+        request.addParameter("subject_token", idToken);
+        request.addParameter("subject_token_type", TOKEN_TYPE_ACCESS);
+        filter.doFilter(request, response, chain);
+        verify(filter, times(1)).attemptTokenAuthentication(same(request), same(response));
+        ArgumentCaptor<TokenExchangeData> authenticateData = ArgumentCaptor.forClass(TokenExchangeData.class);
+        verify(tokenExchangeAuthenticationManager, times(1)).authenticate(authenticateData.capture());
+        verifyNoInteractions(externalOAuthAuthenticationManager);
+        verifyNoInteractions(passwordAuthManager);
+        verifyNoMoreInteractions(tokenExchangeAuthenticationManager);
+        assertThat(authenticateData.getValue().getAccessToken()).isEqualTo(idToken);
+        assertThat(authenticateData.getValue().getIdToken()).isNull();
+        assertThat(authenticateData.getValue().getOrigin()).isNull();
+    }
+
+    @Test
+    void tokenExchangeSubjectTokenMissing() throws Exception {
+        request.addParameter(GRANT_TYPE, GRANT_TYPE_TOKEN_EXCHANGE);
+        filter.doFilter(request, response, chain);
+        verify(filter, times(1)).attemptTokenAuthentication(same(request), same(response));
+        verifyNoInteractions(externalOAuthAuthenticationManager);
+        verifyNoInteractions(passwordAuthManager);
+        verifyNoInteractions(tokenExchangeAuthenticationManager);
+        ArgumentCaptor<AuthenticationException> exceptionArgumentCaptor = ArgumentCaptor.forClass(AuthenticationException.class);
+        verify(entryPoint, times(1)).commence(same(request), same(response), exceptionArgumentCaptor.capture());
+        assertThat(exceptionArgumentCaptor.getValue()).isInstanceOf(InsufficientAuthenticationException.class);
+        assertThat(exceptionArgumentCaptor.getValue().getMessage()).isEqualTo("Invalid or missing subject_token");
     }
 }

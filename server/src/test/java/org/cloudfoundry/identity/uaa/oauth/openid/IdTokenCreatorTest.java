@@ -5,6 +5,7 @@ import org.cloudfoundry.identity.uaa.extensions.PollutionPreventionExtension;
 import org.cloudfoundry.identity.uaa.oauth.TokenEndpointBuilder;
 import org.cloudfoundry.identity.uaa.oauth.TokenValidityResolver;
 import org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants;
+import org.cloudfoundry.identity.uaa.provider.oauth.TokenActor;
 import org.cloudfoundry.identity.uaa.user.UaaUser;
 import org.cloudfoundry.identity.uaa.user.UaaUserDatabase;
 import org.cloudfoundry.identity.uaa.user.UaaUserPrototype;
@@ -59,6 +60,15 @@ class IdTokenCreatorTest {
     private String origin;
     private String jti;
     private IdentityZoneManager mockIdentityZoneManager;
+
+    private TokenActor tokenActor = new TokenActor(
+            "actorSubject",
+            "actorIssuer",
+            "actorClientId",
+            "actorUsername",
+            "actorUserId",
+            "actorOrigin"
+    );
 
     @BeforeEach
     void setup() throws Exception {
@@ -180,7 +190,7 @@ class IdTokenCreatorTest {
 
     @Test
     void create_includesStandardClaims() throws IdTokenCreationException {
-        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData);
+        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData, tokenActor);
 
         assertThat(idToken).isNotNull();
         assertThat(idToken.sub).isEqualTo("id1234");
@@ -196,7 +206,7 @@ class IdTokenCreatorTest {
 
     @Test
     void create_includesAdditionalClaims() throws IdTokenCreationException {
-        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData);
+        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData, tokenActor);
 
         assertThat(idToken).isNotNull();
         assertThat(idToken.givenName).isEqualTo(givenName);
@@ -216,12 +226,13 @@ class IdTokenCreatorTest {
         assertThat(idToken.origin).isEqualTo(origin);
         assertThat(idToken.jti).isEqualTo("accessTokenId");
         assertThat(idToken.revSig).isEqualTo("a039bd5");
+        assertThat(idToken.getTokenActor().get(ClaimConstants.ISS)).isEqualTo(tokenActor.getIssuer());
     }
 
     @Test
     void create_includesEmailVerified() throws IdTokenCreationException {
         user.setVerified(false);
-        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData);
+        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData, tokenActor);
         assertThat(idToken.emailVerified).isFalse();
     }
 
@@ -230,7 +241,7 @@ class IdTokenCreatorTest {
         scopes.clear();
         scopes.add("openid");
 
-        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData);
+        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData, tokenActor);
 
         assertThat(idToken.roles).isNull();
     }
@@ -239,7 +250,7 @@ class IdTokenCreatorTest {
     void create_setsRolesToNullIfThereAreNoRoles() throws IdTokenCreationException {
         roles.clear();
 
-        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData);
+        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData, tokenActor);
 
         assertThat(idToken.roles).isNull();
     }
@@ -258,7 +269,7 @@ class IdTokenCreatorTest {
                 null,
                 jti);
 
-        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData);
+        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData, tokenActor);
 
         assertThat(idToken.roles).isNull();
     }
@@ -268,7 +279,7 @@ class IdTokenCreatorTest {
         scopes.clear();
         scopes.add("openid");
 
-        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData);
+        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData, tokenActor);
 
         assertThat(idToken.userAttributes).isNull();
     }
@@ -287,7 +298,7 @@ class IdTokenCreatorTest {
                 null,
                 jti);
 
-        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData);
+        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData, tokenActor);
 
         assertThat(idToken.userAttributes).isNull();
     }
@@ -296,7 +307,7 @@ class IdTokenCreatorTest {
     void create_doesntPopulateNamesAndPhone_whenNoProfileScopeGiven() throws IdTokenCreationException {
         scopes.remove("profile");
 
-        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData);
+        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData, tokenActor);
 
         assertThat(idToken.givenName).isNull();
         assertThat(idToken.familyName).isNull();
@@ -330,8 +341,9 @@ class IdTokenCreatorTest {
         excludedClaims.add(ClaimConstants.ORIGIN);
         excludedClaims.add(ClaimConstants.JTI);
         excludedClaims.add(ClaimConstants.REVOCATION_SIGNATURE);
+        excludedClaims.add(ClaimConstants.ACT);
 
-        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData);
+        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData, tokenActor);
 
         assertThat(idToken.sub).isNull();
         assertThat(idToken.aud).isNull();
@@ -358,6 +370,7 @@ class IdTokenCreatorTest {
         assertThat(idToken.origin).isNull();
         assertThat(idToken.jti).isNull();
         assertThat(idToken.revSig).isNull();
+        assertThat(idToken.getTokenActor()).isNull();
     }
 
     @Test
@@ -367,7 +380,7 @@ class IdTokenCreatorTest {
         when(mockIdentityZone.getSubdomain()).thenReturn("myzone");
         when(mockIdentityZoneManager.getCurrentIdentityZone()).thenReturn(mockIdentityZone);
 
-        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData);
+        IdToken idToken = tokenCreator.create(clientDetails, user, userAuthenticationData, tokenActor);
 
         assertThat(idToken.iss).isEqualTo("http://myzone.localhost:8080/uaa/oauth/token");
     }

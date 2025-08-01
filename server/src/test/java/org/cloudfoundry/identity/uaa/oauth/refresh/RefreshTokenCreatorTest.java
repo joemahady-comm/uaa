@@ -36,6 +36,7 @@ import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYP
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_PASSWORD;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_REFRESH_TOKEN;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_SAML2_BEARER;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_TOKEN_EXCHANGE;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_USER_TOKEN;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -175,6 +176,8 @@ class RefreshTokenCreatorTest {
                 GRANT_TYPE_SAML2_BEARER, scope)).isTrue();
         assertThat(refreshTokenCreator.isRefreshTokenSupported(
                 GRANT_TYPE_JWT_BEARER, scope)).isTrue();
+        assertThat(refreshTokenCreator.isRefreshTokenSupported(
+                GRANT_TYPE_TOKEN_EXCHANGE, scope)).isTrue();
         assertThat(refreshTokenCreator.isRefreshTokenSupported(
                 GRANT_TYPE_CLIENT_CREDENTIALS, scope)).isFalse();
     }

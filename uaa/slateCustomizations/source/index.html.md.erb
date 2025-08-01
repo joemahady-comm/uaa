@@ -342,6 +342,78 @@ _Response Fields_
 
 <%= render('JwtBearerGrantEndpointDocs/document_jwt_bearer_grant/response-fields.md') %>
 
+## Token Exchange Grant
+
+<aside class="success">
+  Added in 78.0
+</aside>
+
+The _Token Exchange Grant_ is a partial implementation of [RFC 8693](https://www.rfc-editor.org/rfc/rfc8693.html)
+and is a HTTP- and JSON-based Security Token Service (STS) that allows impersonation of clients and users
+via a JWT token exchange. The subject_token must be a JWT token and may be an access token or an id_token
+The requesting client, must have `grant_type=urn:ietf:params:oauth:grant-type:token-exchange`.
+In addition, the requesting client must either allow the IDP in `allowedproviders` or omit the property so that any trusted IDP is allowed.
+The trust to the assertion, the issuer claim is used to select an OIDC provider (IDP) configured in the
+UAA database. If multiple providers exists that have the same issuer, the grant will fail. If
+the IDP has `addShadowUserOnLogin` set to false and the user does not exist, the grant will fail.
+If the IDP has `addShadowUserOnLogin` set to true, the origin of the newly created user will be the same
+as that of the IDP.
+
+### Basic Client Authentication
+
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_basic_auth/curl-request.md') %>
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_basic_auth/http-request.md') %>
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_basic_auth/http-response.md') %>
+
+_Request Headers_
+
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_basic_auth/request-headers.md') %>
+
+_Request Parameters_
+
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_basic_auth/form-parameters.md') %>
+
+_Response Fields_
+
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_basic_auth/response-fields.md') %>
+
+### Form Client Authentication
+
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_form_auth/curl-request.md') %>
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_form_auth/http-request.md') %>
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_form_auth/http-response.md') %>
+
+_Request Headers_
+
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_form_auth/request-headers.md') %>
+
+_Request Parameters_
+
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_form_auth/form-parameters.md') %>
+
+_Response Fields_
+
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_form_auth/response-fields.md') %>
+
+### Client Assertion Authentication
+
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_client_assertion/curl-request.md') %>
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_client_assertion/http-request.md') %>
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_client_assertion/http-response.md') %>
+
+_Request Headers_
+
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_client_assertion/request-headers.md') %>
+
+_Request Parameters_
+
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_client_assertion/form-parameters.md') %>
+
+_Response Fields_
+
+<%= render('TokenExchangeGrantEndpointDocs/document_token_exchange_grant_using_client_assertion/response-fields.md') %>
+
+
 ## Refresh Token
 
 <%= render('TokenEndpointDocs/refreshToken/curl-request.md') %>

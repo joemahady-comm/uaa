@@ -18,6 +18,7 @@ import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYP
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_JWT_BEARER;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_PASSWORD;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_REFRESH_TOKEN;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_TOKEN_EXCHANGE;
 
 
 public class IdTokenGranter {
@@ -29,7 +30,8 @@ public class IdTokenGranter {
             GRANT_TYPE_PASSWORD,
             GRANT_TYPE_JWT_BEARER,
             GRANT_TYPE_IMPLICIT,
-            GRANT_TYPE_REFRESH_TOKEN
+            GRANT_TYPE_REFRESH_TOKEN,
+            GRANT_TYPE_TOKEN_EXCHANGE
     );
     private final ApprovalService approvalService;
 

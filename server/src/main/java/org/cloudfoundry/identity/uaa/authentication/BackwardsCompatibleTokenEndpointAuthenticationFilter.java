@@ -14,6 +14,13 @@
 
 package org.cloudfoundry.identity.uaa.authentication;
 
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.cloudfoundry.identity.uaa.oauth.common.exceptions.OAuth2Exception;
@@ -28,6 +35,7 @@ import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
 import org.cloudfoundry.identity.uaa.provider.OIDCIdentityProviderDefinition;
 import org.cloudfoundry.identity.uaa.provider.oauth.ExternalOAuthAuthenticationManager;
 import org.cloudfoundry.identity.uaa.provider.oauth.ExternalOAuthCodeToken;
+import org.cloudfoundry.identity.uaa.provider.oauth.TokenExchangeData;
 import org.cloudfoundry.identity.uaa.provider.saml.Saml2BearerGrantAuthenticationConverter;
 import org.cloudfoundry.identity.uaa.util.SessionUtils;
 import org.cloudfoundry.identity.uaa.util.UaaSecurityContextUtils;
@@ -47,13 +55,6 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -62,6 +63,10 @@ import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.GRANT_TYP
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_JWT_BEARER;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_PASSWORD;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_SAML2_BEARER;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_TOKEN_EXCHANGE;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.TOKEN_TYPE_ACCESS;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.TOKEN_TYPE_ID;
+import static org.cloudfoundry.identity.uaa.util.UaaStringUtils.hasText;
 
 /**
  * Provides an implementation that sets the UserAuthentication
@@ -72,6 +77,7 @@ import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYP
 @Slf4j
 public class BackwardsCompatibleTokenEndpointAuthenticationFilter implements Filter {
     public static final String DEFAULT_FILTER_PROCESSES_URI = "/oauth/token/alias/{{registrationId}}";
+    private final AuthenticationManager tokenExchangeAuthenticationManager;
 
     /**
      * A source of authentication details for requests that result in authentication.
@@ -98,21 +104,32 @@ public class BackwardsCompatibleTokenEndpointAuthenticationFilter implements Fil
 
     public BackwardsCompatibleTokenEndpointAuthenticationFilter(AuthenticationManager authenticationManager,
             OAuth2RequestFactory oAuth2RequestFactory) {
-        this(DEFAULT_FILTER_PROCESSES_URI, authenticationManager, oAuth2RequestFactory, null, null);
+        this(DEFAULT_FILTER_PROCESSES_URI, authenticationManager, oAuth2RequestFactory, null, null, null);
     }
 
-    public BackwardsCompatibleTokenEndpointAuthenticationFilter(AuthenticationManager authenticationManager,
-            OAuth2RequestFactory oAuth2RequestFactory,
-            Saml2BearerGrantAuthenticationConverter saml2BearerGrantAuthenticationConverter,
-            ExternalOAuthAuthenticationManager externalOAuthAuthenticationManager) {
-        this(DEFAULT_FILTER_PROCESSES_URI, authenticationManager, oAuth2RequestFactory, saml2BearerGrantAuthenticationConverter, externalOAuthAuthenticationManager);
-    }
-
-    public BackwardsCompatibleTokenEndpointAuthenticationFilter(String requestMatcherUrl,
+    public BackwardsCompatibleTokenEndpointAuthenticationFilter(
             AuthenticationManager authenticationManager,
             OAuth2RequestFactory oAuth2RequestFactory,
             Saml2BearerGrantAuthenticationConverter saml2BearerGrantAuthenticationConverter,
-            ExternalOAuthAuthenticationManager externalOAuthAuthenticationManager) {
+            ExternalOAuthAuthenticationManager externalOAuthAuthenticationManager,
+            AuthenticationManager tokenExchangeAuthenticationManager) {
+        this(
+                DEFAULT_FILTER_PROCESSES_URI,
+                authenticationManager,
+                oAuth2RequestFactory,
+                saml2BearerGrantAuthenticationConverter,
+                externalOAuthAuthenticationManager,
+                tokenExchangeAuthenticationManager
+        );
+    }
+
+    public BackwardsCompatibleTokenEndpointAuthenticationFilter(
+            String requestMatcherUrl,
+            AuthenticationManager authenticationManager,
+            OAuth2RequestFactory oAuth2RequestFactory,
+            Saml2BearerGrantAuthenticationConverter saml2BearerGrantAuthenticationConverter,
+            ExternalOAuthAuthenticationManager externalOAuthAuthenticationManager,
+            AuthenticationManager tokenExchangeAuthenticationManager) {
         super();
         Assert.isTrue(requestMatcherUrl.contains("{registrationId}"),
                 "filterProcessesUrl must contain a {registrationId} match variable");
@@ -122,6 +139,7 @@ public class BackwardsCompatibleTokenEndpointAuthenticationFilter implements Fil
         this.oAuth2RequestFactory = oAuth2RequestFactory;
         this.saml2BearerGrantAuthenticationConverter = saml2BearerGrantAuthenticationConverter;
         this.externalOAuthAuthenticationManager = externalOAuthAuthenticationManager;
+        this.tokenExchangeAuthenticationManager = tokenExchangeAuthenticationManager;
     }
 
     public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
@@ -274,6 +292,14 @@ public class BackwardsCompatibleTokenEndpointAuthenticationFilter implements Fil
                 log.debug("No assertion or authentication manager, not attempting JWT bearer authentication for token endpoint.");
                 throw new InsufficientAuthenticationException("Assertion is missing");
             }
+        } else if (GRANT_TYPE_TOKEN_EXCHANGE.equals(grantType)) {
+            TokenExchangeData token = getSubjectToken(request);
+            if (token != null && this.tokenExchangeAuthenticationManager != null) {
+                authResult = this.tokenExchangeAuthenticationManager.authenticate(token);
+            } else {
+                log.debug("No subject_token or authentication manager, not attempting JWT token-exchange for token endpoint.");
+                throw new InsufficientAuthenticationException("Invalid or missing subject_token");
+            }
         }
 
         if (authResult != null && authResult.isAuthenticated()) {
@@ -281,6 +307,32 @@ public class BackwardsCompatibleTokenEndpointAuthenticationFilter implements Fil
             return authResult;
         }
         return null;
+    }
+
+    protected TokenExchangeData getSubjectToken(HttpServletRequest request) {
+        String subjectToken = request.getParameter("subject_token");
+        if (!hasText(subjectToken)) {
+            return null;
+        }
+        String subjectTokenType = request.getParameter("subject_token_type");
+        String idToken = null;
+        String accessToken = null;
+        if (TOKEN_TYPE_ACCESS.equals(subjectTokenType)) {
+            accessToken = subjectToken;
+        } else if (TOKEN_TYPE_ID.equals(subjectTokenType)) {
+            idToken = subjectToken;
+        }
+        TokenExchangeData token = new TokenExchangeData(
+                null,
+                null,
+                null,
+                idToken,
+                accessToken,
+                null,
+                new UaaAuthenticationDetails(request)
+        );
+        token.setRequestContextPath(getContextPath(request));
+        return token;
     }
 
     private void resolveRegistrationId(HttpServletRequest request) {

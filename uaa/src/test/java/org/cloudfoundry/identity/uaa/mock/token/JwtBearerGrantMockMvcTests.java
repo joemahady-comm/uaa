@@ -20,20 +20,15 @@ import org.cloudfoundry.identity.uaa.client.UaaClientDetails;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.mock.util.JwtTokenUtils;
 import org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils;
-import org.cloudfoundry.identity.uaa.oauth.KeyInfoService;
 import org.cloudfoundry.identity.uaa.oauth.common.util.RandomValueStringGenerator;
 import org.cloudfoundry.identity.uaa.oauth.provider.ClientDetails;
 import org.cloudfoundry.identity.uaa.oauth.token.TokenConstants;
 import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
-import org.cloudfoundry.identity.uaa.provider.JdbcIdentityProviderProvisioning;
-import org.cloudfoundry.identity.uaa.provider.OIDCIdentityProviderDefinition;
 import org.cloudfoundry.identity.uaa.scim.ScimUser;
 import org.cloudfoundry.identity.uaa.scim.ScimUserProvisioning;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
 import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
-import org.cloudfoundry.identity.uaa.zone.MultitenancyFixture;
-import org.cloudfoundry.identity.uaa.zone.MultitenantJdbcClientDetailsService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,10 +37,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+import static java.util.Collections.emptyMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.cloudfoundry.identity.uaa.oauth.TokenTestSupport.GRANT_TYPE;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_JWT_BEARER;
@@ -337,53 +332,22 @@ public class JwtBearerGrantMockMvcTests extends AbstractTokenMockMvcTests {
     }
 
     ClientDetails createJwtBearerClient(IdentityZone zone) {
-        UaaClientDetails details = new UaaClientDetails(
+
+        UaaClientDetails details =  setUpClients(
                 generator.generate().toLowerCase(),
                 "",
                 "openid",
                 GRANT_TYPE_JWT_BEARER + "," + GRANT_TYPE_REFRESH_TOKEN,
-                null
+                List.of("openid"),
+                null,
+                null,
+                -1,
+                zone,
+                emptyMap()
         );
         details.setClientSecret(SECRET);
-        details.setAutoApproveScopes(List.of("openid"));
-        IdentityZoneHolder.set(zone);
-        try {
-            webApplicationContext.getBean(MultitenantJdbcClientDetailsService.class).addClientDetails(details);
-        } finally {
-            IdentityZoneHolder.clear();
-        }
         return details;
     }
 
-    String getTokenVerificationKey(IdentityZone zone) {
-        IdentityZoneHolder.set(zone);
-        try {
-            return new KeyInfoService("https://someurl").getActiveKey().verifierKey();
-        } finally {
-            IdentityZoneHolder.clear();
-        }
-    }
 
-    IdentityProvider<OIDCIdentityProviderDefinition> createOIDCProvider(IdentityZone zone, String tokenKey, String issuer, String relyingPartyId) throws Exception {
-        String originKey = generator.generate();
-        OIDCIdentityProviderDefinition definition = new OIDCIdentityProviderDefinition();
-        definition.setIssuer(issuer);
-        definition.setAuthUrl(URI.create("http://myauthurl.com").toURL());
-        definition.setTokenKey(tokenKey);
-        definition.setTokenUrl(null);
-        definition.setRelyingPartyId(relyingPartyId);
-        definition.setRelyingPartySecret("secret");
-        definition.setLinkText("my oidc provider");
-        definition.setResponseType("id_token");
-        definition.addAttributeMapping("user_name", "email");
-        IdentityProvider<OIDCIdentityProviderDefinition> identityProvider = MultitenancyFixture.identityProvider(originKey, zone.getId());
-        identityProvider.setType(OriginKeys.OIDC10);
-        identityProvider.setConfig(definition);
-        IdentityZoneHolder.set(zone);
-        try {
-            return webApplicationContext.getBean(JdbcIdentityProviderProvisioning.class).create(identityProvider, zone.getId());
-        } finally {
-            IdentityZoneHolder.clear();
-        }
-    }
 }

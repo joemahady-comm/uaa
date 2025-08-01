@@ -26,6 +26,7 @@ import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYP
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_JWT_BEARER;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_REFRESH_TOKEN;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_SAML2_BEARER;
+import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_TOKEN_EXCHANGE;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_USER_TOKEN;
 
 @ExtendWith(MockitoExtension.class)
@@ -68,6 +69,7 @@ class ZoneEndpointsClientDetailsValidatorTests {
             GRANT_TYPE_REFRESH_TOKEN,
             GRANT_TYPE_SAML2_BEARER,
             GRANT_TYPE_JWT_BEARER,
+            GRANT_TYPE_TOKEN_EXCHANGE
     })
     void createClientNoSecretIsInvalid(final String grantType) {
         UaaClientDetails clientDetails = new UaaClientDetails("client", null, "openid", grantType, "uaa.resource");

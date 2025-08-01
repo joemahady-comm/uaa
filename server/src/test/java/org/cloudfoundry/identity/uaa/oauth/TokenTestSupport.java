@@ -87,6 +87,14 @@ public class TokenTestSupport {
     public static final String CLIENT_ID = "client";
     public static final String CLIENT_ID_NO_REFRESH_TOKEN_GRANT = "client_without_refresh_grant";
     public static final String GRANT_TYPE = "grant_type";
+    public static final String RESOURCE = "resource";
+    public static final String AUDIENCE = "audience";
+    public static final String SCOPE = "scope";
+    public static final String REQUESTED_TOKEN_TYPE = "requested_token_type";
+    public static final String SUBJECT_TOKEN = "subject_token";
+    public static final String SUBJECT_TOKEN_TYPE = "subject_token_type";
+    public static final String ACTOR_TOKEN = "actor_token";
+    public static final String ACTOR_TOKEN_TYPE = "actor_token_type";
     public static final String CLIENT_AUTHORITIES = "read,update,write,openid";
     public static final String ISSUER_URI = "http://localhost:8080/uaa/oauth/token";
     private static final String READ = "read";

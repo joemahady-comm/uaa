@@ -96,6 +96,8 @@ public class Claims {
     private String[] amr;
     @JsonProperty(ClaimConstants.CLIENT_AUTH_METHOD)
     private String clientAuth;
+    @JsonProperty(ClaimConstants.ACT)
+    private Map<String, Object> actorClaims;
 
     public String getUserId() {
         return userId;
@@ -367,6 +369,10 @@ public class Claims {
 
     public void setClientAuth(final String clientAuth) {
         this.clientAuth = clientAuth;
+    }
+
+    public Map<String, Object> getActorClaims() {
+        return this.actorClaims;
     }
 
     @JsonIgnore
