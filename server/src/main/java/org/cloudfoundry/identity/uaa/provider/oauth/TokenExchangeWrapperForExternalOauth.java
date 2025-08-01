@@ -16,7 +16,6 @@ public class TokenExchangeWrapperForExternalOauth implements AuthenticationManag
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
         if (authentication instanceof ExternalOAuthCodeToken token) {
             if (token.getIdToken() == null) {
-                if (token.getIdToken() == null) {
                     token = new TokenExchangeData(
                             token.getCode(),
                             token.getOrigin(),
@@ -26,7 +25,6 @@ public class TokenExchangeWrapperForExternalOauth implements AuthenticationManag
                             token.getSignedRequest(),
                             token.getUaaAuthenticationDetails()
                     );
-                }
             }
             return this.delegate.authenticate(token);
         }
