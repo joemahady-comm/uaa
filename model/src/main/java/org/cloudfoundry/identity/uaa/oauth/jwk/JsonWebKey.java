@@ -161,6 +161,10 @@ public class JsonWebKey {
         return (String) getKeyProperties().get(HeaderParameterNames.ALGORITHM);
     }
 
+    public boolean hasValue() {
+        return getKeyProperties().containsKey(PUBLIC_KEY_VALUE);
+    }
+
     public String getValue() {
         String result = (String) getKeyProperties().get(PUBLIC_KEY_VALUE);
         if (result == null) {
