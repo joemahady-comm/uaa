@@ -271,6 +271,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
             authenticationData.setUsername(username);
 
             List<? extends GrantedAuthority> oidcAuthorities = extractExternalOAuthUserAuthorities(attributeMappings, claims);
+            oidcAuthorities = filterOidcAuthorities(config, oidcAuthorities);
             List<? extends GrantedAuthority> authorities;
             AbstractExternalOAuthIdentityProviderDefinition.OAuthGroupMappingMode groupMappingMode = config.getGroupMappingMode() != null ?
                     config.getGroupMappingMode() : AbstractExternalOAuthIdentityProviderDefinition.OAuthGroupMappingMode.EXPLICITLY_MAPPED;
@@ -283,7 +284,8 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
                     authorities = mapAuthorities(codeToken.getOrigin(), oidcAuthorities);
                     break;
             }
-            authenticationData.setAuthorities(filterOidcAuthorities(config, authorities));
+            authenticationData.setAuthorities(authorities); //the filter should apply to external authorities - not internal
+            authenticationData.setExternalAuthorities(oidcAuthorities);
             ofNullable(attributeMappings).ifPresent(map -> authenticationData.setAttributeMappings(new HashMap<>(map)));
             return authenticationData;
         }
@@ -358,7 +360,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
             authentication.setUserAttributes(userAttributes);
             authentication.setExternalGroups(
                     ofNullable(
-                            authenticationData.getAuthorities()
+                            authenticationData.getExternalAuthorities()
                     )
                             .orElse(emptyList())
                             .stream()
@@ -975,6 +977,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
         private Map<String, Object> claims;
         private String username;
         private List<? extends GrantedAuthority> authorities;
+        private List<? extends GrantedAuthority> externalAuthorities;
         private Map<String, Object> attributeMappings;
 
         public Map<String, Object> getAttributeMappings() {
@@ -1007,6 +1010,14 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
 
         public void setAuthorities(List<? extends GrantedAuthority> authorities) {
             this.authorities = authorities;
+        }
+
+        public List<? extends GrantedAuthority> getExternalAuthorities() {
+            return externalAuthorities;
+        }
+
+        public void setExternalAuthorities(List<? extends GrantedAuthority> externalAuthorities) {
+            this.externalAuthorities = externalAuthorities;
         }
     }
 }

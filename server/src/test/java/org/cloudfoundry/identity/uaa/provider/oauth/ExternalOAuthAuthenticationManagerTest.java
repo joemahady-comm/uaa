@@ -419,7 +419,7 @@ class ExternalOAuthAuthenticationManagerTest {
         //external authorities
         assertThat(authenticationData.getExternalAuthorities()).hasSize(2);
         Set<String> externalAuthorities = AuthorityUtils.authorityListToSet(authenticationData.getExternalAuthorities());
-        assertThat(roles.toArray()).contains(externalAuthorities.toArray());
+        assertThat(externalAuthorities).containsAll(roles);
         //internal (mapped) authorities
         assertThat(authenticationData.getAuthorities()).hasSize(3);
         Set<String> internalAuthorities = AuthorityUtils.authorityListToSet(authenticationData.getAuthorities());
@@ -466,7 +466,7 @@ class ExternalOAuthAuthenticationManagerTest {
         //external authorities
         assertThat(authenticationData.getExternalAuthorities()).hasSize(1);
         Set<String> externalAuthorities = AuthorityUtils.authorityListToSet(authenticationData.getExternalAuthorities());
-        assertThat(roles.toArray()).contains(externalAuthorities.toArray());
+        assertThat(externalAuthorities).containsExactly("manager.us");
         //internal (mapped) authorities
         assertThat(authenticationData.getAuthorities()).hasSize(1);
         Set<String> internalAuthorities = AuthorityUtils.authorityListToSet(authenticationData.getAuthorities());
