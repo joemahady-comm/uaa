@@ -162,7 +162,7 @@ task(gemInstallBundle, type: Exec) {
     dependsOn("customizeSlate")
     workingDir(file("build/slate"))
     executable("gem")
-    args("install", "bundler:2.2.22")
+    args("install", "bundler:2.7.1")
 }
 
 task(bundleInstall, type: Exec) {
