@@ -301,8 +301,8 @@ public class ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> i
                 !StringUtils.equals(existingUser.getPhoneNumber(), user.getPhoneNumber()) || !StringUtils.equals(existingUser.getEmail(), user.getEmail()) || !StringUtils.equals(existingUser.getExternalId(), user.getExternalId());
     }
 
-    protected List<? extends GrantedAuthority> mapAuthorities(String origin, Collection<? extends GrantedAuthority> authorities) {
-        List<GrantedAuthority> result = new LinkedList<>();
+    protected List<SimpleGrantedAuthority> mapAuthorities(String origin, Collection<? extends GrantedAuthority> authorities) {
+        List<SimpleGrantedAuthority> result = new LinkedList<>();
         for (GrantedAuthority authority : authorities) {
             String externalGroup = authority.getAuthority();
             for (ScimGroupExternalMember internalGroup : externalMembershipManager.getExternalGroupMapsByExternalGroup(externalGroup, origin, IdentityZoneHolder.get().getId())) {

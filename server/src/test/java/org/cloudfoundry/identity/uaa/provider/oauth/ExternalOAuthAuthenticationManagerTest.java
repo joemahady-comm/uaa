@@ -30,8 +30,10 @@ import org.cloudfoundry.identity.uaa.provider.ExternalIdentityProviderDefinition
 import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
 import org.cloudfoundry.identity.uaa.provider.IdentityProviderProvisioning;
 import org.cloudfoundry.identity.uaa.provider.OIDCIdentityProviderDefinition;
+import org.cloudfoundry.identity.uaa.scim.ScimGroupExternalMember;
 import org.cloudfoundry.identity.uaa.scim.jdbc.JdbcScimGroupExternalMembershipManager;
 import org.cloudfoundry.identity.uaa.user.UaaUser;
+import org.cloudfoundry.identity.uaa.user.UaaUserDatabase;
 import org.cloudfoundry.identity.uaa.util.AlphanumericRandomValueStringGenerator;
 import org.cloudfoundry.identity.uaa.util.LinkedMaskingMultiValueMap;
 import org.cloudfoundry.identity.uaa.util.TimeServiceImpl;
@@ -56,6 +58,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -152,6 +155,8 @@ class ExternalOAuthAuthenticationManagerTest {
     private IdentityProvider<OIDCIdentityProviderDefinition> provider;
     private IdentityProviderProvisioning identityProviderProvisioning;
     private OidcMetadataFetcher oidcMetadataFetcher;
+    private JdbcScimGroupExternalMembershipManager externalMembershipManager;
+    private UaaUserDatabase userDatabase;
 
     private KeyInfoService mockKeyInfoService() throws JOSEException {
         KeyInfoService keyInfoService = mock(KeyInfoService.class);
@@ -194,7 +199,8 @@ class ExternalOAuthAuthenticationManagerTest {
         IdentityZoneHolder.set(identityZone);
 
         identityProviderProvisioning = mock(IdentityProviderProvisioning.class);
-        JdbcScimGroupExternalMembershipManager externalMembershipManager = mock(JdbcScimGroupExternalMembershipManager.class);
+        externalMembershipManager = mock(JdbcScimGroupExternalMembershipManager.class);
+        userDatabase = mock(UaaUserDatabase.class);
         provider = new IdentityProvider<>();
         oidcConfig = new OIDCIdentityProviderDefinition();
         String oidcIssuerUrl = "http://issuer.com";
@@ -216,6 +222,7 @@ class ExternalOAuthAuthenticationManagerTest {
         );
         authManager = new ExternalOAuthAuthenticationManager(identityProviderProvisioning, new IdentityZoneManagerImpl(), new RestTemplate(), new RestTemplate(), tokenEndpointBuilder, new KeyInfoService(uaaIssuerBaseUrl), oidcMetadataFetcher);
         authManager.setExternalMembershipManager(externalMembershipManager);
+        authManager.setUserDatabase(userDatabase);
     }
 
     @AfterEach
@@ -374,6 +381,99 @@ class ExternalOAuthAuthenticationManagerTest {
     }
 
     @Test
+    void getExternalAuthenticationDetails_whenUaaToken_internalAndExternalRolesAreDifferentViaExternalGroupMapping() {
+        oidcConfig.setIssuer(tokenEndpointBuilder.getTokenEndpoint(IdentityZoneHolder.get()));
+        Map<String, Object> header = map(
+                entry(HeaderParameterNames.ALGORITHM, JWSAlgorithm.RS256.getName()),
+                entry(HeaderParameterNames.KEY_ID, "uaa-key")
+        );
+        JWSSigner signer = new KeyInfo("uaa-key", uaaIdentityZoneTokenSigningKey, DEFAULT_UAA_URL).getSigner();
+        Set<String> roles = new HashSet<>(Arrays.asList("manager.us", "manager.eu"));
+        Map<String, Object> claims = map(
+                entry(EMAIL, "someuser@google.com"),
+                entry(ISS, oidcConfig.getIssuer()),
+                entry(AUD, "uaa-relying-party"),
+                entry(ROLES, roles),
+                entry(EXPIRY_IN_SECONDS, ((int) (System.currentTimeMillis() / 1000L)) + 60),
+                entry(SUB, "abc-def-asdf")
+        );
+        IdentityZoneHolder.get().getConfig().getTokenPolicy().setKeys(Collections.singletonMap("uaa-key", uaaIdentityZoneTokenSigningKey));
+        String idTokenJwt = UaaTokenUtils.constructToken(header, claims, signer);
+        // When
+        oidcConfig.setGroupMappingMode(AbstractExternalOAuthIdentityProviderDefinition.OAuthGroupMappingMode.EXPLICITLY_MAPPED);
+        provider.setConfig(oidcConfig);
+        when(identityProviderProvisioning.retrieveByOrigin(origin, zoneId)).thenReturn(provider);
+
+        ScimGroupExternalMember groupMap1 = new ScimGroupExternalMember("group-1", "manager.us");
+        groupMap1.setDisplayName("cloud_controller.read");
+        ScimGroupExternalMember groupMap2 = new ScimGroupExternalMember("group-2", "manager.eu");
+        groupMap2.setDisplayName("cloud_controller.write");
+        ScimGroupExternalMember groupMap3 = new ScimGroupExternalMember("group-3", "manager.eu");
+        groupMap3.setDisplayName("cloud_controller.delete");
+        when(externalMembershipManager.getExternalGroupMapsByExternalGroup(eq("manager.us"), any(), any())).thenReturn(List.of(groupMap1));
+        when(externalMembershipManager.getExternalGroupMapsByExternalGroup(eq("manager.eu"), any(), any())).thenReturn(List.of(groupMap2, groupMap3));
+
+        ExternalOAuthCodeToken oidcAuthentication = new ExternalOAuthCodeToken("thecode", origin, "http://google.com", idTokenJwt, "accesstoken", "signedrequest");
+        ExternalOAuthAuthenticationManager.AuthenticationData authenticationData = authManager.getExternalAuthenticationDetails(oidcAuthentication);
+        assertThat(authenticationData).isNotNull();
+        //external authorities
+        assertThat(authenticationData.getExternalAuthorities()).hasSize(2);
+        Set<String> externalAuthorities = AuthorityUtils.authorityListToSet(authenticationData.getExternalAuthorities());
+        assertThat(externalAuthorities).containsAll(roles);
+        //internal (mapped) authorities
+        assertThat(authenticationData.getAuthorities()).hasSize(3);
+        Set<String> internalAuthorities = AuthorityUtils.authorityListToSet(authenticationData.getAuthorities());
+        assertThat(Set.of("cloud_controller.read", "cloud_controller.write", "cloud_controller.delete")).containsAll(internalAuthorities);
+    }
+
+    @Test
+    void getExternalAuthenticationDetails_whenUaaToken_ExternalRolesAreFiltered() {
+        oidcConfig.setIssuer(tokenEndpointBuilder.getTokenEndpoint(IdentityZoneHolder.get()));
+        Map<String, Object> header = map(
+                entry(HeaderParameterNames.ALGORITHM, JWSAlgorithm.RS256.getName()),
+                entry(HeaderParameterNames.KEY_ID, "uaa-key")
+        );
+        JWSSigner signer = new KeyInfo("uaa-key", uaaIdentityZoneTokenSigningKey, DEFAULT_UAA_URL).getSigner();
+        Set<String> roles = new HashSet<>(Arrays.asList("manager.us", "manager.eu"));
+        Map<String, Object> claims = map(
+                entry(EMAIL, "someuser@google.com"),
+                entry(ISS, oidcConfig.getIssuer()),
+                entry(AUD, "uaa-relying-party"),
+                entry(ROLES, roles),
+                entry(EXPIRY_IN_SECONDS, ((int) (System.currentTimeMillis() / 1000L)) + 60),
+                entry(SUB, "abc-def-asdf")
+        );
+        IdentityZoneHolder.get().getConfig().getTokenPolicy().setKeys(Collections.singletonMap("uaa-key", uaaIdentityZoneTokenSigningKey));
+        String idTokenJwt = UaaTokenUtils.constructToken(header, claims, signer);
+        // When
+        oidcConfig.setGroupMappingMode(AbstractExternalOAuthIdentityProviderDefinition.OAuthGroupMappingMode.EXPLICITLY_MAPPED);
+        oidcConfig.setExternalGroupsWhitelist(List.of("manager.us"));
+        provider.setConfig(oidcConfig);
+        when(identityProviderProvisioning.retrieveByOrigin(origin, zoneId)).thenReturn(provider);
+
+        ScimGroupExternalMember groupMap1 = new ScimGroupExternalMember("group-1", "manager.us");
+        groupMap1.setDisplayName("cloud_controller.read");
+        ScimGroupExternalMember groupMap2 = new ScimGroupExternalMember("group-2", "manager.eu");
+        groupMap2.setDisplayName("cloud_controller.write");
+        ScimGroupExternalMember groupMap3 = new ScimGroupExternalMember("group-3", "manager.eu");
+        groupMap3.setDisplayName("cloud_controller.delete");
+        when(externalMembershipManager.getExternalGroupMapsByExternalGroup(eq("manager.us"), any(), any())).thenReturn(List.of(groupMap1));
+        when(externalMembershipManager.getExternalGroupMapsByExternalGroup(eq("manager.eu"), any(), any())).thenReturn(List.of(groupMap2, groupMap3));
+
+        ExternalOAuthCodeToken oidcAuthentication = new ExternalOAuthCodeToken("thecode", origin, "http://google.com", idTokenJwt, "accesstoken", "signedrequest");
+        ExternalOAuthAuthenticationManager.AuthenticationData authenticationData = authManager.getExternalAuthenticationDetails(oidcAuthentication);
+        assertThat(authenticationData).isNotNull();
+        //external authorities
+        assertThat(authenticationData.getExternalAuthorities()).hasSize(1);
+        Set<String> externalAuthorities = AuthorityUtils.authorityListToSet(authenticationData.getExternalAuthorities());
+        assertThat(externalAuthorities).containsExactly("manager.us");
+        //internal (mapped) authorities
+        assertThat(authenticationData.getAuthorities()).hasSize(1);
+        Set<String> internalAuthorities = AuthorityUtils.authorityListToSet(authenticationData.getAuthorities());
+        assertThat(Set.of("cloud_controller.read")).containsAll(internalAuthorities);
+    }
+
+    @Test
     void getExternalAuthenticationDetails_whenUaaToken_mapRoleAsScopeToScopeWhenIdTokenIsValid_AndFilterManagerRolesOnly() {
         oidcConfig.setIssuer(tokenEndpointBuilder.getTokenEndpoint(IdentityZoneHolder.get()));
         Map<String, Object> header = map(
@@ -506,7 +606,7 @@ class ExternalOAuthAuthenticationManagerTest {
     }
 
     @Test
-    void populateAuthenticationAttributes_setsIdpIdToken() {
+    void populateAuthenticationAttributes_setsIdpIdTokenAndExternalGroups() {
         UaaAuthentication authentication = new UaaAuthentication(new UaaPrincipal("user-guid", "marissa", "marissa@test.org", "uaa", "", ""), Collections.emptyList(), null);
         Map<String, Object> header = map(
                 entry(HeaderParameterNames.ALGORITHM, JWSAlgorithm.RS256.getName()),
@@ -527,8 +627,10 @@ class ExternalOAuthAuthenticationManagerTest {
         String idTokenJwt = UaaTokenUtils.constructToken(header, claims, signer);
         ExternalOAuthCodeToken oidcAuthentication = new ExternalOAuthCodeToken(null, origin, "http://google.com", idTokenJwt, "accesstoken", "signedrequest");
         ExternalOAuthAuthenticationManager.AuthenticationData authenticationData = authManager.getExternalAuthenticationDetails(oidcAuthentication);
+        authenticationData.setExternalAuthorities(List.of(new SimpleGrantedAuthority("uaa-authorities")));
         authManager.populateAuthenticationAttributes(authentication, oidcAuthentication, authenticationData);
         assertThat(authentication.getIdpIdToken()).isEqualTo(idTokenJwt);
+        assertThat(authentication.getExternalGroups()).containsAll(List.of("uaa-authorities"));
     }
 
     @Test
