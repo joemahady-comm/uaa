@@ -78,6 +78,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.util.LinkedMultiValueMap;
@@ -270,9 +271,9 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
 
             authenticationData.setUsername(username);
 
-            List<? extends GrantedAuthority> oidcAuthorities = extractExternalOAuthUserAuthorities(attributeMappings, claims);
+            List<SimpleGrantedAuthority> oidcAuthorities = extractExternalOAuthUserAuthorities(attributeMappings, claims);
             oidcAuthorities = filterOidcAuthorities(config, oidcAuthorities);
-            List<? extends GrantedAuthority> authorities;
+            List<SimpleGrantedAuthority> authorities;
             AbstractExternalOAuthIdentityProviderDefinition.OAuthGroupMappingMode groupMappingMode = config.getGroupMappingMode() != null ?
                     config.getGroupMappingMode() : AbstractExternalOAuthIdentityProviderDefinition.OAuthGroupMappingMode.EXPLICITLY_MAPPED;
             switch (groupMappingMode) {
@@ -303,7 +304,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
             if (ObjectUtils.isNotEmpty(result)) {
                 log.debug("White listed external OIDC groups:'{}'", result);
             }
-            return result.stream().map(ExternalOAuthUserAuthority::new).toList();
+            return result.stream().map(SimpleGrantedAuthority::new).toList();
         }
     }
 
@@ -457,7 +458,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
         throw new BadCredentialsException("External token attribute " + claimName + " cannot be mapped to user attribute " + internalName);
     }
 
-    private List<? extends GrantedAuthority> extractExternalOAuthUserAuthorities(Map<String, Object> attributeMappings, Map<String, Object> claims) {
+    private List<SimpleGrantedAuthority> extractExternalOAuthUserAuthorities(Map<String, Object> attributeMappings, Map<String, Object> claims) {
         List<String> groupNames = new LinkedList<>();
         if (attributeMappings.get(GROUP_ATTRIBUTE_NAME) instanceof String string) {
             groupNames.add(string);
@@ -476,9 +477,9 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
             }
         }
 
-        List<ExternalOAuthUserAuthority> authorities = new ArrayList<>();
+        List<SimpleGrantedAuthority> authorities = new ArrayList<>();
         for (String scope : scopes) {
-            authorities.add(new ExternalOAuthUserAuthority(scope));
+            authorities.add(new SimpleGrantedAuthority(scope));
         }
 
         return authorities;
@@ -976,8 +977,8 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
 
         private Map<String, Object> claims;
         private String username;
-        private List<? extends GrantedAuthority> authorities;
-        private List<? extends GrantedAuthority> externalAuthorities;
+        private List<SimpleGrantedAuthority> authorities;
+        private List<SimpleGrantedAuthority> externalAuthorities;
         private Map<String, Object> attributeMappings;
 
         public Map<String, Object> getAttributeMappings() {
@@ -1004,19 +1005,19 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
             return username;
         }
 
-        public List<? extends GrantedAuthority> getAuthorities() {
+        public List<SimpleGrantedAuthority> getAuthorities() {
             return authorities;
         }
 
-        public void setAuthorities(List<? extends GrantedAuthority> authorities) {
+        public void setAuthorities(List<SimpleGrantedAuthority> authorities) {
             this.authorities = authorities;
         }
 
-        public List<? extends GrantedAuthority> getExternalAuthorities() {
+        public List<SimpleGrantedAuthority> getExternalAuthorities() {
             return externalAuthorities;
         }
 
-        public void setExternalAuthorities(List<? extends GrantedAuthority> externalAuthorities) {
+        public void setExternalAuthorities(List<SimpleGrantedAuthority> externalAuthorities) {
             this.externalAuthorities = externalAuthorities;
         }
     }
