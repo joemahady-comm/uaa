@@ -125,29 +125,11 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 class ExternalOAuthAuthenticationManagerIT {
     private static final String UAA_ORIGIN = "uaa";
-
-    private MockRestServiceServer mockUaaServer;
-    private ExternalOAuthAuthenticationManager externalOAuthAuthenticationManager;
-    private UrlContentCache urlContentCache;
-    private IdentityProviderProvisioning provisioning;
-    private InMemoryUaaUserDatabase userDatabase;
-    private ExternalOAuthCodeToken xCodeToken;
-    private ApplicationEventPublisher publisher;
     private static final String CODE = "the_code";
-
     private static final String ORIGIN = "the_origin";
     private static final String ISSUER = "cf-app.com";
     private static final String UAA_ISSUER_URL = "http://issuer.url";
     private static final List<String> SCOPES_LIST = Arrays.asList("openid", "some.other.scope", "closedid");
-
-    private Map<String, Object> claims;
-    private HashMap<String, Object> attributeMappings;
-    private OIDCIdentityProviderDefinition config;
-    private JWSSigner signer;
-    private Map<String, Object> header;
-    private String invalidRsaSigningKey;
-    private ExternalOAuthProviderConfigurator externalOAuthProviderConfigurator;
-    private TokenEndpointBuilder tokenEndpointBuilder;
 
     private static final String PUBLIC_KEY = """
             -----BEGIN PUBLIC KEY-----
@@ -165,6 +147,33 @@ class ExternalOAuthAuthenticationManagerIT {
             RrvDmLPSPiECICQi9FqIQSUH+vkGvX0qXM8ymT5ZMS7oSaA8aNPj7EYBAiEAx5V3
             2JGEulMY3bK1PVGYmtsXF1gq6zbRMoollMCRSMg=
             -----END RSA PRIVATE KEY-----""";
+
+    private static final String INVALID_RSA_SIGNING_KEY = """
+            -----BEGIN RSA PRIVATE KEY-----
+            MIIBOgIBAAJBAJnlBG4lLmUiHslsKDODfd0MqmGZRNUOhn7eO3cKobsFljUKzRQe
+            GB7LYMjPavnKccm6+jWSXutpzfAc9A9wXG8CAwEAAQJADwwdiseH6cuURw2UQLUy
+            sVJztmdOG6b375+7IMChX6/cgoF0roCPP0Xr70y1J4TXvFhjcwTgm4RI+AUiIDKw
+            gQIhAPQHwHzdYG1639Qz/TCHzuai0ItwVC1wlqKpat+CaqdZAiEAoXFyS7249mRu
+            xtwRAvxKMe+eshHvG2le+ZDrM/pz8QcCIQCzmCDpxGL7L7sbCUgFN23l/11Lwdex
+            uXKjM9wbsnebwQIgeZIbVovUp74zaQ44xT3EhVwC7ebxXnv3qAkIBMk526sCIDVg
+            z1jr3KEcaq9zjNJd9sKBkqpkVSqj8Mv+Amq+YjBA
+            -----END RSA PRIVATE KEY-----""";
+
+    private MockRestServiceServer mockUaaServer;
+    private ExternalOAuthAuthenticationManager externalOAuthAuthenticationManager;
+    private UrlContentCache urlContentCache;
+    private IdentityProviderProvisioning provisioning;
+    private InMemoryUaaUserDatabase userDatabase;
+    private ExternalOAuthCodeToken xCodeToken;
+    private ApplicationEventPublisher publisher;
+
+    private Map<String, Object> claims;
+    private HashMap<String, Object> attributeMappings;
+    private OIDCIdentityProviderDefinition config;
+    private JWSSigner signer;
+    private Map<String, Object> header;
+    private ExternalOAuthProviderConfigurator externalOAuthProviderConfigurator;
+    private TokenEndpointBuilder tokenEndpointBuilder;
 
     @AfterEach
     void clearContext() {
@@ -222,7 +231,6 @@ class ExternalOAuthAuthenticationManagerIT {
         externalOAuthAuthenticationManager.setUserDatabase(userDatabase);
         externalOAuthAuthenticationManager.setExternalMembershipManager(externalMembershipManager);
         externalOAuthAuthenticationManager.setApplicationEventPublisher(publisher);
-        externalOAuthAuthenticationManager.setTokenEndpointBuilder(tokenEndpointBuilder);
         xCodeToken = new ExternalOAuthCodeToken(CODE, ORIGIN, "http://localhost/callback/the_origin");
         claims = map(
                 entry("sub", "12345"),
@@ -261,24 +269,9 @@ class ExternalOAuthAuthenticationManagerIT {
                 .setRelyingPartySecret("identitysecret")
                 .setUserInfoUrl(URI.create("http://localhost/userinfo").toURL())
                 .setTokenKey(PUBLIC_KEY);
-        config.setExternalGroupsWhitelist(
-                Collections.singletonList(
-                        "*"
-                )
-        );
+        config.setExternalGroupsWhitelist(Collections.singletonList("*"));
 
         mockUaaServer = MockRestServiceServer.createServer(nonTrustingRestTemplate);
-
-        invalidRsaSigningKey = """
-                -----BEGIN RSA PRIVATE KEY-----
-                MIIBOgIBAAJBAJnlBG4lLmUiHslsKDODfd0MqmGZRNUOhn7eO3cKobsFljUKzRQe
-                GB7LYMjPavnKccm6+jWSXutpzfAc9A9wXG8CAwEAAQJADwwdiseH6cuURw2UQLUy
-                sVJztmdOG6b375+7IMChX6/cgoF0roCPP0Xr70y1J4TXvFhjcwTgm4RI+AUiIDKw
-                gQIhAPQHwHzdYG1639Qz/TCHzuai0ItwVC1wlqKpat+CaqdZAiEAoXFyS7249mRu
-                xtwRAvxKMe+eshHvG2le+ZDrM/pz8QcCIQCzmCDpxGL7L7sbCUgFN23l/11Lwdex
-                uXKjM9wbsnebwQIgeZIbVovUp74zaQ44xT3EhVwC7ebxXnv3qAkIBMk526sCIDVg
-                z1jr3KEcaq9zjNJd9sKBkqpkVSqj8Mv+Amq+YjBA
-                -----END RSA PRIVATE KEY-----""";
     }
 
     @Test
@@ -712,7 +705,7 @@ class ExternalOAuthAuthenticationManagerIT {
     @Test
     void single_key_response_without_value() throws Exception {
         String json = getKeyJson(PRIVATE_KEY, "correctKey", false);
-        Map<String, Object> map = JsonUtils.readValue(json, new TypeReference<Map<String, Object>>() {
+        Map<String, Object> map = JsonUtils.readValue(json, new TypeReference<>() {
         });
         map.remove("value");
         json = JsonUtils.writeValueAsString(map);
@@ -724,10 +717,10 @@ class ExternalOAuthAuthenticationManagerIT {
     @Test
     void multi_key_response_without_value() throws Exception {
         String jsonValid = getKeyJson(PRIVATE_KEY, "correctKey", false);
-        String jsonInvalid = getKeyJson(invalidRsaSigningKey, "invalidKey", false);
-        Map<String, Object> mapValid = JsonUtils.readValue(jsonValid, new TypeReference<Map<String, Object>>() {
+        String jsonInvalid = getKeyJson(INVALID_RSA_SIGNING_KEY, "invalidKey", false);
+        Map<String, Object> mapValid = JsonUtils.readValue(jsonValid, new TypeReference<>() {
         });
-        Map<String, Object> mapInvalid = JsonUtils.readValue(jsonInvalid, new TypeReference<Map<String, Object>>() {
+        Map<String, Object> mapInvalid = JsonUtils.readValue(jsonInvalid, new TypeReference<>() {
         });
         mapValid.remove("value");
         mapInvalid.remove("value");
@@ -739,11 +732,11 @@ class ExternalOAuthAuthenticationManagerIT {
 
     @Test
     void multi_key_all_invalid() throws Exception {
-        String jsonInvalid = getKeyJson(invalidRsaSigningKey, "invalidKey", false);
-        String jsonInvalid2 = getKeyJson(invalidRsaSigningKey, "invalidKey2", false);
-        Map<String, Object> mapInvalid = JsonUtils.readValue(jsonInvalid, new TypeReference<Map<String, Object>>() {
+        String jsonInvalid = getKeyJson(INVALID_RSA_SIGNING_KEY, "invalidKey", false);
+        String jsonInvalid2 = getKeyJson(INVALID_RSA_SIGNING_KEY, "invalidKey2", false);
+        Map<String, Object> mapInvalid = JsonUtils.readValue(jsonInvalid, new TypeReference<>() {
         });
-        Map<String, Object> mapInvalid2 = JsonUtils.readValue(jsonInvalid2, new TypeReference<Map<String, Object>>() {
+        Map<String, Object> mapInvalid2 = JsonUtils.readValue(jsonInvalid2, new TypeReference<>() {
         });
         String json = JsonUtils.writeValueAsString(new JsonWebKeySet<>(Arrays.asList(new JsonWebKey(mapInvalid), new JsonWebKey(mapInvalid2))));
         assertThat(json).contains("\"invalidKey\"", "\"invalidKey2\"");
@@ -821,7 +814,7 @@ class ExternalOAuthAuthenticationManagerIT {
 
     @Test
     void rejectTokenWithInvalidSignatureAccordingToTokenKeyEndpoint() throws Exception {
-        configureTokenKeyResponse("http://localhost/token_key", invalidRsaSigningKey, "wrongKey");
+        configureTokenKeyResponse("http://localhost/token_key", INVALID_RSA_SIGNING_KEY, "wrongKey");
 
         assertThatExceptionOfType(InvalidTokenException.class).isThrownBy(() -> externalOAuthAuthenticationManager.authenticate(xCodeToken));
     }
