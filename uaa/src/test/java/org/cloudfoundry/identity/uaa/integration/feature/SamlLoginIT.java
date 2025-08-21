@@ -99,7 +99,6 @@ import static org.cloudfoundry.identity.uaa.provider.saml.SamlNameIdFormats.NAME
 import static org.cloudfoundry.identity.uaa.provider.saml.SamlNameIdFormats.NAMEID_FORMAT_TRANSIENT;
 import static org.cloudfoundry.identity.uaa.provider.saml.SamlNameIdFormats.NAMEID_FORMAT_UNSPECIFIED;
 import static org.cloudfoundry.identity.uaa.provider.saml.SamlNameIdFormats.NAMEID_FORMAT_X509SUBJECT;
-import static org.junit.Assert.assertEquals;
 import static org.opensaml.xmlsec.signature.support.SignatureConstants.ALGO_ID_DIGEST_SHA256;
 import static org.opensaml.xmlsec.signature.support.SignatureConstants.ALGO_ID_SIGNATURE_RSA_SHA256;
 import static org.springframework.http.HttpMethod.GET;
@@ -1161,7 +1160,7 @@ public class SamlLoginIT {
         provider.setName("simplesamlphp for testzone1");
 
         provider = IntegrationTestUtils.createOrUpdateProvider(zoneAdminToken,baseUrl,provider);
-        assertEquals(provider.getOriginKey(), provider.getConfig().getIdpEntityAlias());
+        assertThat(provider.getOriginKey()).isEqualTo(provider.getConfig().getIdpEntityAlias());
 
         String zoneUrl = baseUrl.replace("localhost", "testzone1.localhost");
 
