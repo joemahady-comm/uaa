@@ -19,6 +19,8 @@ import org.cloudfoundry.identity.uaa.util.UaaUrlUtils;
 import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
+
 public final class SamlRedirectUtils {
 
     private SamlRedirectUtils() {
@@ -48,5 +50,32 @@ public final class SamlRedirectUtils {
         } else {
             return UaaUrlUtils.getSubdomain(identityZone.getSubdomain()) + entityID;
         }
+    }
+
+    /**
+     * Normalizes a URL for port comparison by removing standard ports (80 for HTTP, 443 for HTTPS).
+     * This ensures that URLs like "http://example.com" and "http://example.com:80" are treated as equivalent.
+     *
+     * @param url the URL to normalize
+     * @return the normalized URL with standard ports removed, or the original URL if malformed
+     */
+    public static String normalizeUrlForPortComparison(String url) {
+        if (url == null) {
+            return null;
+        }
+        try {
+            URI uri = new URI(url);
+            int port = uri.getPort();
+            String scheme = uri.getScheme();
+
+            if (("http".equalsIgnoreCase(scheme) && port == 80) || 
+                ("https".equalsIgnoreCase(scheme) && port == 443)) {
+                return new URI(scheme, uri.getUserInfo(), uri.getHost(), -1, 
+                              uri.getPath(), uri.getQuery(), uri.getFragment()).toString();
+            }
+        } catch (Exception ignored) {
+            // ignore
+        }
+        return url;
     }
 }
