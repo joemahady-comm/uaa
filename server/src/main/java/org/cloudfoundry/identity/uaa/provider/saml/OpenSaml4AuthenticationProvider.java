@@ -100,7 +100,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import static org.cloudfoundry.identity.uaa.provider.saml.SamlRedirectUtils.normalizeUrlForPortComparison;
+import static org.cloudfoundry.identity.uaa.util.UaaUrlUtils.normalizeUrlForPortComparison;
 
 /**
  * This was copied from Spring Security, and modified to work with Open SAML 4.0.x
