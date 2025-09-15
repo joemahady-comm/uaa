@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SamlRedirectUtilsTest {
-
     private static final String ENTITY_ID = "entityId";
     private static final String ZONE_ID = "zone-id";
 
@@ -72,5 +71,4 @@ class SamlRedirectUtilsTest {
         // now the entityID is generated id as before this change
         assertThat(SamlRedirectUtils.getZonifiedEntityId("local-name", newZone)).isEqualTo("new-zone-id.local-name");
     }
-
 }

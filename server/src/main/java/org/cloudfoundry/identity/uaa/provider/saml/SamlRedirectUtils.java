@@ -19,8 +19,6 @@ import org.cloudfoundry.identity.uaa.util.UaaUrlUtils;
 import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.net.URI;
-
 public final class SamlRedirectUtils {
 
     private SamlRedirectUtils() {
@@ -51,5 +49,4 @@ public final class SamlRedirectUtils {
             return UaaUrlUtils.getSubdomain(identityZone.getSubdomain()) + entityID;
         }
     }
-
 }
