@@ -713,148 +713,53 @@ class UaaUrlUtilsTest {
     }
 
     // Tests for normalizeUrlForPortComparison method
-    @Test
-    void normalizeUrlForPortComparison_withHttpStandardPort_removesPort() {
-        String urlWithPort = "http://example.com:80/path";
-        String expected = "http://example.com/path";
-        
-        String result = normalizeUrlForPortComparison(urlWithPort);
-        
-        assertThat(result).isEqualTo(expected);
-    }
-
-    @Test
-    void normalizeUrlForPortComparison_withHttpsStandardPort_removesPort() {
-        String urlWithPort = "https://example.com:443/path";
-        String expected = "https://example.com/path";
-        
-        String result = normalizeUrlForPortComparison(urlWithPort);
-        
-        assertThat(result).isEqualTo(expected);
-    }
-
-    @Test
-    void normalizeUrlForPortComparison_withHttpNonStandardPort_keepsPort() {
-        String urlWithPort = "http://example.com:8080/path";
-        String expected = "http://example.com:8080/path";
-        
-        String result = normalizeUrlForPortComparison(urlWithPort);
-        
-        assertThat(result).isEqualTo(expected);
-    }
-
-    @Test
-    void normalizeUrlForPortComparison_withHttpsNonStandardPort_keepsPort() {
-        String urlWithPort = "https://example.com:8443/path";
-        String expected = "https://example.com:8443/path";
-        
-        String result = normalizeUrlForPortComparison(urlWithPort);
-        
-        assertThat(result).isEqualTo(expected);
-    }
-
-    @Test
-    void normalizeUrlForPortComparison_withNoPort_remainsUnchanged() {
-        String urlWithoutPort = "http://example.com/path";
-        String expected = "http://example.com/path";
-        
-        String result = normalizeUrlForPortComparison(urlWithoutPort);
-        
-        assertThat(result).isEqualTo(expected);
-    }
-
-    @Test
-    void normalizeUrlForPortComparison_withHttpsNoPort_remainsUnchanged() {
-        String urlWithoutPort = "https://example.com/path";
-        String expected = "https://example.com/path";
-        
-        String result = normalizeUrlForPortComparison(urlWithoutPort);
-        
-        assertThat(result).isEqualTo(expected);
-    }
-
-    @Test
-    void normalizeUrlForPortComparison_withQueryParams_preservesQueryParams() {
-        String urlWithPort = "http://example.com:80/path?param1=value1&param2=value2";
-        String expected = "http://example.com/path?param1=value1&param2=value2";
-        
-        String result = normalizeUrlForPortComparison(urlWithPort);
-        
-        assertThat(result).isEqualTo(expected);
-    }
-
-    @Test
-    void normalizeUrlForPortComparison_withFragment_preservesFragment() {
-        String urlWithPort = "https://example.com:443/path#section1";
-        String expected = "https://example.com/path#section1";
-        
-        String result = normalizeUrlForPortComparison(urlWithPort);
-        
-        assertThat(result).isEqualTo(expected);
-    }
-
-    @Test
-    void normalizeUrlForPortComparison_withMalformedUrl_returnsOriginal() {
-        String malformedUrl = "not-a-valid-url";
-        
-        String result = normalizeUrlForPortComparison(malformedUrl);
-        
-        assertThat(result).isEqualTo(malformedUrl);
+    @ParameterizedTest(name = "normalizeUrlForPortComparison: \"{0}\" should become \"{1}\"")
+    @CsvSource({
+            // Standard port removal
+            "'http://example.com:80/path', 'http://example.com/path'",
+            "'https://example.com:443/path', 'https://example.com/path'",
+            
+            // Non-standard ports preserved
+            "'http://example.com:8080/path', 'http://example.com:8080/path'",
+            "'https://example.com:8443/path', 'https://example.com:8443/path'",
+            
+            // URLs without explicit ports remain unchanged
+            "'http://example.com/path', 'http://example.com/path'",
+            "'https://example.com/path', 'https://example.com/path'",
+            
+            // Query parameters and fragments preserved
+            "'http://example.com:80/path?param1=value1&param2=value2', 'http://example.com/path?param1=value1&param2=value2'",
+            "'https://example.com:443/path#section1', 'https://example.com/path#section1'",
+            
+            // Complex URLs with user info
+            "'http://user:pass@example.com:80/path/to/resource?query=value#fragment', 'http://user:pass@example.com/path/to/resource?query=value#fragment'",
+            
+            // Subdomains preserved
+            "'https://subdomain.example.com:443/path', 'https://subdomain.example.com/path'",
+            
+            // Different schemes keep non-standard ports
+            "'ftp://example.com:80/path', 'ftp://example.com:80/path'",
+            
+            // SAML-specific URL
+            "'https://uaa.example.com:443/saml/SSO/alias/provider-name?RelayState=https://app.example.com&param=value#section', 'https://uaa.example.com/saml/SSO/alias/provider-name?RelayState=https://app.example.com&param=value#section'",
+            
+            // Malformed URLs return unchanged
+            "'not-a-valid-url', 'not-a-valid-url'",
+            "'http://[invalid:url:with:colons:everywhere', 'http://[invalid:url:with:colons:everywhere'",
+            "'http://example.com:80/path with spaces and special chars!@#$%^&*()', 'http://example.com:80/path with spaces and special chars!@#$%^&*()'",
+            
+            // Empty string
+            "'', ''"
+    })
+    void normalizeUrlForPortComparison_parameterizedTests(String inputUrl, String expectedUrl) {
+        String result = normalizeUrlForPortComparison(inputUrl);
+        assertThat(result).isEqualTo(expectedUrl);
+        assertThat(result).isNotNull(); // Ensure we never return null for non-null input
     }
 
     @Test
     void normalizeUrlForPortComparison_withNullUrl_returnsNull() {
         String result = normalizeUrlForPortComparison(null);
-        
         assertThat(result).isNull();
-    }
-
-    @Test
-    void normalizeUrlForPortComparison_withEmptyUrl_returnsEmpty() {
-        String emptyUrl = "";
-        
-        String result = normalizeUrlForPortComparison(emptyUrl);
-        
-        assertThat(result).isEqualTo(emptyUrl);
-    }
-
-    @Test
-    void normalizeUrlForPortComparison_withComplexUrl_handlesCorrectly() {
-        String complexUrl = "http://user:pass@example.com:80/path/to/resource?query=value#fragment";
-        String expected = "http://user:pass@example.com/path/to/resource?query=value#fragment";
-        
-        String result = normalizeUrlForPortComparison(complexUrl);
-        
-        assertThat(result).isEqualTo(expected);
-    }
-
-    @Test
-    void normalizeUrlForPortComparison_withSubdomain_preservesSubdomain() {
-        String urlWithSubdomain = "https://subdomain.example.com:443/path";
-        String expected = "https://subdomain.example.com/path";
-        
-        String result = normalizeUrlForPortComparison(urlWithSubdomain);
-        
-        assertThat(result).isEqualTo(expected);
-    }
-
-    @Test
-    void normalizeUrlForPortComparison_withDifferentScheme_keepsPort() {
-        String urlWithPort = "ftp://example.com:80/path";
-        String expected = "ftp://example.com:80/path";
-        
-        String result = normalizeUrlForPortComparison(urlWithPort);
-        
-        assertThat(result).isEqualTo(expected);
-    }
-
-    @Test
-    void normalizeUrlForPortComparison_withSamlSpecificUrl_handlesCorrectly() {
-        String samlUrl = "https://uaa.example.com:443/saml/SSO/alias/provider-name?RelayState=https://app.example.com&param=value#section";
-        String expected = "https://uaa.example.com/saml/SSO/alias/provider-name?RelayState=https://app.example.com&param=value#section";
-        
-        String result = normalizeUrlForPortComparison(samlUrl);
-        
-        assertThat(result).isEqualTo(expected);
     }
 }

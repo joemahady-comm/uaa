@@ -229,6 +229,50 @@ class OpenSaml4AuthenticationProviderUnitTests {
     }
 
     @Test
+    void authenticateWhenDestinationIsEmpty_thenSkipsValidationWithoutNPE() {
+        // Test that when destination is empty/null, validation is skipped without throwing NPE
+        String validLocation = DESTINATION;
+        
+        // Create response with null/empty destination
+        Response response = response(null, ASSERTING_PARTY_ENTITY_ID);
+        Assertion assertion = assertion();
+        assertion.getSubject().getSubjectConfirmations().forEach(sc -> 
+            sc.getSubjectConfirmationData().setRecipient(validLocation));
+        response.getAssertions().add(assertion);
+        
+        RelyingPartyRegistration.Builder registrationBuilder = verifying(registration())
+                .assertionConsumerServiceLocation(validLocation);
+        
+        Saml2AuthenticationToken token = token(signed(response), registrationBuilder);
+        
+        // This should not throw a NullPointerException when destination is null
+        // The validation should be skipped since StringUtils.hasText(destination) returns false
+        assertThatNoException().isThrownBy(() -> this.provider.authenticate(token));
+    }
+
+    @Test
+    void authenticateWhenMalformedUrlsButIdentical_thenSucceeds() {
+        // Test that malformed URLs that can't be normalized still work if they're identical
+        // This tests the robustness of the comparison when normalization might fail
+        String malformedUrl = "http://[malformed:url:with:brackets]/saml/SSO/alias/integration-saml-entity-id";
+        
+        Response response = response(malformedUrl, ASSERTING_PARTY_ENTITY_ID);
+        Assertion assertion = assertion();
+        assertion.getSubject().getSubjectConfirmations().forEach(sc -> 
+            sc.getSubjectConfirmationData().setRecipient(malformedUrl));
+        response.getAssertions().add(assertion);
+        
+        RelyingPartyRegistration.Builder registrationBuilder = verifying(registration())
+                .assertionConsumerServiceLocation(malformedUrl);
+        
+        Saml2AuthenticationToken token = token(signed(response), registrationBuilder);
+        
+        // Even with malformed URLs that normalization can't handle,
+        // authentication should succeed if both URLs are identical
+        assertThatNoException().isThrownBy(() -> this.provider.authenticate(token));
+    }
+
+    @Test
     void authenticateWhenNoAssertionsPresentThenThrowAuthenticationException() {
         Saml2AuthenticationToken token = token();
         assertThatExceptionOfType(Saml2AuthenticationException.class)
