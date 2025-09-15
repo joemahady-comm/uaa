@@ -753,8 +753,7 @@ class UaaUrlUtilsTest {
     })
     void normalizeUrlForPortComparison_parameterizedTests(String inputUrl, String expectedUrl) {
         String result = normalizeUrlForPortComparison(inputUrl);
-        assertThat(result).isEqualTo(expectedUrl);
-        assertThat(result).isNotNull(); // Ensure we never return null for non-null input
+        assertThat(result).isNotNull().isEqualTo(expectedUrl); // Ensure we never return null for non-null input
     }
 
     @Test
