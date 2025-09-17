@@ -35,8 +35,8 @@ fi
 pushd ${SCRIPT_DIR}
   java \
       -Dlogging.level.org.springframework.security=TRACE \
-      -Duaa.location.tomcat=${ROOT_DIR}/scripts/boot/tomcat \
-      -Duaa.location.certificate=${ROOT_DIR}/scripts/certificates \
+      -Duaa.boot.location.tomcat=${ROOT_DIR}/scripts/boot/tomcat \
+      -Duaa.boot.location.certificate=${ROOT_DIR}/scripts/certificates \
       -Dlogging.config=${ROOT_DIR}/scripts/boot/log4j2.properties \
       -DCLOUDFOUNDRY_CONFIG_PATH=${ROOT_DIR}/scripts/cargo \
       -DSECRETS_DIR=${ROOT_DIR}/scripts/cargo \
