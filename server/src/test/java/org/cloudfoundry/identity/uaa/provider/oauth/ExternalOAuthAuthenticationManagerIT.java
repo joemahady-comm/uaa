@@ -88,7 +88,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
 import java.util.stream.Stream;
 
 import static java.util.Collections.emptyList;
@@ -312,68 +311,6 @@ class ExternalOAuthAuthenticationManagerIT {
         mac.init(secretKey);
         byte[] hmacData = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
         assertThat(new String(Base64.encodeBase64URLSafe(hmacData))).isEqualTo(externalOAuthAuthenticationManager.hmacSignAndEncode(data, key));
-    }
-
-    @Test
-    void authManager_origin_is_thread_safe() throws Exception {
-        CountDownLatch countDownLatchA = new CountDownLatch(1);
-        CountDownLatch countDownLatchB = new CountDownLatch(1);
-
-        final String[] thread1Origin = new String[1];
-        final String[] thread2Origin = new String[1];
-        Thread thread1 = new Thread() {
-            @Override
-            public void run() {
-                externalOAuthAuthenticationManager.setOrigin("a");
-                resumeThread2();
-                pauseThread1();
-                thread1Origin[0] = externalOAuthAuthenticationManager.getOrigin();
-            }
-
-            private void resumeThread2() {
-                countDownLatchB.countDown();
-            }
-
-            private void pauseThread1() {
-                try {
-                    countDownLatchA.await();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-        };
-
-        Thread thread2 = new Thread() {
-            @Override
-            public void run() {
-                pauseThread2();
-                externalOAuthAuthenticationManager.setOrigin("b");
-                resumeThread1();
-
-                thread2Origin[0] = externalOAuthAuthenticationManager.getOrigin();
-            }
-
-            private void resumeThread1() {
-                countDownLatchA.countDown();
-            }
-
-            private void pauseThread2() {
-                try {
-                    countDownLatchB.await();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-        };
-
-        thread2.start();
-        thread1.start();
-
-        thread1.join();
-        thread2.join();
-
-        assertThat(thread1Origin[0]).isEqualTo("a");
-        assertThat(thread2Origin[0]).isEqualTo("b");
     }
 
     @Test

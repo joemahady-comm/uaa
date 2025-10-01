@@ -148,9 +148,6 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
     private final KeyInfoService keyInfoService;
     private final IdentityZoneManager identityZoneManager;
 
-    //origin is per thread during execution
-    private final ThreadLocal<String> origin = ThreadLocal.withInitial(() -> "unknown");
-
     public ExternalOAuthAuthenticationManager(
             IdentityProviderProvisioning providerProvisioning,
             IdentityZoneManager identityZoneManager,
@@ -167,27 +164,6 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
         this.tokenEndpointBuilder = tokenEndpointBuilder;
         this.keyInfoService = keyInfoService;
         this.oidcMetadataFetcher = oidcMetadataFetcher;
-    }
-
-    @Override
-    public String getOrigin() {
-        //origin is per thread during execution
-        return origin.get();
-    }
-
-    @Override
-    public void setOrigin(String origin) {
-        this.origin.set(origin);
-    }
-
-    @Override
-    public Authentication authenticate(final Authentication request) throws AuthenticationException {
-        try {
-            return super.authenticate(request);
-        } finally {
-            // clear ThreadLocal holding the origin key
-            origin.remove();
-        }
     }
 
     /**
