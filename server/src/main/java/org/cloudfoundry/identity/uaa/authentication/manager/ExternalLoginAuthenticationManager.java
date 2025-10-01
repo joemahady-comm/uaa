@@ -162,7 +162,7 @@ public abstract class ExternalLoginAuthenticationManager<EAD extends ExternalLog
 
         // persist the user attributes and external groups in the user info table if configured in the IdP
         if ((hasUserAttributes(authentication) || hasExternalGroups(authentication)) && getProviderProvisioning() != null) {
-            IdentityProvider<ExternalIdentityProviderDefinition> provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), IdentityZoneHolder.get().getId());
+            IdentityProvider<ExternalIdentityProviderDefinition> provider = getProviderProvisioning().retrieveByOrigin(authenticationData.getOrigin(), IdentityZoneHolder.get().getId());
             if (provider.getConfig() != null && provider.getConfig().isStoreCustomAttributes()) {
                 logger.debug("Storing custom attributes for user_id:{}", authentication.getPrincipal().getId());
                 UserInfo userInfo = new UserInfo()
