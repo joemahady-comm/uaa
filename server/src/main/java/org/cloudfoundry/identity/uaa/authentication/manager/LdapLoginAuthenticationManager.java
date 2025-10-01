@@ -142,7 +142,7 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
                 userModified = true;
             }
         }
-        ExternalGroupAuthorizationEvent event = new ExternalGroupAuthorizationEvent(userFromDb, userModified, request.getAuthorities(), isAutoAddAuthorities(getOrigin()));
+        ExternalGroupAuthorizationEvent event = new ExternalGroupAuthorizationEvent(userFromDb, userModified, request.getAuthorities(), isAutoAddAuthorities(authenticationData.getOrigin()));
         publish(event);
         return getUserDatabase().retrieveUserById(userFromDb.getId());
     }
