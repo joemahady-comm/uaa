@@ -50,6 +50,8 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
 
     protected static Logger logger = LoggerFactory.getLogger(LdapLoginAuthenticationManager.class);
 
+    private String origin = OriginKeys.LDAP;
+
     public LdapLoginAuthenticationManager(final @Qualifier("identityProviderProvisioning") IdentityProviderProvisioning providerProvisioning) {
         super(providerProvisioning);
     }
@@ -174,5 +176,10 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
             }
         }
         return result;
+    }
+
+    @Override
+    public void setOrigin(final String origin) {
+        this.origin = origin;
     }
 }
