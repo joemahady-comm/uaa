@@ -20,6 +20,7 @@ import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base64;
@@ -1034,7 +1035,8 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
     }
 
     @Data
-    protected static class AuthenticationData {
+    @EqualsAndHashCode(callSuper = true)
+    protected static class AuthenticationData extends ExternalAuthenticationDetails {
         private Map<String, Object> claims;
         private String username;
 

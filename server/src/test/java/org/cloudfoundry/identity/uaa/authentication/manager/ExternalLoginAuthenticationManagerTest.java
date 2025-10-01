@@ -5,6 +5,7 @@ import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthenticationDetails;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
 import org.cloudfoundry.identity.uaa.authentication.event.IdentityProviderAuthenticationSuccessEvent;
+import org.cloudfoundry.identity.uaa.authentication.manager.ExternalLoginAuthenticationManager.ExternalAuthenticationDetails;
 import org.cloudfoundry.identity.uaa.provider.ExternalIdentityProviderDefinition;
 import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
 import org.cloudfoundry.identity.uaa.provider.IdentityProviderProvisioning;
@@ -60,7 +61,7 @@ class ExternalLoginAuthenticationManagerTest {
     private ApplicationEventPublisher applicationEventPublisher;
     private UaaUserDatabase uaaUserDatabase;
     private Authentication inputAuth;
-    private ExternalLoginAuthenticationManager manager;
+    private ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> manager;
     private final String origin = "test";
     private UserDetails userDetails;
     private final String userName = "testUserName";
@@ -103,7 +104,7 @@ class ExternalLoginAuthenticationManagerTest {
         inputAuth = mock(Authentication.class);
         when(inputAuth.getPrincipal()).thenReturn(userDetails);
 
-        manager = new ExternalLoginAuthenticationManager(null) {
+        manager = new ExternalLoginAuthenticationManager<>(null) {
             private String origin = "unknown";
 
             @Override
@@ -117,8 +118,8 @@ class ExternalLoginAuthenticationManagerTest {
             }
 
             @Override
-            protected Object getExternalAuthenticationDetails(Authentication authentication) throws AuthenticationException {
-                return null;
+            protected ExternalAuthenticationDetails getExternalAuthenticationDetails(Authentication authentication) throws AuthenticationException {
+                return ExternalAuthenticationDetails.builder().origin(origin).build();
             }
 
             @Override

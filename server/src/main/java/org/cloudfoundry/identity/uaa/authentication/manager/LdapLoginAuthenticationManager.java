@@ -16,6 +16,7 @@
 package org.cloudfoundry.identity.uaa.authentication.manager;
 
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
+import org.cloudfoundry.identity.uaa.authentication.manager.ExternalLoginAuthenticationManager.ExternalAuthenticationDetails;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
 import org.cloudfoundry.identity.uaa.provider.IdentityProviderProvisioning;
@@ -46,7 +47,7 @@ import java.util.Set;
 import static java.util.Collections.emptyList;
 import static org.cloudfoundry.identity.uaa.util.UaaStringUtils.retainAllMatches;
 
-public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationManager<Object> {
+public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> {
 
     protected static Logger logger = LoggerFactory.getLogger(LdapLoginAuthenticationManager.class);
 
@@ -68,14 +69,9 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
     }
 
     @Override
-    protected void populateAuthenticationAttributes(UaaAuthentication authentication, Authentication request, Object authenticationData) {
+    protected void populateAuthenticationAttributes(UaaAuthentication authentication, Authentication request, ExternalAuthenticationDetails authenticationData) {
         super.populateAuthenticationAttributes(authentication, request, authenticationData);
         authentication.getAuthenticationMethods().add("pwd");
-    }
-
-    @Override
-    protected Object getExternalAuthenticationDetails(Authentication authentication) throws AuthenticationException {
-        return null;
     }
 
     @Override
@@ -174,5 +170,10 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
             }
         }
         return result;
+    }
+
+    @Override
+    protected ExternalAuthenticationDetails getExternalAuthenticationDetails(Authentication authentication) throws AuthenticationException {
+        return ExternalAuthenticationDetails.builder().origin(origin).build();
     }
 }
