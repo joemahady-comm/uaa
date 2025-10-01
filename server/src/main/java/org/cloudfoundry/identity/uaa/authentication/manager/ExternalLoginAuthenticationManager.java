@@ -100,7 +100,10 @@ public abstract class ExternalLoginAuthenticationManager<EAD extends ExternalLog
         }
 
         EAD authenticationData = getExternalAuthenticationDetails(request);
-        final String origin = getOrigin();
+        if (authenticationData == null) {
+            return null;
+        }
+        final String origin = authenticationData.getOrigin();
 
         UaaUser userFromRequest = getUser(request, authenticationData);
         if (userFromRequest == null) {
