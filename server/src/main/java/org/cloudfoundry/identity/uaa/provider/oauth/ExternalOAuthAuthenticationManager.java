@@ -463,7 +463,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
             boolean verified = verifiedObj instanceof Boolean b ? b : false;
 
             if (!StringUtils.hasText(email)) {
-                email = generateEmailIfNullOrEmpty(username, getOrigin());
+                email = generateEmailIfNullOrEmpty(username, authenticationData.getOrigin());
             }
 
             log.debug("Returning user data for username:{}, email:{}", username, email);
@@ -479,7 +479,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
                             .withPassword("")
                             .withAuthorities(authenticationData.getAuthorities())
                             .withCreated(new Date())
-                            .withOrigin(getOrigin())
+                            .withOrigin(authenticationData.getOrigin())
                             .withExternalId((String) authenticationData.getClaims().get(SUB))
                             .withVerified(verified)
                             .withZoneId(identityZoneManager.getCurrentIdentityZoneId())
