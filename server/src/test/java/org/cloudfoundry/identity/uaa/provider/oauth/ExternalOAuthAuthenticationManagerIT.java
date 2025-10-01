@@ -451,7 +451,7 @@ class ExternalOAuthAuthenticationManagerIT {
 
         assertThat(username).isEqualTo(externalAuthenticationDetails.getUsername());
         assertThat(externalAuthenticationDetails.getClaims()).containsEntry(ClaimConstants.ORIGIN, UAA_ORIGIN);
-        assertThat(externalOAuthAuthenticationManager.getOrigin()).isEqualTo(UAA_ORIGIN);
+        assertThat(externalAuthenticationDetails.getOrigin()).isEqualTo(UAA_ORIGIN);
     }
 
     @ParameterizedTest
@@ -496,7 +496,7 @@ class ExternalOAuthAuthenticationManagerIT {
 
         assertThat(username).isEqualTo(externalAuthenticationDetails.getUsername());
         assertThat(externalAuthenticationDetails.getClaims()).containsEntry(ClaimConstants.ORIGIN, idpProvider.getOriginKey());
-        assertThat(externalOAuthAuthenticationManager.getOrigin()).isEqualTo(idpProvider.getOriginKey());
+        assertThat(externalAuthenticationDetails.getOrigin()).isEqualTo(idpProvider.getOriginKey());
     }
 
     @Test
@@ -521,7 +521,7 @@ class ExternalOAuthAuthenticationManagerIT {
 
         assertThat(username).isEqualTo(externalAuthenticationDetails.getUsername());
         assertThat(externalAuthenticationDetails.getClaims()).containsEntry(ClaimConstants.ORIGIN, OriginKeys.UAA);
-        assertThat(externalOAuthAuthenticationManager.getOrigin()).isEqualTo(idpProvider.getOriginKey());
+        assertThat(externalAuthenticationDetails.getOrigin()).isEqualTo(idpProvider.getOriginKey());
     }
 
     @Test

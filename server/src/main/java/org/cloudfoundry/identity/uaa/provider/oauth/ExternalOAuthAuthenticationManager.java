@@ -279,6 +279,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
 
         if (provider != null && provider.getConfig() instanceof AbstractExternalOAuthIdentityProviderDefinition config) {
             final AuthenticationData authenticationData = new AuthenticationData();
+            authenticationData.setOrigin(origin);
 
             final Map<String, Object> claims = getClaimsFromToken(codeToken, provider);
 
