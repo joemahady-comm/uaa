@@ -146,15 +146,15 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
                 userModified = true;
             }
         }
-        ExternalGroupAuthorizationEvent event = new ExternalGroupAuthorizationEvent(userFromDb, userModified, request.getAuthorities(), isAutoAddAuthorities());
+        ExternalGroupAuthorizationEvent event = new ExternalGroupAuthorizationEvent(userFromDb, userModified, request.getAuthorities(), isAutoAddAuthorities(getOrigin()));
         publish(event);
         return getUserDatabase().retrieveUserById(userFromDb.getId());
     }
 
-    protected boolean isAutoAddAuthorities() {
+    protected boolean isAutoAddAuthorities(final String origin) {
         Boolean result = true;
         if (getProviderProvisioning() != null) {
-            IdentityProvider provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), IdentityZoneHolder.get().getId());
+            IdentityProvider provider = getProviderProvisioning().retrieveByOrigin(origin, IdentityZoneHolder.get().getId());
             LdapIdentityProviderDefinition ldapIdentityProviderDefinition = ObjectUtils.castInstance(provider.getConfig(), LdapIdentityProviderDefinition.class);
             if (ldapIdentityProviderDefinition != null) {
                 result = ldapIdentityProviderDefinition.isAutoAddGroups();
