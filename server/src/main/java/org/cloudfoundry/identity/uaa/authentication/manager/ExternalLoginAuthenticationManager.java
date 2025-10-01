@@ -147,7 +147,7 @@ public abstract class ExternalLoginAuthenticationManager<EAD extends ExternalLog
 
     protected void populateAuthenticationAttributes(UaaAuthentication authentication, Authentication request, EAD authenticationData) {
         if (request.getPrincipal() instanceof UserDetails userDetails) {
-            authentication.setUserAttributes(getUserAttributes(userDetails));
+            authentication.setUserAttributes(getUserAttributes(userDetails, authenticationData));
             authentication.setExternalGroups(new HashSet<>(getExternalUserAuthorities(userDetails)));
         }
 
@@ -182,7 +182,7 @@ public abstract class ExternalLoginAuthenticationManager<EAD extends ExternalLog
 
     protected abstract boolean isAddNewShadowUser(final String origin);
 
-    protected MultiValueMap<String, String> getUserAttributes(UserDetails request) {
+    protected MultiValueMap<String, String> getUserAttributes(UserDetails request, EAD authenticationData) {
         return new LinkedMultiValueMap<>();
     }
 

@@ -75,8 +75,8 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
     }
 
     @Override
-    protected MultiValueMap<String, String> getUserAttributes(UserDetails request) {
-        MultiValueMap<String, String> result = super.getUserAttributes(request);
+    protected MultiValueMap<String, String> getUserAttributes(UserDetails request, ExternalAuthenticationDetails authenticationData) {
+        MultiValueMap<String, String> result = super.getUserAttributes(request, authenticationData);
         logger.debug("Mapping custom attributes for origin:{} and zone:{}", getOrigin(), IdentityZoneHolder.get().getId());
         if (getProviderProvisioning() != null) {
             IdentityProvider provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), IdentityZoneHolder.get().getId());
