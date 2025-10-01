@@ -54,7 +54,7 @@ import java.util.Optional;
 
 import static java.util.Collections.emptySet;
 
-public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> implements AuthenticationManager, ApplicationEventPublisherAware, BeanNameAware {
+public abstract class ExternalLoginAuthenticationManager<EAD> implements AuthenticationManager, ApplicationEventPublisherAware, BeanNameAware {
 
     public static final String USER_ATTRIBUTE_PREFIX = "user.attribute.";
     private static final String FALLBACK_EMAIL_DOMAIN_TEMPLATE = "user.from.%s.cf";
@@ -95,7 +95,7 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
         if (logger.isDebugEnabled()) {
             logger.debug("Starting external authentication for:{}", UaaStringUtils.getCleanedUserControlString(request.toString()));
         }
-        ExternalAuthenticationDetails authenticationData = getExternalAuthenticationDetails(request);
+        EAD authenticationData = getExternalAuthenticationDetails(request);
         UaaUser userFromRequest = getUser(request, authenticationData);
         if (userFromRequest == null) {
             return null;
@@ -139,7 +139,7 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
         return success;
     }
 
-    protected void populateAuthenticationAttributes(UaaAuthentication authentication, Authentication request, ExternalAuthenticationDetails authenticationData) {
+    protected void populateAuthenticationAttributes(UaaAuthentication authentication, Authentication request, EAD authenticationData) {
         if (request.getPrincipal() instanceof UserDetails userDetails) {
             authentication.setUserAttributes(getUserAttributes(userDetails));
             authentication.setExternalGroups(new HashSet<>(getExternalUserAuthorities(userDetails)));
@@ -172,7 +172,7 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
         return authentication.getUserAttributes() != null && !authentication.getUserAttributes().isEmpty();
     }
 
-    protected abstract ExternalAuthenticationDetails getExternalAuthenticationDetails(Authentication authentication) throws AuthenticationException;
+    protected abstract EAD getExternalAuthenticationDetails(Authentication authentication) throws AuthenticationException;
 
     protected abstract boolean isAddNewShadowUser(final String origin);
 
@@ -190,7 +190,7 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
 
     protected abstract UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb);
 
-    protected UaaUser getUser(Authentication request, ExternalAuthenticationDetails authDetails) {
+    protected UaaUser getUser(Authentication request, EAD authDetails) {
         UserDetails userDetails;
         if (request.getPrincipal() instanceof UserDetails) {
             userDetails = (UserDetails) request.getPrincipal();
