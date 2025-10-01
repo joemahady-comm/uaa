@@ -219,7 +219,7 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
         }
 
         if (UaaStringUtils.isEmpty(email)) {
-            email = generateEmailIfNullOrEmpty(name);
+            email = generateEmailIfNullOrEmpty(name, getOrigin());
         }
 
         String givenName = null;
@@ -250,12 +250,12 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
         return new UaaUser(userPrototype);
     }
 
-    protected final String generateEmailIfNullOrEmpty(String name) {
+    protected static String generateEmailIfNullOrEmpty(final String name, final String origin) {
         if (name == null) {
             throw new BadCredentialsException("Cannot determine username from credentials supplied");
         }
 
-        final String fallbackEmailDomain = FALLBACK_EMAIL_DOMAIN_TEMPLATE.formatted(getOrigin());
+        final String fallbackEmailDomain = FALLBACK_EMAIL_DOMAIN_TEMPLATE.formatted(origin);
 
         // use fallback domain if no '@' is present
         if (!name.contains("@")) {

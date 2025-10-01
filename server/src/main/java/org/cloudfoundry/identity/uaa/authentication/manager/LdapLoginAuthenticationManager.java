@@ -56,8 +56,6 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
         super(providerProvisioning);
     }
 
-    private String origin = OriginKeys.LDAP;
-
     @Override
     public String getOrigin() {
         return origin;
@@ -176,10 +174,5 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
             }
         }
         return result;
-    }
-
-    @Override
-    public void setOrigin(final String origin) {
-        this.origin = origin;
     }
 }

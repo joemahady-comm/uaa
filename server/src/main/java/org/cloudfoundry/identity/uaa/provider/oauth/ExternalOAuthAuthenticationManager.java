@@ -460,7 +460,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
             boolean verified = verifiedObj instanceof Boolean b ? b : false;
 
             if (!StringUtils.hasText(email)) {
-                email = generateEmailIfNullOrEmpty(username);
+                email = generateEmailIfNullOrEmpty(username, getOrigin());
             }
 
             log.debug("Returning user data for username:{}, email:{}", username, email);
