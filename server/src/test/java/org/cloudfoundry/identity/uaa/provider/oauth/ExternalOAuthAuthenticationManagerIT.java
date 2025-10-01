@@ -32,6 +32,7 @@ import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
 import org.cloudfoundry.identity.uaa.provider.IdentityProviderProvisioning;
 import org.cloudfoundry.identity.uaa.provider.OIDCIdentityProviderDefinition;
 import org.cloudfoundry.identity.uaa.provider.RawExternalOAuthIdentityProviderDefinition;
+import org.cloudfoundry.identity.uaa.provider.oauth.ExternalOAuthAuthenticationManager.AuthenticationData;
 import org.cloudfoundry.identity.uaa.scim.ScimGroupExternalMember;
 import org.cloudfoundry.identity.uaa.scim.ScimGroupExternalMembershipManager;
 import org.cloudfoundry.identity.uaa.user.InMemoryUaaUserDatabase;
@@ -446,7 +447,7 @@ class ExternalOAuthAuthenticationManagerIT {
         xCodeToken.setIdToken(idToken);
         xCodeToken.setOrigin(null);
 
-        ExternalOAuthAuthenticationManager.AuthenticationData externalAuthenticationDetails = externalOAuthAuthenticationManager
+        AuthenticationData externalAuthenticationDetails = externalOAuthAuthenticationManager
                 .getExternalAuthenticationDetails(xCodeToken);
 
         assertThat(username).isEqualTo(externalAuthenticationDetails.getUsername());
@@ -491,7 +492,7 @@ class ExternalOAuthAuthenticationManagerIT {
         xCodeToken.setIdToken(idToken);
         xCodeToken.setOrigin(null);
 
-        ExternalOAuthAuthenticationManager.AuthenticationData externalAuthenticationDetails = externalOAuthAuthenticationManager
+        AuthenticationData externalAuthenticationDetails = externalOAuthAuthenticationManager
                 .getExternalAuthenticationDetails(xCodeToken);
 
         assertThat(username).isEqualTo(externalAuthenticationDetails.getUsername());
@@ -516,7 +517,7 @@ class ExternalOAuthAuthenticationManagerIT {
         xCodeToken.setIdToken(idToken);
         xCodeToken.setOrigin(null);
 
-        ExternalOAuthAuthenticationManager.AuthenticationData externalAuthenticationDetails = externalOAuthAuthenticationManager
+        AuthenticationData externalAuthenticationDetails = externalOAuthAuthenticationManager
                 .getExternalAuthenticationDetails(xCodeToken);
 
         assertThat(username).isEqualTo(externalAuthenticationDetails.getUsername());
@@ -539,7 +540,7 @@ class ExternalOAuthAuthenticationManagerIT {
         xCodeToken.setIdToken(idToken);
         xCodeToken.setOrigin(null);
 
-        ExternalOAuthAuthenticationManager.AuthenticationData externalAuthenticationDetails = externalOAuthAuthenticationManager
+        AuthenticationData externalAuthenticationDetails = externalOAuthAuthenticationManager
                 .getExternalAuthenticationDetails(xCodeToken);
 
         assertThat(username).isEqualTo(externalAuthenticationDetails.getUsername());
@@ -1019,12 +1020,14 @@ class ExternalOAuthAuthenticationManagerIT {
 
     @Test
     void getUserSetsTheRightOrigin() {
-        externalOAuthAuthenticationManager.getUser(xCodeToken, externalOAuthAuthenticationManager.getExternalAuthenticationDetails(xCodeToken));
-        assertThat(externalOAuthAuthenticationManager.getOrigin()).isEqualTo(ORIGIN);
+        AuthenticationData authenticationData = externalOAuthAuthenticationManager.getExternalAuthenticationDetails(xCodeToken);
+        externalOAuthAuthenticationManager.getUser(xCodeToken, authenticationData);
+        assertThat(authenticationData.getOrigin()).isEqualTo(ORIGIN);
 
         ExternalOAuthCodeToken otherToken = new ExternalOAuthCodeToken(CODE, "other_origin", "http://localhost/callback/the_origin");
-        externalOAuthAuthenticationManager.getUser(otherToken, externalOAuthAuthenticationManager.getExternalAuthenticationDetails(otherToken));
-        assertThat(externalOAuthAuthenticationManager.getOrigin()).isEqualTo("other_origin");
+        AuthenticationData authenticationDataOtherToken = externalOAuthAuthenticationManager.getExternalAuthenticationDetails(otherToken);
+        externalOAuthAuthenticationManager.getUser(otherToken, authenticationDataOtherToken);
+        assertThat(authenticationDataOtherToken.getOrigin()).isEqualTo("other_origin");
     }
 
     @Test

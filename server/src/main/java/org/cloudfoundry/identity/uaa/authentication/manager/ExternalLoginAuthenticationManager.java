@@ -228,7 +228,7 @@ public abstract class ExternalLoginAuthenticationManager<EAD extends ExternalLog
         }
 
         if (UaaStringUtils.isEmpty(email)) {
-            email = generateEmailIfNullOrEmpty(name, getOrigin());
+            email = generateEmailIfNullOrEmpty(name, authDetails.getOrigin());
         }
 
         String givenName = null;
@@ -251,7 +251,7 @@ public abstract class ExternalLoginAuthenticationManager<EAD extends ExternalLog
                 .withFamilyName(familyName)
                 .withCreated(new Date())
                 .withModified(new Date())
-                .withOrigin(getOrigin())
+                .withOrigin(authDetails.getOrigin())
                 .withExternalId(externalId)
                 .withZoneId(IdentityZoneHolder.get().getId())
                 .withPhoneNumber(phoneNumber);

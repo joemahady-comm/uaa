@@ -139,7 +139,8 @@ class LdapLoginAuthenticationManagerTests {
 
     @Test
     void getUserWithExtendedLdapInfo() {
-        UaaUser user = am.getUser(auth, null);
+        final ExternalAuthenticationDetails authenticationData = ExternalAuthenticationDetails.builder().origin(origin).build();
+        UaaUser user = am.getUser(auth, authenticationData);
         assertThat(user.getExternalId()).isEqualTo(DN);
         assertThat(user.getEmail()).isEqualTo(LDAP_EMAIL);
         assertThat(user.getOrigin()).isEqualTo(origin);
@@ -151,7 +152,8 @@ class LdapLoginAuthenticationManagerTests {
         UserDetails mockNonLdapUserDetails = mockNonLdapUserDetails();
         when(mockNonLdapUserDetails.getUsername()).thenReturn(TEST_EMAIL);
         when(auth.getPrincipal()).thenReturn(mockNonLdapUserDetails);
-        UaaUser user = am.getUser(auth, null);
+        final ExternalAuthenticationDetails authenticationData = ExternalAuthenticationDetails.builder().origin(origin).build();
+        UaaUser user = am.getUser(auth, authenticationData);
         assertThat(user.getExternalId()).isEqualTo(TEST_EMAIL);
         assertThat(user.getEmail()).isEqualTo(TEST_EMAIL);
         assertThat(user.getOrigin()).isEqualTo(origin);
@@ -161,7 +163,7 @@ class LdapLoginAuthenticationManagerTests {
     void userAuthenticated() {
         UaaUser user = getUaaUser();
         final ExternalAuthenticationDetails authenticationData = ExternalAuthenticationDetails.builder().origin(origin).build();
-        UaaUser userFromRequest = am.getUser(auth, null);
+        UaaUser userFromRequest = am.getUser(auth, authenticationData);
         definition.setAutoAddGroups(true);
         UaaUser result = am.userAuthenticated(auth, user, userFromRequest, authenticationData);
         assertThat(result).isSameAs(dbUser);
@@ -186,7 +188,7 @@ class LdapLoginAuthenticationManagerTests {
 
         UaaUser user = getUaaUser();
         final ExternalAuthenticationDetails authenticationData = ExternalAuthenticationDetails.builder().origin(origin).build();
-        UaaUser userFromRequest = am.getUser(auth, null);
+        UaaUser userFromRequest = am.getUser(auth, authenticationData);
         am.userAuthenticated(auth, userFromRequest, user, authenticationData);
         ArgumentCaptor<ExternalGroupAuthorizationEvent> captor = ArgumentCaptor.forClass(ExternalGroupAuthorizationEvent.class);
         verify(publisher, times(1)).publishEvent(captor.capture());
@@ -203,7 +205,7 @@ class LdapLoginAuthenticationManagerTests {
         when(auth.getPrincipal()).thenReturn(authDetails);
 
         final ExternalAuthenticationDetails authenticationData = ExternalAuthenticationDetails.builder().origin(origin).build();
-        UaaUser userFromRequest = am.getUser(auth, null);
+        UaaUser userFromRequest = am.getUser(auth, authenticationData);
         am.userAuthenticated(auth, userFromRequest, user, authenticationData);
         ArgumentCaptor<ExternalGroupAuthorizationEvent> captor = ArgumentCaptor.forClass(ExternalGroupAuthorizationEvent.class);
         verify(publisher, times(1)).publishEvent(captor.capture());
