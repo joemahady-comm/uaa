@@ -77,9 +77,9 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
     @Override
     protected MultiValueMap<String, String> getUserAttributes(UserDetails request, ExternalAuthenticationDetails authenticationData) {
         MultiValueMap<String, String> result = super.getUserAttributes(request, authenticationData);
-        logger.debug("Mapping custom attributes for origin:{} and zone:{}", getOrigin(), IdentityZoneHolder.get().getId());
+        logger.debug("Mapping custom attributes for origin:{} and zone:{}", authenticationData.getOrigin(), IdentityZoneHolder.get().getId());
         if (getProviderProvisioning() != null) {
-            IdentityProvider provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), IdentityZoneHolder.get().getId());
+            IdentityProvider provider = getProviderProvisioning().retrieveByOrigin(authenticationData.getOrigin(), IdentityZoneHolder.get().getId());
             if (request instanceof ExtendedLdapUserDetails ldapDetails) {
                 LdapIdentityProviderDefinition ldapIdentityProviderDefinition = ObjectUtils.castInstance(provider.getConfig(), LdapIdentityProviderDefinition.class);
                 Map<String, Object> providerMappings = ldapIdentityProviderDefinition.getAttributeMappings();
@@ -95,7 +95,7 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
                 }
             }
         } else {
-            logger.debug("Did not find custom attribute configuration for origin:{} and zone:{}", getOrigin(), IdentityZoneHolder.get().getId());
+            logger.debug("Did not find custom attribute configuration for origin:{} and zone:{}", authenticationData.getOrigin(), IdentityZoneHolder.get().getId());
         }
         return result;
     }
