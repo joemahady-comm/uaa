@@ -539,7 +539,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
     }
 
     @Override
-    protected UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb) {
+    protected UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb, AuthenticationData authenticationData) {
         boolean userModified = false;
         boolean isInvitationAcceptance = isAcceptedInvitationAuthentication();
         String email = userFromRequest.getEmail();

@@ -127,7 +127,7 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
     }
 
     @Override
-    protected UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb) {
+    protected UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb, ExternalAuthenticationDetails authenticationData) {
         boolean userModified = false;
         //we must check and see if the email address has changed between authentications
         if (request.getPrincipal() != null && request.getPrincipal() instanceof ExtendedLdapUserDetails) {

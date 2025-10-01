@@ -131,7 +131,7 @@ public abstract class ExternalLoginAuthenticationManager<EAD extends ExternalLog
         }
 
         //user is authenticated and exists in UAA
-        UaaUser user = userAuthenticated(request, userFromRequest, userFromDb);
+        UaaUser user = userAuthenticated(request, userFromRequest, userFromDb, authenticationData);
 
         UaaAuthenticationDetails uaaAuthenticationDetails;
         if (request.getDetails() instanceof UaaAuthenticationDetails) {
@@ -194,7 +194,7 @@ public abstract class ExternalLoginAuthenticationManager<EAD extends ExternalLog
         }
     }
 
-    protected abstract UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb);
+    protected abstract UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb, EAD authenticationData);
 
     protected UaaUser getUser(Authentication request, EAD authDetails) {
         UserDetails userDetails;

@@ -160,14 +160,15 @@ class LdapLoginAuthenticationManagerTests {
     @Test
     void userAuthenticated() {
         UaaUser user = getUaaUser();
+        final ExternalAuthenticationDetails authenticationData = ExternalAuthenticationDetails.builder().origin(origin).build();
         UaaUser userFromRequest = am.getUser(auth, null);
         definition.setAutoAddGroups(true);
-        UaaUser result = am.userAuthenticated(auth, user, userFromRequest);
+        UaaUser result = am.userAuthenticated(auth, user, userFromRequest, authenticationData);
         assertThat(result).isSameAs(dbUser);
         verify(publisher, times(1)).publishEvent(ArgumentMatchers.any());
 
         definition.setAutoAddGroups(false);
-        result = am.userAuthenticated(auth, userFromRequest, user);
+        result = am.userAuthenticated(auth, userFromRequest, user, authenticationData);
         assertThat(result).isSameAs(dbUser);
         verify(publisher, times(2)).publishEvent(ArgumentMatchers.any());
     }
@@ -184,8 +185,9 @@ class LdapLoginAuthenticationManagerTests {
         when(auth.getPrincipal()).thenReturn(authDetails);
 
         UaaUser user = getUaaUser();
+        final ExternalAuthenticationDetails authenticationData = ExternalAuthenticationDetails.builder().origin(origin).build();
         UaaUser userFromRequest = am.getUser(auth, null);
-        am.userAuthenticated(auth, userFromRequest, user);
+        am.userAuthenticated(auth, userFromRequest, user, authenticationData);
         ArgumentCaptor<ExternalGroupAuthorizationEvent> captor = ArgumentCaptor.forClass(ExternalGroupAuthorizationEvent.class);
         verify(publisher, times(1)).publishEvent(captor.capture());
 
@@ -200,8 +202,9 @@ class LdapLoginAuthenticationManagerTests {
         ExtendedLdapUserImpl authDetails = getAuthDetails(user.getEmail(), user.getGivenName(), user.getFamilyName(), user.getPhoneNumber());
         when(auth.getPrincipal()).thenReturn(authDetails);
 
+        final ExternalAuthenticationDetails authenticationData = ExternalAuthenticationDetails.builder().origin(origin).build();
         UaaUser userFromRequest = am.getUser(auth, null);
-        am.userAuthenticated(auth, userFromRequest, user);
+        am.userAuthenticated(auth, userFromRequest, user, authenticationData);
         ArgumentCaptor<ExternalGroupAuthorizationEvent> captor = ArgumentCaptor.forClass(ExternalGroupAuthorizationEvent.class);
         verify(publisher, times(1)).publishEvent(captor.capture());
 

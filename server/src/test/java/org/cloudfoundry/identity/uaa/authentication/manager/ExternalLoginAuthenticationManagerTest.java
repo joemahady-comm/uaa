@@ -133,7 +133,7 @@ class ExternalLoginAuthenticationManagerTest {
             }
 
             @Override
-            protected UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb) {
+            protected UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb, ExternalAuthenticationDetails authenticationDetails) {
                 return userFromDb;
             }
         };
