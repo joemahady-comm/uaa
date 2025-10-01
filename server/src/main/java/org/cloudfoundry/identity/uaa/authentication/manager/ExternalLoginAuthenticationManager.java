@@ -1,5 +1,8 @@
 package org.cloudfoundry.identity.uaa.authentication.manager;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
@@ -312,5 +315,24 @@ public abstract class ExternalLoginAuthenticationManager<EAD> implements Authent
     @Override
     public void setBeanName(@NonNull String name) {
         this.name = name;
+    }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    public static class ExternalAuthenticationDetails {
+        private String origin;
+
+        public ExternalAuthenticationDetails() {
+            this.origin = "unknown";
+        }
+
+        public final String getOrigin() {
+            return origin;
+        }
+
+        public final void setOrigin(final String origin) {
+            this.origin = origin;
+        }
     }
 }
