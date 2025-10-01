@@ -267,7 +267,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
         }
 
         final String origin = codeToken.getOrigin();
-        setOrigin(origin);
+
         if (provider == null) {
             try {
                 provider = getProviderProvisioning().retrieveByOrigin(origin, identityZoneManager.getCurrentIdentityZoneId());

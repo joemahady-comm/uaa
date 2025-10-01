@@ -586,7 +586,7 @@ class ExternalLoginAuthenticationManagerTest {
 
     @Test
     void authenticateUserDoesNotExists() {
-        String origin = "external";
+        origin = "external";
         manager.setOrigin(origin);
 
         when(uaaUserDatabase.retrieveUserByName(eq(userName), eq(origin)))

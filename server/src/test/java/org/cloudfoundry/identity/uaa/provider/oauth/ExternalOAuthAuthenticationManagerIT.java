@@ -1020,10 +1020,24 @@ class ExternalOAuthAuthenticationManagerIT {
 
     @Test
     void getUserSetsTheRightOrigin() {
+        final IdentityProvider<AbstractExternalOAuthIdentityProviderDefinition<?>> idp = MultitenancyFixture.identityProvider("the_origin", "uaa");
+        idp.setConfig(config);
+        when(provisioning.retrieveByOrigin(eq(ORIGIN), anyString())).thenReturn(idp);
+
+        final IdentityProvider<AbstractExternalOAuthIdentityProviderDefinition<?>> otherIdp = MultitenancyFixture.identityProvider("other_origin", "uaa");
+        otherIdp.setConfig(config);
+        when(provisioning.retrieveByOrigin(eq("other_origin"), anyString())).thenReturn(otherIdp);
+
+        mockToken();
         AuthenticationData authenticationData = externalOAuthAuthenticationManager.getExternalAuthenticationDetails(xCodeToken);
+        assertThat(authenticationData).isNotNull();
         externalOAuthAuthenticationManager.getUser(xCodeToken, authenticationData);
         assertThat(authenticationData.getOrigin()).isEqualTo(ORIGIN);
 
+        mockUaaServer.verify();
+        mockUaaServer.reset();
+
+        mockToken();
         ExternalOAuthCodeToken otherToken = new ExternalOAuthCodeToken(CODE, "other_origin", "http://localhost/callback/the_origin");
         AuthenticationData authenticationDataOtherToken = externalOAuthAuthenticationManager.getExternalAuthenticationDetails(otherToken);
         externalOAuthAuthenticationManager.getUser(otherToken, authenticationDataOtherToken);
