@@ -62,7 +62,7 @@ class ExternalLoginAuthenticationManagerTest {
     private UaaUserDatabase uaaUserDatabase;
     private Authentication inputAuth;
     private ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> manager;
-    private final String origin = "test";
+    private String origin = "test";
     private UserDetails userDetails;
     private final String userName = "testUserName";
     private final String password = "";
@@ -105,18 +105,6 @@ class ExternalLoginAuthenticationManagerTest {
         when(inputAuth.getPrincipal()).thenReturn(userDetails);
 
         manager = new ExternalLoginAuthenticationManager<>(null) {
-            private String origin = "unknown";
-
-            @Override
-            public String getOrigin() {
-                return origin;
-            }
-
-            @Override
-            public void setOrigin(String origin) {
-                this.origin = origin;
-            }
-
             @Override
             protected ExternalAuthenticationDetails getExternalAuthenticationDetails(Authentication authentication) throws AuthenticationException {
                 return ExternalAuthenticationDetails.builder().origin(origin).build();
@@ -153,7 +141,6 @@ class ExternalLoginAuthenticationManagerTest {
     }
 
     private void setupManager() {
-        manager.setOrigin(origin);
         String beanName = "ExternalLoginAuthenticationManagerTestBean";
         manager.setBeanName(beanName);
         manager.setApplicationEventPublisher(applicationEventPublisher);
@@ -354,7 +341,6 @@ class ExternalLoginAuthenticationManagerTest {
         manager = new LdapLoginAuthenticationManager(null);
         setupManager();
         manager.setProviderProvisioning(null);
-        manager.setOrigin(origin);
         when(user.getOrigin()).thenReturn(origin);
         when(uaaUserDatabase.retrieveUserByName(eq(userName), eq(origin))).thenReturn(user);
         when(inputAuth.getPrincipal()).thenReturn(ldapUserDetails);
@@ -383,7 +369,6 @@ class ExternalLoginAuthenticationManagerTest {
         };
 
         setupManager();
-        manager.setOrigin(origin);
         when(uaaUserDatabase.retrieveUserByName(eq(userName), eq(origin))).thenReturn(null);
         when(inputAuth.getPrincipal()).thenReturn(ldapUserDetails);
 
@@ -415,7 +400,6 @@ class ExternalLoginAuthenticationManagerTest {
         manager = new LdapLoginAuthenticationManager(null);
         setupManager();
         manager.setProviderProvisioning(null);
-        manager.setOrigin(origin);
         when(user.getEmail()).thenReturn(email);
         when(user.getOrigin()).thenReturn(origin);
         when(user.getExternalId()).thenReturn(dn);
@@ -446,7 +430,6 @@ class ExternalLoginAuthenticationManagerTest {
 
         manager = new LdapLoginAuthenticationManager(null);
         setupManager();
-        manager.setOrigin(origin);
         manager.setProviderProvisioning(null);
 
         when(user.getOrigin()).thenReturn(origin);
@@ -496,7 +479,6 @@ class ExternalLoginAuthenticationManagerTest {
         manager = new LdapLoginAuthenticationManager(null);
         setupManager();
         manager.setProviderProvisioning(null);
-        manager.setOrigin(origin);
 
         when(uaaUserDatabase.retrieveUserByName(eq(username), eq(origin)))
                 .thenThrow(new UsernameNotFoundException(""));
@@ -520,7 +502,6 @@ class ExternalLoginAuthenticationManagerTest {
     void populateAttributesStoresCustomAttributesAndRoles() {
         manager = new LdapLoginAuthenticationManager(null);
         setupManager();
-        manager.setOrigin(origin);
         IdentityProvider provider = mock(IdentityProvider.class);
         ExternalIdentityProviderDefinition providerDefinition = new ExternalIdentityProviderDefinition();
         when(provider.getConfig()).thenReturn(providerDefinition);
@@ -587,7 +568,6 @@ class ExternalLoginAuthenticationManagerTest {
     @Test
     void authenticateUserDoesNotExists() {
         origin = "external";
-        manager.setOrigin(origin);
 
         when(uaaUserDatabase.retrieveUserByName(eq(userName), eq(origin)))
                 .thenReturn(null)

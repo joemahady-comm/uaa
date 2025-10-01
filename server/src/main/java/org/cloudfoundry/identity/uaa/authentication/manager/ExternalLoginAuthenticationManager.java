@@ -89,10 +89,6 @@ public abstract class ExternalLoginAuthenticationManager<EAD extends ExternalLog
         this.eventPublisher = eventPublisher;
     }
 
-    public abstract String getOrigin();
-
-    public abstract void setOrigin(String origin);
-
     @Override
     public Authentication authenticate(Authentication request) throws AuthenticationException {
         if (logger.isDebugEnabled()) {

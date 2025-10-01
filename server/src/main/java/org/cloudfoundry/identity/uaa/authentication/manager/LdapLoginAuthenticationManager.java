@@ -15,6 +15,7 @@
 
 package org.cloudfoundry.identity.uaa.authentication.manager;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
 import org.cloudfoundry.identity.uaa.authentication.manager.ExternalLoginAuthenticationManager.ExternalAuthenticationDetails;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
@@ -55,17 +56,6 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
 
     public LdapLoginAuthenticationManager(final @Qualifier("identityProviderProvisioning") IdentityProviderProvisioning providerProvisioning) {
         super(providerProvisioning);
-    }
-
-    @Override
-    public String getOrigin() {
-        return origin;
-    }
-
-    @Override
-    public void setOrigin(String origin) {
-        // only used in LdapLoginAuthenticationManagerTests
-        this.origin = origin;
     }
 
     @Override
@@ -170,6 +160,11 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
             }
         }
         return result;
+    }
+
+    @VisibleForTesting
+    public void setOrigin(final String origin) {
+        this.origin = origin;
     }
 
     @Override
