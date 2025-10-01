@@ -437,7 +437,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
     }
 
     @Override
-    protected List<String> getExternalUserAuthorities(UserDetails request) {
+    protected List<String> getExternalUserAuthorities(UserDetails request, AuthenticationData authenticationData) {
         return new LinkedList<>();
     }
 

@@ -148,7 +148,7 @@ public abstract class ExternalLoginAuthenticationManager<EAD extends ExternalLog
     protected void populateAuthenticationAttributes(UaaAuthentication authentication, Authentication request, EAD authenticationData) {
         if (request.getPrincipal() instanceof UserDetails userDetails) {
             authentication.setUserAttributes(getUserAttributes(userDetails, authenticationData));
-            authentication.setExternalGroups(new HashSet<>(getExternalUserAuthorities(userDetails)));
+            authentication.setExternalGroups(new HashSet<>(getExternalUserAuthorities(userDetails, authenticationData)));
         }
 
         if (authentication.getAuthenticationMethods() == null) {
@@ -186,7 +186,7 @@ public abstract class ExternalLoginAuthenticationManager<EAD extends ExternalLog
         return new LinkedMultiValueMap<>();
     }
 
-    protected abstract List<String> getExternalUserAuthorities(UserDetails request);
+    protected abstract List<String> getExternalUserAuthorities(UserDetails request, EAD authenticationData);
 
     protected final void publish(ApplicationEvent event) {
         if (eventPublisher != null) {

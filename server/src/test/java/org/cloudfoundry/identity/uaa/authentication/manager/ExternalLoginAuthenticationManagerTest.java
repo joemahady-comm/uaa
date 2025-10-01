@@ -128,7 +128,7 @@ class ExternalLoginAuthenticationManagerTest {
             }
 
             @Override
-            protected List<String> getExternalUserAuthorities(UserDetails request) {
+            protected List<String> getExternalUserAuthorities(UserDetails request, ExternalAuthenticationDetails authenticationDetails) {
                 return new LinkedList<>();
             }
 

@@ -1,6 +1,7 @@
 package org.cloudfoundry.identity.uaa.authentication.manager;
 
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
+import org.cloudfoundry.identity.uaa.authentication.manager.ExternalLoginAuthenticationManager.ExternalAuthenticationDetails;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.extensions.PollutionPreventionExtension;
 import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
@@ -241,27 +242,29 @@ class LdapLoginAuthenticationManagerTests {
                 )
         );
 
+        final ExternalAuthenticationDetails authenticationData = ExternalAuthenticationDetails.builder().origin(origin).build();
+
         definition.setExternalGroupsWhitelist(emptyList());
-        assertThat(am.getExternalUserAuthorities(authDetails)).containsExactlyInAnyOrder();
+        assertThat(am.getExternalUserAuthorities(authDetails, authenticationData)).containsExactlyInAnyOrder();
 
         definition.setExternalGroupsWhitelist(null);
-        assertThat(am.getExternalUserAuthorities(authDetails)).containsExactlyInAnyOrder();
+        assertThat(am.getExternalUserAuthorities(authDetails, authenticationData)).containsExactlyInAnyOrder();
 
         definition.setExternalGroupsWhitelist(Collections.singletonList("ldap.role.1.a"));
-        assertThat(am.getExternalUserAuthorities(authDetails)).containsExactlyInAnyOrder("ldap.role.1.a");
+        assertThat(am.getExternalUserAuthorities(authDetails, authenticationData)).containsExactlyInAnyOrder("ldap.role.1.a");
 
         definition.setExternalGroupsWhitelist(Arrays.asList("ldap.role.1.a", "ldap.role.2.*"));
-        assertThat(am.getExternalUserAuthorities(authDetails)).containsExactlyInAnyOrder("ldap.role.1.a", "ldap.role.2.a", "ldap.role.2.b");
+        assertThat(am.getExternalUserAuthorities(authDetails, authenticationData)).containsExactlyInAnyOrder("ldap.role.1.a", "ldap.role.2.a", "ldap.role.2.b");
 
 
         definition.setExternalGroupsWhitelist(Collections.singletonList("ldap.role.*.*"));
-        assertThat(am.getExternalUserAuthorities(authDetails)).containsExactlyInAnyOrder("ldap.role.1.a", "ldap.role.1.b", "ldap.role.2.a", "ldap.role.2.b");
+        assertThat(am.getExternalUserAuthorities(authDetails, authenticationData)).containsExactlyInAnyOrder("ldap.role.1.a", "ldap.role.1.b", "ldap.role.2.a", "ldap.role.2.b");
 
         definition.setExternalGroupsWhitelist(Arrays.asList("ldap.role.*.*", "ldap.role.*"));
-        assertThat(am.getExternalUserAuthorities(authDetails)).containsExactlyInAnyOrder("ldap.role.1.a", "ldap.role.1.b", "ldap.role.1", "ldap.role.2.a", "ldap.role.2.b", "ldap.role.2");
+        assertThat(am.getExternalUserAuthorities(authDetails, authenticationData)).containsExactlyInAnyOrder("ldap.role.1.a", "ldap.role.1.b", "ldap.role.1", "ldap.role.2.a", "ldap.role.2.b", "ldap.role.2");
 
         definition.setExternalGroupsWhitelist(Collections.singletonList("ldap*"));
-        assertThat(am.getExternalUserAuthorities(authDetails)).containsExactlyInAnyOrder("ldap.role.1.a", "ldap.role.1.b", "ldap.role.1", "ldap.role.2.a", "ldap.role.2.b", "ldap.role.2");
+        assertThat(am.getExternalUserAuthorities(authDetails, authenticationData)).containsExactlyInAnyOrder("ldap.role.1.a", "ldap.role.1.b", "ldap.role.1", "ldap.role.2.a", "ldap.role.2.b", "ldap.role.2");
     }
 
     void test_authentication_attributes(boolean storeUserInfo) {
