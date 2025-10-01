@@ -266,10 +266,11 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
             codeToken.setOrigin(provider.getOriginKey());
         }
 
-        setOrigin(codeToken.getOrigin());
+        final String origin = codeToken.getOrigin();
+        setOrigin(origin);
         if (provider == null) {
             try {
-                provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), identityZoneManager.getCurrentIdentityZoneId());
+                provider = getProviderProvisioning().retrieveByOrigin(origin, identityZoneManager.getCurrentIdentityZoneId());
             } catch (EmptyResultDataAccessException e) {
                 logger.info("No provider found for given origin");
                 throw new InsufficientAuthenticationException("Could not resolve identity provider with given origin.");
@@ -323,7 +324,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
 
             return authenticationData;
         }
-        logger.debug("No identity provider found for origin:{} and zone:{}", getOrigin(), identityZoneManager.getCurrentIdentityZoneId());
+        logger.debug("No identity provider found for origin:{} and zone:{}", origin, identityZoneManager.getCurrentIdentityZoneId());
         return null;
     }
 
