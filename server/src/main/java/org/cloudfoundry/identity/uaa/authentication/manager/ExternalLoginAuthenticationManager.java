@@ -113,7 +113,7 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
 
         // Register new users automatically
         if (userFromDb == null) {
-            if (!isAddNewShadowUser()) {
+            if (!isAddNewShadowUser(getOrigin())) {
                 throw new AccountNotPreCreatedException("The user account must be pre-created. Please contact your system administrator.");
             }
             publish(new NewUserAuthenticatedEvent(userFromRequest.authorities(List.of())));
@@ -174,7 +174,7 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
 
     protected abstract ExternalAuthenticationDetails getExternalAuthenticationDetails(Authentication authentication) throws AuthenticationException;
 
-    protected abstract boolean isAddNewShadowUser();
+    protected abstract boolean isAddNewShadowUser(final String origin);
 
     protected MultiValueMap<String, String> getUserAttributes(UserDetails request) {
         return new LinkedMultiValueMap<>();

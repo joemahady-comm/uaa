@@ -122,7 +122,7 @@ class ExternalLoginAuthenticationManagerTest {
             }
 
             @Override
-            protected boolean isAddNewShadowUser() {
+            protected boolean isAddNewShadowUser(String origin) {
                 return true;
             }
 
@@ -376,7 +376,7 @@ class ExternalLoginAuthenticationManagerTest {
         when(ldapUserDetails.getDn()).thenReturn(dn);
         manager = new LdapLoginAuthenticationManager(null) {
             @Override
-            protected boolean isAddNewShadowUser() {
+            protected boolean isAddNewShadowUser(final String origin) {
                 return false;
             }
         };

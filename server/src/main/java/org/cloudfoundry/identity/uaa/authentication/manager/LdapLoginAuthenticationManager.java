@@ -164,10 +164,10 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
     }
 
     @Override
-    protected boolean isAddNewShadowUser() {
+    protected boolean isAddNewShadowUser(final String origin) {
         boolean result = true;
         if (getProviderProvisioning() != null) {
-            IdentityProvider provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), IdentityZoneHolder.get().getId());
+            IdentityProvider provider = getProviderProvisioning().retrieveByOrigin(origin, IdentityZoneHolder.get().getId());
             LdapIdentityProviderDefinition ldapIdentityProviderDefinition = ObjectUtils.castInstance(provider.getConfig(), LdapIdentityProviderDefinition.class);
             if (ldapIdentityProviderDefinition != null) {
                 result = ldapIdentityProviderDefinition.isAddShadowUserOnLogin();

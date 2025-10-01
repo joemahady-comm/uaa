@@ -174,7 +174,7 @@ class LdapLoginAuthenticationManagerTests {
     @Test
     void shadowUserCreationDisabledWillNotAddShadowUser() {
         definition.setAddShadowUserOnLogin(false);
-        assertThat(am.isAddNewShadowUser()).isFalse();
+        assertThat(am.isAddNewShadowUser(origin)).isFalse();
     }
 
     @Test
