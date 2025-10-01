@@ -533,13 +533,16 @@ class ExternalLoginAuthenticationManagerTest {
         HashSet<String> externalGroupsOnAuthentication = new HashSet<>(externalGroups);
         when(uaaAuthentication.getExternalGroups()).thenReturn(externalGroupsOnAuthentication);
 
+        final ExternalAuthenticationDetails authenticationDetails = mock(ExternalAuthenticationDetails.class);
+        when(authenticationDetails.getOrigin()).thenReturn(origin);
+
         providerDefinition.setStoreCustomAttributes(false);
-        manager.populateAuthenticationAttributes(uaaAuthentication, mock(Authentication.class), null);
+        manager.populateAuthenticationAttributes(uaaAuthentication, mock(Authentication.class), authenticationDetails);
         verify(manager.getUserDatabase(), never()).storeUserInfo(anyString(), any());
 
         // when there are both attributes and groups, store them
         providerDefinition.setStoreCustomAttributes(true);
-        manager.populateAuthenticationAttributes(uaaAuthentication, mock(Authentication.class), null);
+        manager.populateAuthenticationAttributes(uaaAuthentication, mock(Authentication.class), authenticationDetails);
         UserInfo userInfo = new UserInfo()
                 .setUserAttributes(userAttributes)
                 .setRoles(externalGroups);
@@ -548,7 +551,7 @@ class ExternalLoginAuthenticationManagerTest {
         // when provider is null do not store anything
         reset(manager.getUserDatabase());
         manager.setProviderProvisioning(null);
-        manager.populateAuthenticationAttributes(uaaAuthentication, mock(Authentication.class), null);
+        manager.populateAuthenticationAttributes(uaaAuthentication, mock(Authentication.class), authenticationDetails);
         verify(manager.getUserDatabase(), never()).storeUserInfo(anyString(), any());
 
         manager.setProviderProvisioning(providerProvisioning);
@@ -556,7 +559,7 @@ class ExternalLoginAuthenticationManagerTest {
         // when attributes is empty but roles have contents, store it
         reset(manager.getUserDatabase());
         userAttributes.clear();
-        manager.populateAuthenticationAttributes(uaaAuthentication, mock(Authentication.class), null);
+        manager.populateAuthenticationAttributes(uaaAuthentication, mock(Authentication.class), authenticationDetails);
         userInfo = new UserInfo()
                 .setUserAttributes(userAttributes)
                 .setRoles(externalGroups);
@@ -566,7 +569,7 @@ class ExternalLoginAuthenticationManagerTest {
         reset(manager.getUserDatabase());
         userAttributes.clear();
         externalGroupsOnAuthentication.clear();
-        manager.populateAuthenticationAttributes(uaaAuthentication, mock(Authentication.class), null);
+        manager.populateAuthenticationAttributes(uaaAuthentication, mock(Authentication.class), authenticationDetails);
         verify(manager.getUserDatabase(), never()).storeUserInfo(anyString(), any());
     }
 
