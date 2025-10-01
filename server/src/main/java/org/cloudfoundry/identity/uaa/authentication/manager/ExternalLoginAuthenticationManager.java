@@ -95,7 +95,10 @@ public abstract class ExternalLoginAuthenticationManager<EAD> implements Authent
         if (logger.isDebugEnabled()) {
             logger.debug("Starting external authentication for:{}", UaaStringUtils.getCleanedUserControlString(request.toString()));
         }
+
         EAD authenticationData = getExternalAuthenticationDetails(request);
+        final String origin = getOrigin();
+
         UaaUser userFromRequest = getUser(request, authenticationData);
         if (userFromRequest == null) {
             return null;
@@ -104,21 +107,21 @@ public abstract class ExternalLoginAuthenticationManager<EAD> implements Authent
         UaaUser userFromDb;
 
         try {
-            logger.debug("Searching for user by (username:{} , origin:{})", userFromRequest.getUsername(), getOrigin());
-            userFromDb = userDatabase.retrieveUserByName(userFromRequest.getUsername(), getOrigin());
+            logger.debug("Searching for user by (username:{} , origin:{})", userFromRequest.getUsername(), origin);
+            userFromDb = userDatabase.retrieveUserByName(userFromRequest.getUsername(), origin);
         } catch (UsernameNotFoundException e) {
-            logger.debug("Searching for user by (email:{} , origin:{})", userFromRequest.getEmail(), getOrigin());
-            userFromDb = userDatabase.retrieveUserByEmail(userFromRequest.getEmail(), getOrigin());
+            logger.debug("Searching for user by (email:{} , origin:{})", userFromRequest.getEmail(), origin);
+            userFromDb = userDatabase.retrieveUserByEmail(userFromRequest.getEmail(), origin);
         }
 
         // Register new users automatically
         if (userFromDb == null) {
-            if (!isAddNewShadowUser(getOrigin())) {
+            if (!isAddNewShadowUser(origin)) {
                 throw new AccountNotPreCreatedException("The user account must be pre-created. Please contact your system administrator.");
             }
             publish(new NewUserAuthenticatedEvent(userFromRequest.authorities(List.of())));
             try {
-                userFromDb = userDatabase.retrieveUserByName(userFromRequest.getUsername(), getOrigin());
+                userFromDb = userDatabase.retrieveUserByName(userFromRequest.getUsername(), origin);
             } catch (UsernameNotFoundException ex) {
                 throw new BadCredentialsException("Unable to register user in internal UAA store.");
             }
