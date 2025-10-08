@@ -24,9 +24,10 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 
 /**
  * For MySQL, the database name is hardcoded in the {@link V1_5_4__NormalizeTableAndColumnNames} migration as
@@ -43,7 +44,7 @@ class MySQLConfiguration {
     @Order(TestDatabaseNameCustomizer.ORDER + 1)
     @Profile("mysql")
     JdbcUrlCustomizer mysqlHardcodedJdbcUrlCustomizer() {
-        return url -> "jdbc:mysql://127.0.0.1:3306/uaa?useSSL=true&trustServerCertificate=true";
+        return url -> "jdbc:mysql://127.0.0.1:3306/uaa?useSSL=true&trustServerCertificate=true&permitMysqlScheme=true";
     }
 }
 
@@ -65,26 +66,27 @@ class TableAndColumnNormalizationTest {
     private DataSource dataSource;
 
     @Test
-    void checkTables() throws Exception {
+    void checkTablesAreAllLowercase() throws Exception {
         try (Connection connection = dataSource.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
             ResultSet rs = metaData.getTables(null, null, null, new String[]{"TABLE"});
-            int count = 0;
+            List<String> validatedTables = new ArrayList<>();
             while (rs.next()) {
                 String name = rs.getString("TABLE_NAME");
+
                 logger.info("Checking table [{}]", name);
                 if (name != null && DatabaseInformation1_5_3.tableNames.contains(name.toLowerCase())) {
-                    count++;
                     logger.info("Validating table [{}]", name);
                     assertThat(name).as("Table[%s] is not lower case.".formatted(name)).isEqualTo(name.toLowerCase());
+                    validatedTables.add(name);
                 }
             }
-            assertThat(count).as("Table count:").isEqualTo(DatabaseInformation1_5_3.tableNames.size());
+            assertThat(validatedTables).hasSameElementsAs(DatabaseInformation1_5_3.tableNames);
         }
     }
 
     @Test
-    void checkColumns() throws Exception {
+    void checkColumnsAreAllLowercase() throws Exception {
         try (Connection connection = dataSource.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
             ResultSet rs = metaData.getColumns(null, null, null, null);

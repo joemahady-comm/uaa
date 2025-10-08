@@ -34,7 +34,7 @@ import java.util.Properties;
  * can be overridden by users, or in {@link DatabasePlatform} when they are static.
  * <p>
  * Note that we reference property sources directly here, without relying on Boot auto-discovery. We do this so
- * that all configuration is visible from a single place.
+ * that all configurations are visible from a single place.
  * <p>
  * The following beans and configurations are wired by Spring Boot auto-configuration.
  * <p>
@@ -98,6 +98,21 @@ public class DatabaseConfiguration {
         };
     }
 
+    /**
+     * Allow mariadb driver to connect to mysql scheme urls
+     */
+    @Bean
+    @Profile("mysql")
+    JdbcUrlCustomizer jdbcUrlAddPermitMysqlSchemeCustomizer(DatabaseProperties databaseProperties) {
+        return url -> {
+            if (databaseProperties.getDriverClassName().contains("mariadb") && url.startsWith("jdbc:mysql") && !url.contains("permitMysqlScheme=")) {
+                String connectorCharacter = url.contains("?") ? "&" : "?";
+                return url + connectorCharacter + "permitMysqlScheme=true";
+            }
+            return url;
+        };
+    }
+
     @Bean
     public MBeanExporter dataSourceMBeanExporter(DataSource dataSource) {
         MBeanExporter exporter = new MBeanExporter();
@@ -129,7 +144,7 @@ public class DatabaseConfiguration {
 
     @Configuration
     @Profile("postgresql")
-    // The property source location is already inferred by the profile but we make it explicit
+    // The property source location is already inferred by the profile, but we make it explicit
     @PropertySource("classpath:application-postgresql.properties")
     public static class PostgresConfiguration {
 
@@ -142,7 +157,7 @@ public class DatabaseConfiguration {
 
     @Configuration
     @Profile("mysql")
-    // The property source location is already inferred by the profile but we make it explicit
+    // The property source location is already inferred by the profile, but we make it explicit
     @PropertySource("classpath:application-mysql.properties")
     public static class MysqlConfiguration {
 
