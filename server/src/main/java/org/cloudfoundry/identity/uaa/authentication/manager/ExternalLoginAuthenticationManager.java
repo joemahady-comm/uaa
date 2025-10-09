@@ -1,5 +1,7 @@
 package org.cloudfoundry.identity.uaa.authentication.manager;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.cloudfoundry.identity.uaa.authentication.AccountNotPreCreatedException;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
@@ -23,6 +25,7 @@ import org.cloudfoundry.identity.uaa.user.UserInfo;
 import org.cloudfoundry.identity.uaa.user.VerifiableUser;
 import org.cloudfoundry.identity.uaa.util.UaaStringUtils;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanNameAware;
@@ -47,71 +50,45 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 
 import static java.util.Collections.emptySet;
-import static java.util.Optional.ofNullable;
 
-public class ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> implements AuthenticationManager, ApplicationEventPublisherAware, BeanNameAware {
+public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> implements AuthenticationManager, ApplicationEventPublisherAware, BeanNameAware {
 
     public static final String USER_ATTRIBUTE_PREFIX = "user.attribute.";
+    private static final String FALLBACK_EMAIL_DOMAIN_TEMPLATE = "user.from.%s.cf";
+
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
     private ApplicationEventPublisher eventPublisher;
 
+    @Getter
+    @Setter
     private UaaUserDatabase userDatabase;
 
     private String name;
 
-    private String origin = "unknown";
-
+    @Getter
+    @Setter
     private IdentityProviderProvisioning providerProvisioning;
 
+    @Getter
+    @Setter
     private ScimGroupExternalMembershipManager externalMembershipManager;
-
 
     public ExternalLoginAuthenticationManager(IdentityProviderProvisioning providerProvisioning) {
         this.providerProvisioning = providerProvisioning;
     }
 
-    public IdentityProviderProvisioning getProviderProvisioning() {
-        return providerProvisioning;
-    }
-
-    public void setProviderProvisioning(IdentityProviderProvisioning providerProvisioning) {
-        this.providerProvisioning = providerProvisioning;
-    }
-
-    public ScimGroupExternalMembershipManager getExternalMembershipManager() {
-        return externalMembershipManager;
-    }
-
-    public void setExternalMembershipManager(ScimGroupExternalMembershipManager externalMembershipManager) {
-        this.externalMembershipManager = externalMembershipManager;
-    }
-
-    public String getOrigin() {
-        return origin;
-    }
-
-    public void setOrigin(String origin) {
-        this.origin = origin;
-    }
-
     @Override
-    public void setApplicationEventPublisher(ApplicationEventPublisher eventPublisher) {
+    public final void setApplicationEventPublisher(@NonNull ApplicationEventPublisher eventPublisher) {
         this.eventPublisher = eventPublisher;
     }
 
-    /**
-     * @param userDatabase the userDatabase to set
-     */
-    public void setUserDatabase(UaaUserDatabase userDatabase) {
-        this.userDatabase = userDatabase;
-    }
+    public abstract String getOrigin();
 
-    public UaaUserDatabase getUserDatabase() {
-        return this.userDatabase;
-    }
+    public abstract void setOrigin(String origin);
 
     @Override
     public Authentication authenticate(Authentication request) throws AuthenticationException {
@@ -171,14 +148,17 @@ public class ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> i
         if (authentication.getAuthenticationMethods() == null) {
             authentication.setAuthenticationMethods(new HashSet<>());
         }
+
         authentication.getAuthenticationMethods().add("ext");
+
+        // persist the user attributes and external groups in the user info table if configured in the IdP
         if ((hasUserAttributes(authentication) || hasExternalGroups(authentication)) && getProviderProvisioning() != null) {
             IdentityProvider<ExternalIdentityProviderDefinition> provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), IdentityZoneHolder.get().getId());
             if (provider.getConfig() != null && provider.getConfig().isStoreCustomAttributes()) {
                 logger.debug("Storing custom attributes for user_id:{}", authentication.getPrincipal().getId());
                 UserInfo userInfo = new UserInfo()
                         .setUserAttributes(authentication.getUserAttributes())
-                        .setRoles(new LinkedList<>(ofNullable(authentication.getExternalGroups()).orElse(emptySet())));
+                        .setRoles(new LinkedList<>(Optional.ofNullable(authentication.getExternalGroups()).orElse(emptySet())));
                 getUserDatabase().storeUserInfo(authentication.getPrincipal().getId(), userInfo);
             }
         }
@@ -192,31 +172,23 @@ public class ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> i
         return authentication.getUserAttributes() != null && !authentication.getUserAttributes().isEmpty();
     }
 
-    protected ExternalAuthenticationDetails getExternalAuthenticationDetails(Authentication authentication) throws AuthenticationException {
-        return null;
-    }
+    protected abstract ExternalAuthenticationDetails getExternalAuthenticationDetails(Authentication authentication) throws AuthenticationException;
 
-    protected boolean isAddNewShadowUser() {
-        return true;
-    }
+    protected abstract boolean isAddNewShadowUser();
 
     protected MultiValueMap<String, String> getUserAttributes(UserDetails request) {
         return new LinkedMultiValueMap<>();
     }
 
-    protected List<String> getExternalUserAuthorities(UserDetails request) {
-        return new LinkedList<>();
-    }
+    protected abstract List<String> getExternalUserAuthorities(UserDetails request);
 
-    protected void publish(ApplicationEvent event) {
+    protected final void publish(ApplicationEvent event) {
         if (eventPublisher != null) {
             eventPublisher.publishEvent(event);
         }
     }
 
-    protected UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb) {
-        return userFromDb;
-    }
+    protected abstract UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb);
 
     protected UaaUser getUser(Authentication request, ExternalAuthenticationDetails authDetails) {
         UserDetails userDetails;
@@ -259,7 +231,7 @@ public class ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> i
 
         String phoneNumber = userDetails instanceof DialableByPhone dbp ? dbp.getPhoneNumber() : null;
         String externalId = userDetails instanceof ExternallyIdentifiable ei ? ei.getExternalId() : name;
-        boolean verified = userDetails instanceof VerifiableUser vu ? vu.isVerified() : false;
+        boolean verified = userDetails instanceof VerifiableUser vu && vu.isVerified();
         UaaUserPrototype userPrototype = new UaaUserPrototype()
                 .withVerified(verified)
                 .withUsername(name)
@@ -278,27 +250,33 @@ public class ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> i
         return new UaaUser(userPrototype);
     }
 
-    protected String generateEmailIfNullOrEmpty(String name) {
-        String email;
-        if (name != null) {
-            if (name.contains("@")) {
-                if (name.split("@").length == 2 && !name.startsWith("@") && !name.endsWith("@")) {
-                    email = name;
-                } else {
-                    email = name.replace("@", "") + "@user.from." + getOrigin() + ".cf";
-                }
-            } else {
-                email = name + "@user.from." + getOrigin() + ".cf";
-            }
-        } else {
+    protected final String generateEmailIfNullOrEmpty(String name) {
+        if (name == null) {
             throw new BadCredentialsException("Cannot determine username from credentials supplied");
         }
-        return email;
+
+        final String fallbackEmailDomain = FALLBACK_EMAIL_DOMAIN_TEMPLATE.formatted(getOrigin());
+
+        // use fallback domain if no '@' is present
+        if (!name.contains("@")) {
+            return name + "@" + fallbackEmailDomain;
+        }
+
+        // use as-is if it represents a valid e-mail address
+        if (name.split("@").length == 2 && !name.startsWith("@") && !name.endsWith("@")) {
+            return name;
+        }
+
+        // otherwise, remove any '@' characters and use fallback domain
+        return name.replace("@", "") + "@" + fallbackEmailDomain;
     }
 
-    protected boolean haveUserAttributesChanged(UaaUser existingUser, UaaUser user) {
-        return !StringUtils.equals(existingUser.getGivenName(), user.getGivenName()) || !StringUtils.equals(existingUser.getFamilyName(), user.getFamilyName()) ||
-                !StringUtils.equals(existingUser.getPhoneNumber(), user.getPhoneNumber()) || !StringUtils.equals(existingUser.getEmail(), user.getEmail()) || !StringUtils.equals(existingUser.getExternalId(), user.getExternalId());
+    protected final boolean haveUserAttributesChanged(UaaUser existingUser, UaaUser user) {
+        return !StringUtils.equals(existingUser.getGivenName(), user.getGivenName())
+                || !StringUtils.equals(existingUser.getFamilyName(), user.getFamilyName())
+                || !StringUtils.equals(existingUser.getPhoneNumber(), user.getPhoneNumber())
+                || !StringUtils.equals(existingUser.getEmail(), user.getEmail())
+                || !StringUtils.equals(existingUser.getExternalId(), user.getExternalId());
     }
 
     /**
@@ -312,7 +290,7 @@ public class ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> i
      *         'external_groups' attribute mapping of the IdP
      * @return the internal groups
      */
-    protected List<SimpleGrantedAuthority> evaluateExternalGroupMappings(String origin, Collection<? extends GrantedAuthority> externalGroups) {
+    protected final List<SimpleGrantedAuthority> evaluateExternalGroupMappings(String origin, Collection<? extends GrantedAuthority> externalGroups) {
         List<SimpleGrantedAuthority> result = new LinkedList<>();
         for (GrantedAuthority authority : externalGroups) {
             String externalGroup = authority.getAuthority();
@@ -329,7 +307,7 @@ public class ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> i
     }
 
     @Override
-    public void setBeanName(String name) {
+    public void setBeanName(@NonNull String name) {
         this.name = name;
     }
 }

@@ -16,6 +16,7 @@
 package org.cloudfoundry.identity.uaa.authentication.manager;
 
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
+import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
 import org.cloudfoundry.identity.uaa.provider.IdentityProviderProvisioning;
 import org.cloudfoundry.identity.uaa.provider.LdapIdentityProviderDefinition;
@@ -28,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.util.MultiValueMap;
@@ -44,7 +46,7 @@ import java.util.Set;
 import static java.util.Collections.emptyList;
 import static org.cloudfoundry.identity.uaa.util.UaaStringUtils.retainAllMatches;
 
-public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationManager {
+public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationManager<Object> {
 
     protected static Logger logger = LoggerFactory.getLogger(LdapLoginAuthenticationManager.class);
 
@@ -52,10 +54,28 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
         super(providerProvisioning);
     }
 
+    private String origin = OriginKeys.LDAP;
+
+    @Override
+    public String getOrigin() {
+        return origin;
+    }
+
+    @Override
+    public void setOrigin(String origin) {
+        // only used in LdapLoginAuthenticationManagerTests
+        this.origin = origin;
+    }
+
     @Override
     protected void populateAuthenticationAttributes(UaaAuthentication authentication, Authentication request, Object authenticationData) {
         super.populateAuthenticationAttributes(authentication, request, authenticationData);
         authentication.getAuthenticationMethods().add("pwd");
+    }
+
+    @Override
+    protected Object getExternalAuthenticationDetails(Authentication authentication) throws AuthenticationException {
+        return null;
     }
 
     @Override
@@ -73,7 +93,7 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
                         String[] values = ldapDetails.getAttribute((String) entry.getValue(), false);
                         if (values != null && values.length > 0) {
                             result.put(key, Arrays.asList(values));
-                            logger.debug("Mappcustom attribute key:{} and value:{}", key, result.get(key));
+                            logger.debug("Map custom attribute key:{} and value:{}", key, result.get(key));
                         }
                     }
                 }
@@ -86,17 +106,17 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
 
     @Override
     protected List<String> getExternalUserAuthorities(UserDetails request) {
-        List<String> result = super.getExternalUserAuthorities(request);
+        List<String> result = new LinkedList<>();
         if (getProviderProvisioning() != null) {
             IdentityProvider provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), IdentityZoneHolder.get().getId());
             LdapIdentityProviderDefinition ldapIdentityProviderDefinition = ObjectUtils.castInstance(provider.getConfig(), LdapIdentityProviderDefinition.class);
             List<String> externalWhiteList = ldapIdentityProviderDefinition.getExternalGroupsWhitelist();
-            result = new ArrayList<>(retainAllMatches(getAuthoritesAsNames(request.getAuthorities()), externalWhiteList));
+            result = new ArrayList<>(retainAllMatches(getAuthoritiesAsNames(request.getAuthorities()), externalWhiteList));
         }
         return result;
     }
 
-    protected Set<String> getAuthoritesAsNames(Collection<? extends GrantedAuthority> authorities) {
+    protected Set<String> getAuthoritiesAsNames(Collection<? extends GrantedAuthority> authorities) {
         Set<String> result = new HashSet<>();
         authorities = new LinkedList<>(authorities != null ? authorities : emptyList());
         for (GrantedAuthority a : authorities) {

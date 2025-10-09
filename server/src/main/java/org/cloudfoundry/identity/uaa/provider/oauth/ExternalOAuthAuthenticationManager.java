@@ -436,7 +436,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
 
     @Override
     protected List<String> getExternalUserAuthorities(UserDetails request) {
-        return super.getExternalUserAuthorities(request);
+        return new LinkedList<>();
     }
 
     @Override
@@ -598,9 +598,6 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
 
     @Override
     protected boolean isAddNewShadowUser() {
-        if (!super.isAddNewShadowUser()) {
-            return false;
-        }
         IdentityProvider<AbstractExternalOAuthIdentityProviderDefinition> provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), identityZoneManager.getCurrentIdentityZoneId());
         return provider.getConfig().isAddShadowUserOnLogin();
     }

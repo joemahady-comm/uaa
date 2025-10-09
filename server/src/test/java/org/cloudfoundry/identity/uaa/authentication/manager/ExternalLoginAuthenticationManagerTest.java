@@ -24,6 +24,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.ldap.userdetails.LdapUserDetails;
@@ -34,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -101,7 +103,39 @@ class ExternalLoginAuthenticationManagerTest {
         inputAuth = mock(Authentication.class);
         when(inputAuth.getPrincipal()).thenReturn(userDetails);
 
-        manager = new ExternalLoginAuthenticationManager(null);
+        manager = new ExternalLoginAuthenticationManager(null) {
+            private String origin = "unknown";
+
+            @Override
+            public String getOrigin() {
+                return origin;
+            }
+
+            @Override
+            public void setOrigin(String origin) {
+                this.origin = origin;
+            }
+
+            @Override
+            protected Object getExternalAuthenticationDetails(Authentication authentication) throws AuthenticationException {
+                return null;
+            }
+
+            @Override
+            protected boolean isAddNewShadowUser() {
+                return true;
+            }
+
+            @Override
+            protected List<String> getExternalUserAuthorities(UserDetails request) {
+                return new LinkedList<>();
+            }
+
+            @Override
+            protected UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb) {
+                return userFromDb;
+            }
+        };
         setupManager();
     }
 
