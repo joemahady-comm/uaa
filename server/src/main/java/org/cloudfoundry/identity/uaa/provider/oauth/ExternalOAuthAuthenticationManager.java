@@ -20,6 +20,7 @@ import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base64;
@@ -147,9 +148,6 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
     private final KeyInfoService keyInfoService;
     private final IdentityZoneManager identityZoneManager;
 
-    //origin is per thread during execution
-    private final ThreadLocal<String> origin = ThreadLocal.withInitial(() -> "unknown");
-
     public ExternalOAuthAuthenticationManager(
             IdentityProviderProvisioning providerProvisioning,
             IdentityZoneManager identityZoneManager,
@@ -166,27 +164,6 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
         this.tokenEndpointBuilder = tokenEndpointBuilder;
         this.keyInfoService = keyInfoService;
         this.oidcMetadataFetcher = oidcMetadataFetcher;
-    }
-
-    @Override
-    public String getOrigin() {
-        //origin is per thread during execution
-        return origin.get();
-    }
-
-    @Override
-    public void setOrigin(String origin) {
-        this.origin.set(origin);
-    }
-
-    @Override
-    public Authentication authenticate(final Authentication request) throws AuthenticationException {
-        try {
-            return super.authenticate(request);
-        } finally {
-            // clear ThreadLocal holding the origin key
-            origin.remove();
-        }
     }
 
     /**
@@ -265,10 +242,11 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
             codeToken.setOrigin(provider.getOriginKey());
         }
 
-        setOrigin(codeToken.getOrigin());
+        final String origin = codeToken.getOrigin();
+
         if (provider == null) {
             try {
-                provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), identityZoneManager.getCurrentIdentityZoneId());
+                provider = getProviderProvisioning().retrieveByOrigin(origin, identityZoneManager.getCurrentIdentityZoneId());
             } catch (EmptyResultDataAccessException e) {
                 logger.info("No provider found for given origin");
                 throw new InsufficientAuthenticationException("Could not resolve identity provider with given origin.");
@@ -277,6 +255,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
 
         if (provider != null && provider.getConfig() instanceof AbstractExternalOAuthIdentityProviderDefinition config) {
             final AuthenticationData authenticationData = new AuthenticationData();
+            authenticationData.setOrigin(origin);
 
             final Map<String, Object> claims = getClaimsFromToken(codeToken, provider);
 
@@ -322,7 +301,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
 
             return authenticationData;
         }
-        logger.debug("No identity provider found for origin:{} and zone:{}", getOrigin(), identityZoneManager.getCurrentIdentityZoneId());
+        logger.debug("No identity provider found for origin:{} and zone:{}", origin, identityZoneManager.getCurrentIdentityZoneId());
         return null;
     }
 
@@ -435,7 +414,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
     }
 
     @Override
-    protected List<String> getExternalUserAuthorities(UserDetails request) {
+    protected List<String> getExternalUserAuthorities(UserDetails request, AuthenticationData authenticationData) {
         return new LinkedList<>();
     }
 
@@ -460,7 +439,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
             boolean verified = verifiedObj instanceof Boolean b ? b : false;
 
             if (!StringUtils.hasText(email)) {
-                email = generateEmailIfNullOrEmpty(username);
+                email = generateEmailIfNullOrEmpty(username, authenticationData.getOrigin());
             }
 
             log.debug("Returning user data for username:{}, email:{}", username, email);
@@ -476,7 +455,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
                             .withPassword("")
                             .withAuthorities(authenticationData.getAuthorities())
                             .withCreated(new Date())
-                            .withOrigin(getOrigin())
+                            .withOrigin(authenticationData.getOrigin())
                             .withExternalId((String) authenticationData.getClaims().get(SUB))
                             .withVerified(verified)
                             .withZoneId(identityZoneManager.getCurrentIdentityZoneId())
@@ -537,7 +516,7 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
     }
 
     @Override
-    protected UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb) {
+    protected UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb, AuthenticationData authenticationData) {
         boolean userModified = false;
         boolean isInvitationAcceptance = isAcceptedInvitationAuthentication();
         String email = userFromRequest.getEmail();
@@ -597,8 +576,8 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
     }
 
     @Override
-    protected boolean isAddNewShadowUser() {
-        IdentityProvider<AbstractExternalOAuthIdentityProviderDefinition> provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), identityZoneManager.getCurrentIdentityZoneId());
+    protected boolean isAddNewShadowUser(final String origin) {
+        IdentityProvider<AbstractExternalOAuthIdentityProviderDefinition> provider = getProviderProvisioning().retrieveByOrigin(origin, identityZoneManager.getCurrentIdentityZoneId());
         return provider.getConfig().isAddShadowUserOnLogin();
     }
 
@@ -1034,7 +1013,8 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
     }
 
     @Data
-    protected static class AuthenticationData {
+    @EqualsAndHashCode(callSuper = true)
+    protected static class AuthenticationData extends ExternalAuthenticationDetails {
         private Map<String, Object> claims;
         private String username;
 

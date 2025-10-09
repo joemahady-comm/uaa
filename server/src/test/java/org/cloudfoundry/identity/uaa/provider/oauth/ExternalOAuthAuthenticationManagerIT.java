@@ -32,6 +32,7 @@ import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
 import org.cloudfoundry.identity.uaa.provider.IdentityProviderProvisioning;
 import org.cloudfoundry.identity.uaa.provider.OIDCIdentityProviderDefinition;
 import org.cloudfoundry.identity.uaa.provider.RawExternalOAuthIdentityProviderDefinition;
+import org.cloudfoundry.identity.uaa.provider.oauth.ExternalOAuthAuthenticationManager.AuthenticationData;
 import org.cloudfoundry.identity.uaa.scim.ScimGroupExternalMember;
 import org.cloudfoundry.identity.uaa.scim.ScimGroupExternalMembershipManager;
 import org.cloudfoundry.identity.uaa.user.InMemoryUaaUserDatabase;
@@ -87,7 +88,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
 import java.util.stream.Stream;
 
 import static java.util.Collections.emptyList;
@@ -314,68 +314,6 @@ class ExternalOAuthAuthenticationManagerIT {
     }
 
     @Test
-    void authManager_origin_is_thread_safe() throws Exception {
-        CountDownLatch countDownLatchA = new CountDownLatch(1);
-        CountDownLatch countDownLatchB = new CountDownLatch(1);
-
-        final String[] thread1Origin = new String[1];
-        final String[] thread2Origin = new String[1];
-        Thread thread1 = new Thread() {
-            @Override
-            public void run() {
-                externalOAuthAuthenticationManager.setOrigin("a");
-                resumeThread2();
-                pauseThread1();
-                thread1Origin[0] = externalOAuthAuthenticationManager.getOrigin();
-            }
-
-            private void resumeThread2() {
-                countDownLatchB.countDown();
-            }
-
-            private void pauseThread1() {
-                try {
-                    countDownLatchA.await();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-        };
-
-        Thread thread2 = new Thread() {
-            @Override
-            public void run() {
-                pauseThread2();
-                externalOAuthAuthenticationManager.setOrigin("b");
-                resumeThread1();
-
-                thread2Origin[0] = externalOAuthAuthenticationManager.getOrigin();
-            }
-
-            private void resumeThread1() {
-                countDownLatchA.countDown();
-            }
-
-            private void pauseThread2() {
-                try {
-                    countDownLatchB.await();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-        };
-
-        thread2.start();
-        thread1.start();
-
-        thread1.join();
-        thread2.join();
-
-        assertThat(thread1Origin[0]).isEqualTo("a");
-        assertThat(thread2Origin[0]).isEqualTo("b");
-    }
-
-    @Test
     void when_a_null_id_token_is_provided_resolveOriginProvider_should_throw_a_jwt_validation_exception() {
         assertThatThrownBy(() -> externalOAuthAuthenticationManager.resolveOriginProvider(null))
                 .isInstanceOf(InsufficientAuthenticationException.class)
@@ -446,12 +384,12 @@ class ExternalOAuthAuthenticationManagerIT {
         xCodeToken.setIdToken(idToken);
         xCodeToken.setOrigin(null);
 
-        ExternalOAuthAuthenticationManager.AuthenticationData externalAuthenticationDetails = externalOAuthAuthenticationManager
+        AuthenticationData externalAuthenticationDetails = externalOAuthAuthenticationManager
                 .getExternalAuthenticationDetails(xCodeToken);
 
         assertThat(username).isEqualTo(externalAuthenticationDetails.getUsername());
         assertThat(externalAuthenticationDetails.getClaims()).containsEntry(ClaimConstants.ORIGIN, UAA_ORIGIN);
-        assertThat(externalOAuthAuthenticationManager.getOrigin()).isEqualTo(UAA_ORIGIN);
+        assertThat(externalAuthenticationDetails.getOrigin()).isEqualTo(UAA_ORIGIN);
     }
 
     @ParameterizedTest
@@ -491,12 +429,12 @@ class ExternalOAuthAuthenticationManagerIT {
         xCodeToken.setIdToken(idToken);
         xCodeToken.setOrigin(null);
 
-        ExternalOAuthAuthenticationManager.AuthenticationData externalAuthenticationDetails = externalOAuthAuthenticationManager
+        AuthenticationData externalAuthenticationDetails = externalOAuthAuthenticationManager
                 .getExternalAuthenticationDetails(xCodeToken);
 
         assertThat(username).isEqualTo(externalAuthenticationDetails.getUsername());
         assertThat(externalAuthenticationDetails.getClaims()).containsEntry(ClaimConstants.ORIGIN, idpProvider.getOriginKey());
-        assertThat(externalOAuthAuthenticationManager.getOrigin()).isEqualTo(idpProvider.getOriginKey());
+        assertThat(externalAuthenticationDetails.getOrigin()).isEqualTo(idpProvider.getOriginKey());
     }
 
     @Test
@@ -516,12 +454,12 @@ class ExternalOAuthAuthenticationManagerIT {
         xCodeToken.setIdToken(idToken);
         xCodeToken.setOrigin(null);
 
-        ExternalOAuthAuthenticationManager.AuthenticationData externalAuthenticationDetails = externalOAuthAuthenticationManager
+        AuthenticationData externalAuthenticationDetails = externalOAuthAuthenticationManager
                 .getExternalAuthenticationDetails(xCodeToken);
 
         assertThat(username).isEqualTo(externalAuthenticationDetails.getUsername());
         assertThat(externalAuthenticationDetails.getClaims()).containsEntry(ClaimConstants.ORIGIN, OriginKeys.UAA);
-        assertThat(externalOAuthAuthenticationManager.getOrigin()).isEqualTo(idpProvider.getOriginKey());
+        assertThat(externalAuthenticationDetails.getOrigin()).isEqualTo(idpProvider.getOriginKey());
     }
 
     @Test
@@ -539,7 +477,7 @@ class ExternalOAuthAuthenticationManagerIT {
         xCodeToken.setIdToken(idToken);
         xCodeToken.setOrigin(null);
 
-        ExternalOAuthAuthenticationManager.AuthenticationData externalAuthenticationDetails = externalOAuthAuthenticationManager
+        AuthenticationData externalAuthenticationDetails = externalOAuthAuthenticationManager
                 .getExternalAuthenticationDetails(xCodeToken);
 
         assertThat(username).isEqualTo(externalAuthenticationDetails.getUsername());
@@ -1019,12 +957,28 @@ class ExternalOAuthAuthenticationManagerIT {
 
     @Test
     void getUserSetsTheRightOrigin() {
-        externalOAuthAuthenticationManager.getUser(xCodeToken, externalOAuthAuthenticationManager.getExternalAuthenticationDetails(xCodeToken));
-        assertThat(externalOAuthAuthenticationManager.getOrigin()).isEqualTo(ORIGIN);
+        final IdentityProvider<AbstractExternalOAuthIdentityProviderDefinition<?>> idp = MultitenancyFixture.identityProvider("the_origin", "uaa");
+        idp.setConfig(config);
+        when(provisioning.retrieveByOrigin(eq(ORIGIN), anyString())).thenReturn(idp);
 
+        final IdentityProvider<AbstractExternalOAuthIdentityProviderDefinition<?>> otherIdp = MultitenancyFixture.identityProvider("other_origin", "uaa");
+        otherIdp.setConfig(config);
+        when(provisioning.retrieveByOrigin(eq("other_origin"), anyString())).thenReturn(otherIdp);
+
+        mockToken();
+        AuthenticationData authenticationData = externalOAuthAuthenticationManager.getExternalAuthenticationDetails(xCodeToken);
+        assertThat(authenticationData).isNotNull();
+        externalOAuthAuthenticationManager.getUser(xCodeToken, authenticationData);
+        assertThat(authenticationData.getOrigin()).isEqualTo(ORIGIN);
+
+        mockUaaServer.verify();
+        mockUaaServer.reset();
+
+        mockToken();
         ExternalOAuthCodeToken otherToken = new ExternalOAuthCodeToken(CODE, "other_origin", "http://localhost/callback/the_origin");
-        externalOAuthAuthenticationManager.getUser(otherToken, externalOAuthAuthenticationManager.getExternalAuthenticationDetails(otherToken));
-        assertThat(externalOAuthAuthenticationManager.getOrigin()).isEqualTo("other_origin");
+        AuthenticationData authenticationDataOtherToken = externalOAuthAuthenticationManager.getExternalAuthenticationDetails(otherToken);
+        externalOAuthAuthenticationManager.getUser(otherToken, authenticationDataOtherToken);
+        assertThat(authenticationDataOtherToken.getOrigin()).isEqualTo("other_origin");
     }
 
     @Test

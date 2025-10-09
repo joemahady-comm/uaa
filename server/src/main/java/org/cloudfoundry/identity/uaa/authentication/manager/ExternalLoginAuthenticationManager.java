@@ -1,5 +1,8 @@
 package org.cloudfoundry.identity.uaa.authentication.manager;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
@@ -54,7 +57,7 @@ import java.util.Optional;
 
 import static java.util.Collections.emptySet;
 
-public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> implements AuthenticationManager, ApplicationEventPublisherAware, BeanNameAware {
+public abstract class ExternalLoginAuthenticationManager<EAD extends ExternalLoginAuthenticationManager.ExternalAuthenticationDetails> implements AuthenticationManager, ApplicationEventPublisherAware, BeanNameAware {
 
     public static final String USER_ATTRIBUTE_PREFIX = "user.attribute.";
     private static final String FALLBACK_EMAIL_DOMAIN_TEMPLATE = "user.from.%s.cf";
@@ -86,16 +89,18 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
         this.eventPublisher = eventPublisher;
     }
 
-    public abstract String getOrigin();
-
-    public abstract void setOrigin(String origin);
-
     @Override
     public Authentication authenticate(Authentication request) throws AuthenticationException {
         if (logger.isDebugEnabled()) {
             logger.debug("Starting external authentication for:{}", UaaStringUtils.getCleanedUserControlString(request.toString()));
         }
-        ExternalAuthenticationDetails authenticationData = getExternalAuthenticationDetails(request);
+
+        EAD authenticationData = getExternalAuthenticationDetails(request);
+        if (authenticationData == null) {
+            return null;
+        }
+        final String origin = authenticationData.getOrigin();
+
         UaaUser userFromRequest = getUser(request, authenticationData);
         if (userFromRequest == null) {
             return null;
@@ -104,28 +109,28 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
         UaaUser userFromDb;
 
         try {
-            logger.debug("Searching for user by (username:{} , origin:{})", userFromRequest.getUsername(), getOrigin());
-            userFromDb = userDatabase.retrieveUserByName(userFromRequest.getUsername(), getOrigin());
+            logger.debug("Searching for user by (username:{} , origin:{})", userFromRequest.getUsername(), origin);
+            userFromDb = userDatabase.retrieveUserByName(userFromRequest.getUsername(), origin);
         } catch (UsernameNotFoundException e) {
-            logger.debug("Searching for user by (email:{} , origin:{})", userFromRequest.getEmail(), getOrigin());
-            userFromDb = userDatabase.retrieveUserByEmail(userFromRequest.getEmail(), getOrigin());
+            logger.debug("Searching for user by (email:{} , origin:{})", userFromRequest.getEmail(), origin);
+            userFromDb = userDatabase.retrieveUserByEmail(userFromRequest.getEmail(), origin);
         }
 
         // Register new users automatically
         if (userFromDb == null) {
-            if (!isAddNewShadowUser()) {
+            if (!isAddNewShadowUser(origin)) {
                 throw new AccountNotPreCreatedException("The user account must be pre-created. Please contact your system administrator.");
             }
             publish(new NewUserAuthenticatedEvent(userFromRequest.authorities(List.of())));
             try {
-                userFromDb = userDatabase.retrieveUserByName(userFromRequest.getUsername(), getOrigin());
+                userFromDb = userDatabase.retrieveUserByName(userFromRequest.getUsername(), origin);
             } catch (UsernameNotFoundException ex) {
                 throw new BadCredentialsException("Unable to register user in internal UAA store.");
             }
         }
 
         //user is authenticated and exists in UAA
-        UaaUser user = userAuthenticated(request, userFromRequest, userFromDb);
+        UaaUser user = userAuthenticated(request, userFromRequest, userFromDb, authenticationData);
 
         UaaAuthenticationDetails uaaAuthenticationDetails;
         if (request.getDetails() instanceof UaaAuthenticationDetails) {
@@ -139,10 +144,10 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
         return success;
     }
 
-    protected void populateAuthenticationAttributes(UaaAuthentication authentication, Authentication request, ExternalAuthenticationDetails authenticationData) {
+    protected void populateAuthenticationAttributes(UaaAuthentication authentication, Authentication request, EAD authenticationData) {
         if (request.getPrincipal() instanceof UserDetails userDetails) {
-            authentication.setUserAttributes(getUserAttributes(userDetails));
-            authentication.setExternalGroups(new HashSet<>(getExternalUserAuthorities(userDetails)));
+            authentication.setUserAttributes(getUserAttributes(userDetails, authenticationData));
+            authentication.setExternalGroups(new HashSet<>(getExternalUserAuthorities(userDetails, authenticationData)));
         }
 
         if (authentication.getAuthenticationMethods() == null) {
@@ -153,7 +158,7 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
 
         // persist the user attributes and external groups in the user info table if configured in the IdP
         if ((hasUserAttributes(authentication) || hasExternalGroups(authentication)) && getProviderProvisioning() != null) {
-            IdentityProvider<ExternalIdentityProviderDefinition> provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), IdentityZoneHolder.get().getId());
+            IdentityProvider<ExternalIdentityProviderDefinition> provider = getProviderProvisioning().retrieveByOrigin(authenticationData.getOrigin(), IdentityZoneHolder.get().getId());
             if (provider.getConfig() != null && provider.getConfig().isStoreCustomAttributes()) {
                 logger.debug("Storing custom attributes for user_id:{}", authentication.getPrincipal().getId());
                 UserInfo userInfo = new UserInfo()
@@ -172,15 +177,15 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
         return authentication.getUserAttributes() != null && !authentication.getUserAttributes().isEmpty();
     }
 
-    protected abstract ExternalAuthenticationDetails getExternalAuthenticationDetails(Authentication authentication) throws AuthenticationException;
+    protected abstract EAD getExternalAuthenticationDetails(Authentication authentication) throws AuthenticationException;
 
-    protected abstract boolean isAddNewShadowUser();
+    protected abstract boolean isAddNewShadowUser(final String origin);
 
-    protected MultiValueMap<String, String> getUserAttributes(UserDetails request) {
+    protected MultiValueMap<String, String> getUserAttributes(UserDetails request, EAD authenticationData) {
         return new LinkedMultiValueMap<>();
     }
 
-    protected abstract List<String> getExternalUserAuthorities(UserDetails request);
+    protected abstract List<String> getExternalUserAuthorities(UserDetails request, EAD authenticationData);
 
     protected final void publish(ApplicationEvent event) {
         if (eventPublisher != null) {
@@ -188,9 +193,9 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
         }
     }
 
-    protected abstract UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb);
+    protected abstract UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb, EAD authenticationData);
 
-    protected UaaUser getUser(Authentication request, ExternalAuthenticationDetails authDetails) {
+    protected UaaUser getUser(Authentication request, EAD authDetails) {
         UserDetails userDetails;
         if (request.getPrincipal() instanceof UserDetails) {
             userDetails = (UserDetails) request.getPrincipal();
@@ -219,7 +224,7 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
         }
 
         if (UaaStringUtils.isEmpty(email)) {
-            email = generateEmailIfNullOrEmpty(name);
+            email = generateEmailIfNullOrEmpty(name, authDetails.getOrigin());
         }
 
         String givenName = null;
@@ -242,7 +247,7 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
                 .withFamilyName(familyName)
                 .withCreated(new Date())
                 .withModified(new Date())
-                .withOrigin(getOrigin())
+                .withOrigin(authDetails.getOrigin())
                 .withExternalId(externalId)
                 .withZoneId(IdentityZoneHolder.get().getId())
                 .withPhoneNumber(phoneNumber);
@@ -250,12 +255,12 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
         return new UaaUser(userPrototype);
     }
 
-    protected final String generateEmailIfNullOrEmpty(String name) {
+    protected static String generateEmailIfNullOrEmpty(final String name, final String origin) {
         if (name == null) {
             throw new BadCredentialsException("Cannot determine username from credentials supplied");
         }
 
-        final String fallbackEmailDomain = FALLBACK_EMAIL_DOMAIN_TEMPLATE.formatted(getOrigin());
+        final String fallbackEmailDomain = FALLBACK_EMAIL_DOMAIN_TEMPLATE.formatted(origin);
 
         // use fallback domain if no '@' is present
         if (!name.contains("@")) {
@@ -309,5 +314,24 @@ public abstract class ExternalLoginAuthenticationManager<ExternalAuthenticationD
     @Override
     public void setBeanName(@NonNull String name) {
         this.name = name;
+    }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    public static class ExternalAuthenticationDetails {
+        private String origin;
+
+        public ExternalAuthenticationDetails() {
+            this.origin = "unknown";
+        }
+
+        public final String getOrigin() {
+            return origin;
+        }
+
+        public final void setOrigin(final String origin) {
+            this.origin = origin;
+        }
     }
 }
