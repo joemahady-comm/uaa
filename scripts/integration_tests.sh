@@ -13,9 +13,9 @@ function main() {
 
   local test_profile="${1:-hsqldb}"
   local boot="${2:-false}"
-  local skip_boot_run="-Dcargo.tests.run=true"
+  local skip_boot_run="-Dintegration.tests.run=true"
   if [[ "${boot:-false}" = 'boot' ]]; then
-    skip_boot_run="-Dcargo.tests.run=false"
+    skip_boot_run="-Dintegration.tests.run=false"
   fi
 
   setup_hosts_file
@@ -26,8 +26,8 @@ function main() {
 
     local wd launch_boot assemble_code integration_test_code
     wd=$(pwd)
-    readonly launch_boot="nohup java -DCLOUDFOUNDRY_CONFIG_PATH=${wd}/scripts/cargo \
-                               -DSECRETS_DIR=${wd}/scripts/cargo \
+    readonly launch_boot="nohup java -DCLOUDFOUNDRY_CONFIG_PATH=${wd}/scripts/boot \
+                               -DSECRETS_DIR=${wd}/scripts/boot \
                                -Djava.security.egd=file:/dev/./urandom \
                                -Dmetrics.perRequestMetrics=true \
                                -Dserver.servlet.context-path=/uaa \

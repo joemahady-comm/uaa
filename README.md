@@ -16,7 +16,7 @@ clients, as well as various other management functions.
 
 The authentication service is `uaa`. It's a plain Spring MVC webapp.
 Deploy as normal in Tomcat or your container of choice, or execute
-`./gradlew run` to run it directly from `uaa` directory in the source
+`./gradlew bootRun` to run it directly from `uaa` directory in the source
 tree. When running with Gradle, it listens on port 8080 and the URL is
 `http://localhost:8080/uaa`
 
@@ -78,7 +78,7 @@ If this works, you are in business:
 
     $ git clone git://github.com/cloudfoundry/uaa.git
     $ cd uaa
-    $ ./gradlew run
+    $ ./gradlew bootRun
 
 
 The apps all work together with the apps running on the same port
@@ -90,13 +90,13 @@ UAA will log to a file called `uaa.log` which can be found using the following c
 
 which you should find under something like:-
 
-    $TMPDIR/cargo/conf/logs/
+    scripts/boot/tomcat/logs/
 
 ### Demo of command line usage on a local server
 
 First, run the UAA server as described above:
 
-    $ ./gradlew run
+    $ ./gradlew bootRun
 
 From another terminal, you can use curl to verify that UAA has started by
 requesting system information:
@@ -117,8 +117,8 @@ Two separate Gradle tasks can be used to run the Spring Boot application
 - Using ./scripts/boot/boot-with-tls.sh — runs http/8080 and https/8443
 
 ```text
-java -DCLOUDFOUNDRY_CONFIG_PATH=`pwd`/scripts/cargo \
-    -DSECRETS_DIR=`pwd`/scripts/cargo \
+java -DCLOUDFOUNDRY_CONFIG_PATH=`pwd`/scripts/boot \
+    -DSECRETS_DIR=`pwd`/scripts/boot \
     -Djava.security.egd=file:/dev/./urandom \
     -Dmetrics.perRequestMetrics=true \
     -Dserver.servlet.context-path=/uaa \
@@ -135,32 +135,32 @@ java -DCLOUDFOUNDRY_CONFIG_PATH=`pwd`/scripts/cargo \
 ```
 
 Running Spring Boot standalone allows us to run the integration tests against it using the
-`./gradlew -Dcargo.tests.run=false integrationTest` with the system property preventing Gradle from starting up Apache Tomcat.
+`./gradlew integrationTest` with the system property preventing Gradle from starting up Apache Tomcat.
 
 ### Debugging local server
 
 To load JDWP agent for UAA jvm debugging, start the server as follows:
 ```sh
-./gradlew run -Dxdebug=true
+./gradlew bootRun -Dxdebug=true
 ```
 or
 ```sh
-./gradlew -Dspring.profiles.active=hsqldb,debug run
+./gradlew -Dspring.profiles.active=hsqldb,debug bootRun
 ```
 You can then attach your debugger to port 5005 of the jvm process.
 
 To suspend the server start-up until the debugger is attached (useful for
 debugging start-up code), start the server as follows:
 ```sh
-./gradlew run -Dxdebugs=true
+./gradlew bootRun -Dxdebugs=true
 ```
 or
 ```sh
-./gradlew -Dspring.profiles.active=hsqldb,debugs run
+./gradlew -Dspring.profiles.active=hsqldb,debugs bootRun
 ```
 
 ## Running a local UAA server with different databases
-`./gradlew run` runs the UAA server with hsqldb database by default.
+`./gradlew bootRun` runs the UAA server with hsqldb database by default.
 
 ### MySql
 1. Start the mysql server (e.g. a mysql docker container)
@@ -175,7 +175,7 @@ mysql> create database uaa;
 ```
 3. Run the UAA server with the mysql profile
 ```sh
-% ./gradlew -Dspring.profiles.active=mysql run
+% ./gradlew -Dspring.profiles.active=mysql bootRun
 ```
 
 ### PostgreSQL
@@ -193,7 +193,7 @@ create user root with superuser password 'changeme';
 ```
 3. Run the UAA server with the postgresql profile
 ```sh
-% ./gradlew -Dspring.profiles.active=postgresql run
+% ./gradlew -Dspring.profiles.active=postgresql bootRun
 ```
 4. Once the UAA server started, you can see the tables created in the uaa database (e.g., in psql interactive session)
 ```
@@ -389,7 +389,7 @@ To debug UAA and LDAP integrations, we use an OpenLdap docker image from [VMWare
 1. Modify file `uaa/src/main/resources/uaa.yml` and enable LDAP by uncommenting line 7, `spring_profiles: ldap,hsqldb`
 2. run `docker compose up` from directory `scripts/ldap`
 3. From `scripts/ldap` verify connectivity to running OpenLdap container by running `docker-confirm-ldapquery.sh`
-4. Start UAA with `./gradlew run`
+4. Start UAA with `./gradlew bootRun`
 5. Navigate to [`/uaa`](http://localhost:8080/uaa) and log in with LDAP user `user01` and password `password1`
 
 Use the below command to clean up container and volume:
