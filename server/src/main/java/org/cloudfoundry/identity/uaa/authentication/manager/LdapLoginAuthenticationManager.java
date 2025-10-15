@@ -15,7 +15,9 @@
 
 package org.cloudfoundry.identity.uaa.authentication.manager;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
+import org.cloudfoundry.identity.uaa.authentication.manager.ExternalLoginAuthenticationManager.ExternalAuthenticationDetails;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
 import org.cloudfoundry.identity.uaa.provider.IdentityProviderProvisioning;
@@ -46,44 +48,28 @@ import java.util.Set;
 import static java.util.Collections.emptyList;
 import static org.cloudfoundry.identity.uaa.util.UaaStringUtils.retainAllMatches;
 
-public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationManager<Object> {
+public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationManager<ExternalAuthenticationDetails> {
 
     protected static Logger logger = LoggerFactory.getLogger(LdapLoginAuthenticationManager.class);
+
+    private String origin = OriginKeys.LDAP;
 
     public LdapLoginAuthenticationManager(final @Qualifier("identityProviderProvisioning") IdentityProviderProvisioning providerProvisioning) {
         super(providerProvisioning);
     }
 
-    private String origin = OriginKeys.LDAP;
-
     @Override
-    public String getOrigin() {
-        return origin;
-    }
-
-    @Override
-    public void setOrigin(String origin) {
-        // only used in LdapLoginAuthenticationManagerTests
-        this.origin = origin;
-    }
-
-    @Override
-    protected void populateAuthenticationAttributes(UaaAuthentication authentication, Authentication request, Object authenticationData) {
+    protected void populateAuthenticationAttributes(UaaAuthentication authentication, Authentication request, ExternalAuthenticationDetails authenticationData) {
         super.populateAuthenticationAttributes(authentication, request, authenticationData);
         authentication.getAuthenticationMethods().add("pwd");
     }
 
     @Override
-    protected Object getExternalAuthenticationDetails(Authentication authentication) throws AuthenticationException {
-        return null;
-    }
-
-    @Override
-    protected MultiValueMap<String, String> getUserAttributes(UserDetails request) {
-        MultiValueMap<String, String> result = super.getUserAttributes(request);
-        logger.debug("Mapping custom attributes for origin:{} and zone:{}", getOrigin(), IdentityZoneHolder.get().getId());
+    protected MultiValueMap<String, String> getUserAttributes(UserDetails request, ExternalAuthenticationDetails authenticationData) {
+        MultiValueMap<String, String> result = super.getUserAttributes(request, authenticationData);
+        logger.debug("Mapping custom attributes for origin:{} and zone:{}", authenticationData.getOrigin(), IdentityZoneHolder.get().getId());
         if (getProviderProvisioning() != null) {
-            IdentityProvider provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), IdentityZoneHolder.get().getId());
+            IdentityProvider provider = getProviderProvisioning().retrieveByOrigin(authenticationData.getOrigin(), IdentityZoneHolder.get().getId());
             if (request instanceof ExtendedLdapUserDetails ldapDetails) {
                 LdapIdentityProviderDefinition ldapIdentityProviderDefinition = ObjectUtils.castInstance(provider.getConfig(), LdapIdentityProviderDefinition.class);
                 Map<String, Object> providerMappings = ldapIdentityProviderDefinition.getAttributeMappings();
@@ -99,16 +85,16 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
                 }
             }
         } else {
-            logger.debug("Did not find custom attribute configuration for origin:{} and zone:{}", getOrigin(), IdentityZoneHolder.get().getId());
+            logger.debug("Did not find custom attribute configuration for origin:{} and zone:{}", authenticationData.getOrigin(), IdentityZoneHolder.get().getId());
         }
         return result;
     }
 
     @Override
-    protected List<String> getExternalUserAuthorities(UserDetails request) {
+    protected List<String> getExternalUserAuthorities(UserDetails request, ExternalAuthenticationDetails authenticationData) {
         List<String> result = new LinkedList<>();
         if (getProviderProvisioning() != null) {
-            IdentityProvider provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), IdentityZoneHolder.get().getId());
+            IdentityProvider provider = getProviderProvisioning().retrieveByOrigin(authenticationData.getOrigin(), IdentityZoneHolder.get().getId());
             LdapIdentityProviderDefinition ldapIdentityProviderDefinition = ObjectUtils.castInstance(provider.getConfig(), LdapIdentityProviderDefinition.class);
             List<String> externalWhiteList = ldapIdentityProviderDefinition.getExternalGroupsWhitelist();
             result = new ArrayList<>(retainAllMatches(getAuthoritiesAsNames(request.getAuthorities()), externalWhiteList));
@@ -131,7 +117,7 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
     }
 
     @Override
-    protected UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb) {
+    protected UaaUser userAuthenticated(Authentication request, UaaUser userFromRequest, UaaUser userFromDb, ExternalAuthenticationDetails authenticationData) {
         boolean userModified = false;
         //we must check and see if the email address has changed between authentications
         if (request.getPrincipal() != null && request.getPrincipal() instanceof ExtendedLdapUserDetails) {
@@ -146,15 +132,15 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
                 userModified = true;
             }
         }
-        ExternalGroupAuthorizationEvent event = new ExternalGroupAuthorizationEvent(userFromDb, userModified, request.getAuthorities(), isAutoAddAuthorities());
+        ExternalGroupAuthorizationEvent event = new ExternalGroupAuthorizationEvent(userFromDb, userModified, request.getAuthorities(), isAutoAddAuthorities(authenticationData.getOrigin()));
         publish(event);
         return getUserDatabase().retrieveUserById(userFromDb.getId());
     }
 
-    protected boolean isAutoAddAuthorities() {
+    protected boolean isAutoAddAuthorities(final String origin) {
         Boolean result = true;
         if (getProviderProvisioning() != null) {
-            IdentityProvider provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), IdentityZoneHolder.get().getId());
+            IdentityProvider provider = getProviderProvisioning().retrieveByOrigin(origin, IdentityZoneHolder.get().getId());
             LdapIdentityProviderDefinition ldapIdentityProviderDefinition = ObjectUtils.castInstance(provider.getConfig(), LdapIdentityProviderDefinition.class);
             if (ldapIdentityProviderDefinition != null) {
                 result = ldapIdentityProviderDefinition.isAutoAddGroups();
@@ -164,15 +150,25 @@ public class LdapLoginAuthenticationManager extends ExternalLoginAuthenticationM
     }
 
     @Override
-    protected boolean isAddNewShadowUser() {
+    protected boolean isAddNewShadowUser(final String origin) {
         boolean result = true;
         if (getProviderProvisioning() != null) {
-            IdentityProvider provider = getProviderProvisioning().retrieveByOrigin(getOrigin(), IdentityZoneHolder.get().getId());
+            IdentityProvider provider = getProviderProvisioning().retrieveByOrigin(origin, IdentityZoneHolder.get().getId());
             LdapIdentityProviderDefinition ldapIdentityProviderDefinition = ObjectUtils.castInstance(provider.getConfig(), LdapIdentityProviderDefinition.class);
             if (ldapIdentityProviderDefinition != null) {
                 result = ldapIdentityProviderDefinition.isAddShadowUserOnLogin();
             }
         }
         return result;
+    }
+
+    @VisibleForTesting
+    public void setOrigin(final String origin) {
+        this.origin = origin;
+    }
+
+    @Override
+    protected ExternalAuthenticationDetails getExternalAuthenticationDetails(Authentication authentication) throws AuthenticationException {
+        return ExternalAuthenticationDetails.builder().origin(origin).build();
     }
 }
