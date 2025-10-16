@@ -30,6 +30,7 @@ import org.cloudfoundry.identity.uaa.provider.ExternalIdentityProviderDefinition
 import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
 import org.cloudfoundry.identity.uaa.provider.IdentityProviderProvisioning;
 import org.cloudfoundry.identity.uaa.provider.OIDCIdentityProviderDefinition;
+import org.cloudfoundry.identity.uaa.provider.RawExternalOAuthIdentityProviderDefinition;
 import org.cloudfoundry.identity.uaa.scim.ScimGroupExternalMember;
 import org.cloudfoundry.identity.uaa.scim.jdbc.JdbcScimGroupExternalMembershipManager;
 import org.cloudfoundry.identity.uaa.user.UaaUser;
@@ -40,6 +41,7 @@ import org.cloudfoundry.identity.uaa.util.TimeServiceImpl;
 import org.cloudfoundry.identity.uaa.util.UaaTokenUtils;
 import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
+import org.cloudfoundry.identity.uaa.zone.beans.IdentityZoneManager;
 import org.cloudfoundry.identity.uaa.zone.beans.IdentityZoneManagerImpl;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -83,6 +85,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
+import static org.cloudfoundry.identity.uaa.constants.OriginKeys.OAUTH20;
 import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.AUD;
 import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.EMAIL;
 import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.EXPIRY_IN_SECONDS;
@@ -1081,6 +1084,49 @@ class ExternalOAuthAuthenticationManagerTest {
         assertThat(headers.getContentType()).isEqualTo(MediaType.APPLICATION_FORM_URLENCODED);
         assertAuthorizationHeaderIsSetAndStartsWithBasic(headers);
         assertThat(headers).doesNotContainKey("X-Forwarded-For");
+    }
+
+    @Test
+    void oauth20AuthorizationFlowWithUserInfo() throws Exception {
+
+        final ExternalOAuthCodeToken codeToken = new ExternalOAuthCodeToken("thecode", "some-origin", "http://google.com", null, null, "signedrequest");
+        final RestTemplate restTemplate = mock(RestTemplate.class);
+        final ResponseEntity<Map<String, Object>> responseEntity = mock(ResponseEntity.class);
+        when(responseEntity.getStatusCode()).thenReturn(HttpStatus.OK);
+        when(responseEntity.getBody()).thenReturn(Collections.emptyMap());
+        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.GET), any(HttpEntity.class), any(ParameterizedTypeReference.class))).thenReturn(responseEntity);
+        authManager = new ExternalOAuthAuthenticationManager(
+                identityProviderProvisioning,
+                mock(IdentityZoneManager.class),
+                restTemplate,
+                restTemplate,
+                tokenEndpointBuilder,
+                new KeyInfoService("http://uaa.example.com"),
+                null
+        ) {
+            @Override
+            protected <T extends AbstractExternalOAuthIdentityProviderDefinition<T>> String getTokenFromCode(
+                    ExternalOAuthCodeToken codeToken,
+                    IdentityProvider<T> config
+            ) {
+                return "opaque-access-token";
+            }
+
+            @Override
+            public RestTemplate getRestTemplate(AbstractExternalOAuthIdentityProviderDefinition config) {
+                return restTemplate;
+            }
+        };
+        final RawExternalOAuthIdentityProviderDefinition config = new RawExternalOAuthIdentityProviderDefinition();
+        config.setResponseType("code");
+        config.setUserInfoUrl(URI.create("https://some.metadata.url/userinfo").toURL());
+        final IdentityProvider<AbstractExternalOAuthIdentityProviderDefinition> idp = new IdentityProvider<>();
+        idp.setType(OAUTH20);
+        idp.setConfig(config);
+        authManager.getClaimsFromToken(codeToken, idp);
+        assertThat(codeToken.getIdToken()).isNull();
+        assertThat(codeToken.getAccessToken()).isEqualTo("opaque-access-token");
+
     }
 
     private static void assertAuthorizationHeaderIsSetAndStartsWithBasic(final HttpHeaders headers) {

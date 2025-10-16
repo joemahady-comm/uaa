@@ -116,6 +116,7 @@ import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static java.util.Objects.isNull;
 import static java.util.stream.Collectors.toSet;
+import static org.cloudfoundry.identity.uaa.constants.OriginKeys.OAUTH20;
 import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.SUB;
 import static org.cloudfoundry.identity.uaa.oauth.token.CompositeToken.ID_TOKEN;
 import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYPE_AUTHORIZATION_CODE;
@@ -609,9 +610,14 @@ public class ExternalOAuthAuthenticationManager extends ExternalLoginAuthenticat
             ExternalOAuthCodeToken codeToken,
             final IdentityProvider<T> identityProvider
     ) {
-        String idToken = getTokenFromCode(codeToken, identityProvider);
-        codeToken.setIdToken(idToken);
-        return getClaimsFromToken(idToken, identityProvider);
+        String tokenFieldName = getTokenFieldName(identityProvider.getConfig());
+        String token = getTokenFromCode(codeToken, identityProvider);
+        if ("access_token".equals(tokenFieldName) && token != null && OAUTH20.equals(identityProvider.getType())) {
+            codeToken.setAccessToken(token);
+        } else {
+            codeToken.setIdToken(token);
+        }
+        return getClaimsFromToken(token, identityProvider);
     }
 
     protected <T extends AbstractExternalOAuthIdentityProviderDefinition<T>> Map<String, Object> getClaimsFromToken(
