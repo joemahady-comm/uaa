@@ -12,7 +12,6 @@ function main() {
   display_memory
 
   local test_profile="${1:-hsqldb}"
-  local boot_param="${2:-boot}"
 
   setup_hosts_file
   boot_db "${DB}" # DB is set in the Dockerfile for each image

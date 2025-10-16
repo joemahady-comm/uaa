@@ -147,13 +147,13 @@ tasks.register("populateVersionfile") {
     versionFile.text = version.toString().substring(0, version.toString().lastIndexOf(".")) + ".0"
 }
 tasks.register( "customizeSlate", Copy) {
-    dependsOn populateVersionfile
+    dependsOn(tasks.named('populateVersionfile'))
     from("slate")
     from("slateCustomizations")
     into("build/slate")
 }
 tasks.register("docsTestRestDocs", Test) {
-    dependsOn testClasses
+    dependsOn(tasks.named('testClasses'))
     useJUnitPlatform()
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
@@ -169,7 +169,7 @@ tasks.register("gemInstallBundle", Exec) {
 }
 
 tasks.register("bundleInstall", Exec) {
-    dependsOn gemInstallBundle
+    dependsOn(tasks.named('gemInstallBundle'))
     dependsOn("customizeSlate")
     workingDir(file("build/slate"))
     executable("bundle")
@@ -193,7 +193,7 @@ generateDocs {
 
 // Gradle bootBuildImage task configuration
 tasks.named('bootBuildImage') {
-    bootBuildImage.imageName = "cloudfoundry/uaa:${version}"
+    imageName = "cloudfoundry/uaa:${version}"
     boolean doDebug = false
     def activeSpringProfiles = (System.getProperty('spring.profiles.active', '')?.split(',') ?: []) as List<String>
     if (activeSpringProfiles.contains("debugs") || Boolean.valueOf(System.getProperty("xdebugs")) ||
@@ -202,15 +202,15 @@ tasks.named('bootBuildImage') {
     }
     // https://github.com/paketo-buildpacks/bellsoft-liberica
     // use JRE since JDK gets too big
-    bootBuildImage.environment.putAll([
+    environment.putAll([
             'BP_SPRING_CLOUD_BINDINGS_DISABLED': 'true',
             'BP_JVM_VERSION'                   : '21',
             'BP_JVM_TYPE'                      : System.getenv('BP_JVM_TYPE') ?: project.findProperty('BP_JVM_TYPE') ?: 'JRE',
             'BP_JVM_PLATFORM'                  : 'liberica'
     ])
     if (doDebug) {
-        bootBuildImage.environment.put("BPL_DEBUG_ENABLED", "true")
-        bootBuildImage.environment.put("BPL_DEBUG_PORT", "5005")
+        environment.put("BPL_DEBUG_ENABLED", "true")
+        environment.put("BPL_DEBUG_PORT", "5005")
     }
 }
 
