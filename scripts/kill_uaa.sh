@@ -24,9 +24,9 @@ function main() {
   local port=${PORT:-8080}
   jps_command=$(find_jps_command)
 
-  pid=$($jps_command -vlm | grep Bootstrap | grep uaa | grep "${port}" | cut -f 1 -d' ')
+  pid=$($jps_command -vlm | grep "UaaBootApplication" | cut -f 1 -d' ')
   if [ -z "$pid" ]; then
-    echo "No UAA process found on port: ${port}"
+    echo "No UAA process found"
     exit 0
   fi
 

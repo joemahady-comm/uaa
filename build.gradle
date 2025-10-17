@@ -262,3 +262,15 @@ tasks.register('bootWarRun', JavaExec) {
     systemProperty("statsd.enabled", "true")
     systemProperty("logging.config", file("scripts/boot/log4j2.properties").getAbsolutePath())
 }
+
+tasks.register('killUaa', Exec) {
+    workingDir './'
+    executable = 'scripts/kill_uaa.sh'
+}
+
+tasks.register('run') {
+    dependsOn killUaa
+    dependsOn ':cloudfoundry-identity-uaa:bootRun'
+    description = "Kills any running UAA and starts the application"
+    group = "application"
+}

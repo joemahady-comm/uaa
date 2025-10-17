@@ -23,7 +23,7 @@ main() {
     docker exec -it \$(docker ps | grep \"${DOCKER_IMAGE}\" | tail -n 1 | awk '{print \$1}') bash
         cd ${container_script_dir}
         rm /root/.gradle/gradle.properties
-        ./gradlew bootRun --debug-jvm -Dspring.profiles.active=${PROFILE_NAME} -Djava.security.egd=file:/dev/./urandom --stacktrace --console=plain
+        ./gradlew run --debug-jvm -Dspring.profiles.active=${PROFILE_NAME} -Djava.security.egd=file:/dev/./urandom --stacktrace --console=plain
     ./gradlew -Dspring.profiles.active=${PROFILE_NAME} test
     ./gradlew -Dspring.profiles.active=${PROFILE_NAME} integrationTest
   To stop:

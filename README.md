@@ -16,7 +16,7 @@ clients, as well as various other management functions.
 
 The authentication service is `uaa`. It's a plain Spring MVC webapp.
 Deploy as normal in Tomcat or your container of choice, or execute
-`./gradlew bootRun` to run it directly from `uaa` directory in the source
+`./gradlew run` (or `./gradlew bootRun`) to run it directly from `uaa` directory in the source
 tree. When running with Gradle, it listens on port 8080 and the URL is
 `http://localhost:8080/uaa`
 
@@ -78,7 +78,7 @@ If this works, you are in business:
 
     $ git clone git://github.com/cloudfoundry/uaa.git
     $ cd uaa
-    $ ./gradlew bootRun
+    $ ./gradlew run
 
 
 The apps all work together with the apps running on the same port
@@ -96,7 +96,7 @@ which you should find under something like:-
 
 First, run the UAA server as described above:
 
-    $ ./gradlew bootRun
+    $ ./gradlew run
 
 From another terminal, you can use curl to verify that UAA has started by
 requesting system information:
@@ -109,8 +109,9 @@ For complex requests it is more convenient to interact with UAA using
 
 ### Running as a Spring Boot Application
 
-Two separate Gradle tasks can be used to run the Spring Boot application
+Three separate Gradle tasks can be used to run the Spring Boot application
 
+- `./gradlew run` — alias that kills any running UAA and starts the application (recommended)
 - `./gradlew bootRun` — the built-in Spring Boot Gradle task
 - `./gradlew bootWarRun` — use a `JavaExec` Gradle task to launch the runnable .war file
 - Manual run, as show below, to be run after `./gradlew assemble`
@@ -141,26 +142,27 @@ Running Spring Boot standalone allows us to run the integration tests against it
 
 To load JDWP agent for UAA jvm debugging, start the server as follows:
 ```sh
-./gradlew bootRun -Dxdebug=true
+./gradlew run -Dxdebug=true
 ```
 or
 ```sh
-./gradlew -Dspring.profiles.active=hsqldb,debug bootRun
+./gradlew -Dspring.profiles.active=hsqldb,debug run
 ```
 You can then attach your debugger to port 5005 of the jvm process.
 
 To suspend the server start-up until the debugger is attached (useful for
 debugging start-up code), start the server as follows:
 ```sh
-./gradlew bootRun -Dxdebugs=true
+./gradlew run -Dxdebugs=true
 ```
 or
 ```sh
-./gradlew -Dspring.profiles.active=hsqldb,debugs bootRun
+./gradlew -Dspring.profiles.active=hsqldb,debugs run
 ```
+Note: You can also use `bootRun` instead of `run` for these commands.
 
 ## Running a local UAA server with different databases
-`./gradlew bootRun` runs the UAA server with hsqldb database by default.
+`./gradlew run` (or `./gradlew bootRun`) runs the UAA server with hsqldb database by default.
 
 ### MySql
 1. Start the mysql server (e.g. a mysql docker container)
@@ -175,7 +177,7 @@ mysql> create database uaa;
 ```
 3. Run the UAA server with the mysql profile
 ```sh
-% ./gradlew -Dspring.profiles.active=mysql bootRun
+% ./gradlew -Dspring.profiles.active=mysql run
 ```
 
 ### PostgreSQL
@@ -193,7 +195,7 @@ create user root with superuser password 'changeme';
 ```
 3. Run the UAA server with the postgresql profile
 ```sh
-% ./gradlew -Dspring.profiles.active=postgresql bootRun
+% ./gradlew -Dspring.profiles.active=postgresql run
 ```
 4. Once the UAA server started, you can see the tables created in the uaa database (e.g., in psql interactive session)
 ```
@@ -389,7 +391,7 @@ To debug UAA and LDAP integrations, we use an OpenLdap docker image from [VMWare
 1. Modify file `uaa/src/main/resources/uaa.yml` and enable LDAP by uncommenting line 7, `spring_profiles: ldap,hsqldb`
 2. run `docker compose up` from directory `scripts/ldap`
 3. From `scripts/ldap` verify connectivity to running OpenLdap container by running `docker-confirm-ldapquery.sh`
-4. Start UAA with `./gradlew bootRun`
+4. Start UAA with `./gradlew run`
 5. Navigate to [`/uaa`](http://localhost:8080/uaa) and log in with LDAP user `user01` and password `password1`
 
 Use the below command to clean up container and volume:
