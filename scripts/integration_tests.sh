@@ -45,6 +45,7 @@ function main() {
 
     readonly integration_test_code="./gradlew '-Dspring.profiles.active=${test_profile}' \
                 '-Djava.security.egd=file:/dev/./urandom' \
+                '-DskipUaaAutoStart=true' \
                 integrationTest \
                 --stacktrace \
                 --console=plain"
