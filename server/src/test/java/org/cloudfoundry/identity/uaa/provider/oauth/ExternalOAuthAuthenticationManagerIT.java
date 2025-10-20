@@ -7,6 +7,7 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.cloudfoundry.identity.uaa.authentication.AccountNotPreCreatedException;
 import org.cloudfoundry.identity.uaa.authentication.UaaAuthentication;
+import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
 import org.cloudfoundry.identity.uaa.authentication.event.IdentityProviderAuthenticationSuccessEvent;
 import org.cloudfoundry.identity.uaa.authentication.manager.ExternalGroupAuthorizationEvent;
 import org.cloudfoundry.identity.uaa.authentication.manager.InvitedUserAuthenticatedEvent;
@@ -95,6 +96,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
+import static org.cloudfoundry.identity.uaa.constants.OriginKeys.OAUTH20;
 import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.ISS;
 import static org.cloudfoundry.identity.uaa.provider.ExternalIdentityProviderDefinition.GROUP_ATTRIBUTE_NAME;
 import static org.cloudfoundry.identity.uaa.provider.ExternalIdentityProviderDefinition.USER_NAME_ATTRIBUTE_NAME;
@@ -109,6 +111,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -511,6 +514,55 @@ class ExternalOAuthAuthenticationManagerIT {
         addTheUserOnAuth();
         externalOAuthAuthenticationManager.authenticate(xCodeToken);
         verify(externalOAuthProviderConfigurator, atLeast(1)).overlay(config);
+        mockUaaServer.verify();
+
+    }
+
+    @Test
+    void oauth20_flow_works_with_non_jwt_token() throws Exception {
+        String userInfoResponse = """
+                {
+                  "login": "octocat",
+                  "id": 1,
+                  "type": "User",
+                  "site_admin": false,
+                  "name": "monalisa octocat",
+                  "company": "GitHub",
+                  "email": "octocat@github.example.com"
+                }""";
+
+        CompositeToken accessToken = getCompositeAccessToken();
+        accessToken.setIdTokenValue(null); //DOES NOT EXIST FOR OAUTH2.0
+        String oauth2TokenResponse = JsonUtils.writeValueAsString(accessToken);
+
+        //UAA exchanges the code for a token
+        mockUaaServer.expect(requestTo("http://localhost/oauth/token"))
+                .andExpect(header("Authorization", "Basic " + new String(Base64.encodeBase64("identity:identitysecret".getBytes()))))
+                .andExpect(header("Accept", "application/json"))
+                .andExpect(content().string(containsString("grant_type=authorization_code")))
+                .andExpect(content().string(containsString("code=the_code")))
+                .andExpect(content().string(containsString("redirect_uri=http%3A%2F%2Flocalhost%2Fcallback%2Fthe_origin")))
+                .andExpect(content().string(containsString("response_type=code")))
+                .andRespond(withStatus(OK).contentType(APPLICATION_JSON).body(oauth2TokenResponse));
+
+        //UAA retrieves user info using an access token
+        mockUaaServer.expect(requestTo(config.getUserInfoUrl().toString()))
+                .andRespond(withStatus(OK).contentType(APPLICATION_JSON).body(userInfoResponse));
+
+        IdentityProvider<RawExternalOAuthIdentityProviderDefinition> identityProvider = getOauth20Provider();
+        identityProvider.getConfig().setResponseType("code");
+        reset(provisioning);
+        when(provisioning.retrieveByOrigin(eq(ORIGIN), anyString())).thenReturn(identityProvider);
+
+        addTheUserOnAuth();
+
+        Authentication authentication = externalOAuthAuthenticationManager.authenticate(xCodeToken);
+        assertThat(authentication).isNotNull();
+        assertThat(authentication.getPrincipal()).isInstanceOf(UaaPrincipal.class);
+        UaaPrincipal principal = (UaaPrincipal) authentication.getPrincipal();
+        assertThat(principal).isNotNull();
+        assertThat(principal.getName()).isEqualTo("octocat");
+        assertThat(principal.getEmail()).isEqualTo("octocat@github.example.com");
         mockUaaServer.verify();
 
     }
@@ -1288,6 +1340,31 @@ class ExternalOAuthAuthenticationManagerIT {
 
         identityProvider.setConfig(config);
         identityProvider.setOriginKey("puppy");
+        return identityProvider;
+    }
+
+    private IdentityProvider<RawExternalOAuthIdentityProviderDefinition> getOauth20Provider()  throws Exception {
+        RawExternalOAuthIdentityProviderDefinition config = new RawExternalOAuthIdentityProviderDefinition()
+                .setAuthUrl(URI.create("http://localhost/oauth/authorize").toURL())
+                .setTokenUrl(URI.create("http://localhost/oauth/token").toURL())
+                .setIssuer("http://localhost/oauth/token")
+                .setShowLinkText(true)
+                .setLinkText("My oauth20 Provider")
+                .setRelyingPartyId("identity")
+                .setRelyingPartySecret("identitysecret")
+                .setUserInfoUrl(URI.create("http://localhost/userinfo").toURL())
+                .setTokenKey(PUBLIC_KEY);
+        config.setExternalGroupsWhitelist(Collections.singletonList("*"));
+        attributeMappings.put(USER_NAME_ATTRIBUTE_NAME, "login");
+        config.setAttributeMappings(attributeMappings);
+        config.setResponseType("code");
+
+        IdentityProvider<RawExternalOAuthIdentityProviderDefinition> identityProvider = new IdentityProvider<>();
+        identityProvider.setName("my oauth20 provider");
+        identityProvider.setIdentityZoneId(OriginKeys.UAA);
+        identityProvider.setType(OAUTH20);
+        identityProvider.setConfig(config);
+        identityProvider.setOriginKey(ORIGIN);
         return identityProvider;
     }
 
