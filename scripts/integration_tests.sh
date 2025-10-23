@@ -15,11 +15,6 @@ function main() {
   display_memory
 
   local test_profile="${1:-hsqldb}"
-  local boot="${2:-false}"
-  local skip_boot_run="-Dcargo.tests.run=true"
-  if [[ "${boot:-false}" = 'boot' ]]; then
-    skip_boot_run="-Dcargo.tests.run=false"
-  fi
 
   setup_hosts_file
   boot_db "${DB}" # DB is set in the Dockerfile for each image
@@ -29,8 +24,8 @@ function main() {
 
     local wd launch_boot assemble_code integration_test_code
     wd=$(pwd)
-    readonly launch_boot="nohup java -DCLOUDFOUNDRY_CONFIG_PATH=${wd}/scripts/cargo \
-                               -DSECRETS_DIR=${wd}/scripts/cargo \
+    readonly launch_boot="nohup java -DCLOUDFOUNDRY_CONFIG_PATH=${wd}/scripts/boot \
+                               -DSECRETS_DIR=${wd}/scripts/boot \
                                -Djava.security.egd=file:/dev/./urandom \
                                -Dmetrics.perRequestMetrics=true \
                                -Dserver.servlet.context-path=/uaa \
@@ -51,8 +46,9 @@ function main() {
                 --stacktrace \
                 --console=plain"
 
-    readonly integration_test_code="./gradlew '-Dspring.profiles.active=${test_profile}' '${skip_boot_run}' \
+    readonly integration_test_code="./gradlew '-Dspring.profiles.active=${test_profile}' \
                 '-Djava.security.egd=file:/dev/./urandom' \
+                '-DskipUaaAutoStart=true' \
                 ${UAA_GRADLE_INT_TEST_COMMAND:-integrationTest} \
                 --stacktrace \
                 --console=plain"
@@ -63,18 +59,24 @@ function main() {
     if [[ "${RUN_TESTS:-true}" = 'true' ]]; then
       eval "$assemble_code"
 
-      if [[ "${boot:-false}" = 'boot' ]]; then
-        eval "$launch_boot"
-        echo $! > boot.pid
-        if is_boot_running ; then
-          echo "Boot started. Can continue to run tests."
-        else
-          echo "Boot did not start - failing"
-          exit 1
-        fi
+      # Always start the boot server before running integration tests
+      eval "$launch_boot"
+      echo $! > boot.pid
+      if is_boot_running ; then
+        echo "Boot started. Can continue to run tests."
+      else
+        echo "Boot did not start - failing"
+        cat boot.log
+        exit 1
       fi
+      
       eval "$integration_test_code"
-      kill -9 "$(cat boot.pid)" || true
+      
+      # Clean up: kill the boot server
+      if [[ -f boot.pid ]]; then
+        kill -9 "$(cat boot.pid)" || true
+        rm boot.pid
+      fi
     else
       echo "$integration_test_code"
       bash
