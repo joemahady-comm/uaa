@@ -2,19 +2,20 @@
 set -eu
 
 ########################################
-# Check if Boot has started by looking for a specific line in the log file
+# Check if Boot has started by checking if the port is responding
 ##########################################
 function is_boot_running() {
-  local log_file="boot.log"
-  local target_line="Started UaaBootApplication"
+  local port=${PORT:-8080}
   local timeout=600 # Timeout in seconds
 
   local start_time
   start_time=$(date +%s)
 
   while true; do
-    if grep "$target_line" "$log_file"; then
-      echo "Boot Start was found in the log file."
+    # Use curl to check if the port is responding
+    # Any HTTP response (even 4xx/5xx) indicates the server is running
+    if curl -ksS --max-time 5 --connect-timeout 2 "http://127.0.0.1:${port}/uaa/info"; then
+      echo "Boot is running on port ${port}."
       return 0
     fi
 
@@ -23,13 +24,33 @@ function is_boot_running() {
     elapsed_time=$((current_time - start_time))
 
     if [[ "$elapsed_time" -ge "$timeout" ]]; then
-      echo "Timeout reached. Boot did not start"
+      echo "Timeout reached. Boot did not start on port ${port}"
+      thread_dump_on_boot_pid
       return 1
     fi
 
-    tail -n 1 "$log_file"
+    tail -n 1 boot.log
     sleep 1 # Check every second
   done
+}
+
+########################################
+# thread_dump_on_boot_pid
+# Display Memeory info and Request a thread dump on the pid in boot.pid
+##########################################
+function thread_dump_on_boot_pid() {
+  local pid
+  pid=$(cat boot.pid)
+  if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+    echo "Collecting JVM diagnostics..."
+    jstat -gccause "${pid}" 2>/dev/null || true
+    jstat -gccapacity "${pid}" 2>/dev/null || true
+    jstat -gcmetacapacity "${pid}" 2>/dev/null || true
+    echo "Sending SIGQUIT (kill -3) to Thread Dump on UAA process (pid=${pid})"
+    kill -3 "$pid" || true
+    # Wait a moment for the thread dump to be written
+    sleep 2
+  fi
 }
 
 ########################################

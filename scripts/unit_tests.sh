@@ -22,6 +22,14 @@ function main() {
     start_ldap
 
     set -x
+    
+    ./gradlew "-Dspring.profiles.active=${test_profile}" \
+                "-Djava.security.egd=file:/dev/./urandom" \
+                clean assemble compileTestJava \
+                --stacktrace  \
+                --no-daemon \
+                --console=plain
+
     ./gradlew "-Dspring.profiles.active=${test_profile}" \
             "-Djava.security.egd=file:/dev/./urandom" \
             ${UAA_GRADLE_UNIT_TEST_COMMAND:-test} \

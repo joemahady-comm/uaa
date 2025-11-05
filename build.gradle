@@ -105,7 +105,8 @@ subprojects {
         // gradle might stop the test run due to the failFast but still concludes with BUILD SUCCESSFUL (if the retry is successful)
         failFast = false
         useJUnitPlatform()
-        jvmArgs += ["-Xmx1024m",
+        // Reduced from 1024m to 640m - unit tests don't need as much as integration tests
+        jvmArgs += ["-Xmx640m",
                     "-XX:+StartAttachListener",
                     "-XX:+HeapDumpOnOutOfMemoryError",
                     "-XX:HeapDumpPath=/var/log/uaa-tests.hprof"
@@ -120,7 +121,20 @@ subprojects {
     }
 
     tasks.register('integrationTest', Test) {
+        dependsOn subprojects.integrationTest
+        
         useJUnitPlatform()
+
+        // This prevents integrationTests from hanging indefinitely
+        timeout = Duration.ofMinutes(180)
+        
+        // Integration test workers need same memory as unit tests
+        // Actual CI configuration is controlled via integration_tests.sh script
+        jvmArgs += ["-Xmx640m",
+                    "-XX:+StartAttachListener",
+                    "-XX:+HeapDumpOnOutOfMemoryError",
+                    "-XX:HeapDumpPath=/var/log/uaa-tests.hprof"
+        ]
 
         // Enable JaCoCo for integration tests
         jacoco {
@@ -196,10 +210,6 @@ tasks.register('manifests', Copy) {
         )
     }
     into("build/sample-manifests")
-}
-
-tasks.register('integrationTest', Test) {
-    dependsOn subprojects.integrationTest
 }
 
 tasks.register('cleanBootTomcatDir') {
