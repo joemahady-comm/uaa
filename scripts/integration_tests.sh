@@ -123,13 +123,14 @@ function main() {
                 --stacktrace \
                 --console=plain"
 
-    set -x
     if [[ "${RUN_TESTS:-true}" = 'true' ]]; then
       eval "$assemble_code"
 
       # Start and ensure the boot server is running before integration tests
       eval "$launch_boot"
       echo $! > boot.pid
+      { set +x; } 2>/dev/null
+
       if is_boot_running ; then
         echo "Boot started. Can continue to run tests."
       else
