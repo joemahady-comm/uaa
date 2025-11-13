@@ -124,6 +124,7 @@ function main() {
                 --console=plain"
 
     if [[ "${RUN_TESTS:-true}" = 'true' ]]; then
+      set -x
       eval "$assemble_code"
 
       # Start and ensure the boot server is running before integration tests
@@ -142,10 +143,11 @@ function main() {
       if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
         export DBUS_SESSION_BUS_ADDRESS=/dev/null
       fi
-      
+      set -x
       eval "$compile_test_code"
       eval "$integration_test_code"
-
+      { set +x; } 2>/dev/null
+      
       # Clean up: kill the boot server
       if [[ -f boot.pid ]]; then
         local pid; pid=$(cat boot.pid)
@@ -154,6 +156,7 @@ function main() {
         rm boot.pid
       fi
     else
+      set -x
       echo "$integration_test_code"
       bash
     fi
