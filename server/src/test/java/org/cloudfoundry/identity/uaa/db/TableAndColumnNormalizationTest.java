@@ -24,6 +24,7 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -66,42 +67,63 @@ class TableAndColumnNormalizationTest {
     private DataSource dataSource;
 
     @Test
-    void checkTablesAreAllLowercase() throws Exception {
+    void tableNamesAreLowercase() throws SQLException {
         try (Connection connection = dataSource.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
             ResultSet rs = metaData.getTables(null, null, null, new String[]{"TABLE"});
             List<String> validatedTables = new ArrayList<>();
-            while (rs.next()) {
-                String name = rs.getString("TABLE_NAME");
+            List<String> failures = new ArrayList<>();
 
-                logger.info("Checking table [{}]", name);
-                if (name != null && DatabaseInformation1_5_3.tableNames.contains(name.toLowerCase())) {
-                    logger.info("Validating table [{}]", name);
-                    assertThat(name).as("Table[%s] is not lower case.".formatted(name)).isEqualTo(name.toLowerCase());
-                    validatedTables.add(name);
+            while (rs.next()) {
+                String catalog = rs.getString("TABLE_CAT");
+                String table = rs.getString("TABLE_NAME");
+
+                logger.info("Checking table [{}.{}]", catalog, table);
+                if (isTableInUaaCatalog(catalog, table)) {
+                    logger.info("Validating table [{}.{}]", catalog, table);
+                    if (table.equals(table.toLowerCase())) {
+                        validatedTables.add(table);
+                    } else {
+                        failures.add("Table[%s.%s] is not lower case.".formatted(catalog, table));
+                    }
                 }
             }
             assertThat(validatedTables).hasSameElementsAs(DatabaseInformation1_5_3.tableNames);
+            assertThat(failures).isEmpty();
         }
     }
 
     @Test
-    void checkColumnsAreAllLowercase() throws Exception {
+    void columnNamesAreLowercase() throws SQLException {
         try (Connection connection = dataSource.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
             ResultSet rs = metaData.getColumns(null, null, null, null);
             boolean hadSomeResults = false;
+            List<String> failures = new ArrayList<>();
+
             while (rs.next()) {
                 hadSomeResults = true;
-                String name = rs.getString("TABLE_NAME");
+                String catalog = rs.getString("TABLE_CAT");
+                String table = rs.getString("TABLE_NAME");
                 String col = rs.getString("COLUMN_NAME");
-                logger.info("Checking column [{}.{}]", name, col);
-                if (name != null && DatabaseInformation1_5_3.tableNames.contains(name.toLowerCase())) {
-                    logger.info("Validating column [{}.{}]", name, col);
-                    assertThat(col.toLowerCase()).as("Column[%s.%s] is not lower case.".formatted(name, col)).isEqualTo(col);
+                logger.info("Checking column [{}.{}.{}]", catalog, table, col);
+
+                if (isTableInUaaCatalog(catalog, table)) {
+                    logger.info("Validating column [{}.{}]", table, col);
+                    if (!col.equals(col.toLowerCase())) {
+                        failures.add("Column[%s.%s.%s] is not lower case.".formatted(catalog, table, col));
+                    }
                 }
             }
             assertThat(hadSomeResults).as("Getting columns from db metadata should have returned some results").isTrue();
+            assertThat(failures).isEmpty();
         }
+    }
+
+    private static boolean isTableInUaaCatalog(String catalog, String table) {
+        return catalog != null
+                && catalog.startsWith("uaa")
+                && table != null
+                && DatabaseInformation1_5_3.tableNames.contains(table.toLowerCase());
     }
 }
