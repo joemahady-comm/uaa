@@ -99,15 +99,28 @@ public class DatabaseConfiguration {
     }
 
     /**
-     * Allow mariadb driver to connect to mysql scheme urls
+     * Use lower case table names with the mariadb driver
+     * and allow connection to mysql scheme urls
      */
     @Bean
     @Profile("mysql")
-    JdbcUrlCustomizer jdbcUrlAddPermitMysqlSchemeCustomizer(DatabaseProperties databaseProperties) {
+    JdbcUrlCustomizer jdbcUrlMariaDbSchemeCustomizer(DatabaseProperties databaseProperties) {
         return url -> {
-            if (databaseProperties.getDriverClassName().contains("mariadb") && url.startsWith("jdbc:mysql") && !url.contains("permitMysqlScheme=")) {
+            if (!url.startsWith("jdbc:mysql")) {
+                return url;
+            }
+            if (!databaseProperties.getDriverClassName().contains("mariadb")) {
+                return url;
+            }
+
+            // this is a mysql scheme url with the mariadb driver
+            if (!url.contains("permitMysqlScheme=")) {
                 String connectorCharacter = url.contains("?") ? "&" : "?";
-                return url + connectorCharacter + "permitMysqlScheme=true";
+                url += connectorCharacter + "permitMysqlScheme=true";
+            }
+            if (!url.contains("lower_case_table_names")) {
+                String connectorCharacter = url.contains("?") ? "&" : "?";
+                url += connectorCharacter + "lower_case_table_names=1";
             }
             return url;
         };

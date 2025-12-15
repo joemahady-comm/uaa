@@ -73,7 +73,8 @@ class DatabasePropertiesTest {
             assertThat(dataSource.getUrl())
                     .containsPattern("jdbc:postgresql:uaa(_\\d+)?")
                     .containsPattern("\\?connectTimeout=10\\b")
-                    .doesNotContain("permitMysqlScheme");
+                    .doesNotContain("permitMysqlScheme")
+                    .doesNotContain("lower_case_table_names");
         }
     }
 
@@ -112,7 +113,8 @@ class DatabasePropertiesTest {
                     .containsPattern("\\?useSSL=true")
                     .containsPattern("&trustServerCertificate=true")
                     .containsPattern("&connectTimeout=10000")
-                    .containsPattern("&permitMysqlScheme=true");
+                    .containsPattern("&permitMysqlScheme=true")
+                    .containsPattern("&lower_case_table_names=1");
         }
     }
 }
