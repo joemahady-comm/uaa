@@ -58,7 +58,6 @@ class MySQLConfiguration {
         TestDatabaseNameCustomizer.class,
         MySQLConfiguration.class
 })
-@EnabledIfProfile({"postgresql", "mysql"})
 class TableAndColumnNormalizationTest {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
@@ -67,6 +66,7 @@ class TableAndColumnNormalizationTest {
     private DataSource dataSource;
 
     @Test
+    @EnabledIfProfile({"postgresql", "mysql"})
     void tableNamesAreLowercase() throws SQLException {
         try (Connection connection = dataSource.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
@@ -93,7 +93,13 @@ class TableAndColumnNormalizationTest {
         }
     }
 
+    /**
+     * Only on postgresql, Column names are not case-sensitive in MySQL on any platform.
+     *
+     * @throws SQLException
+     */
     @Test
+    @EnabledIfProfile({"postgresql"})
     void columnNamesAreLowercase() throws SQLException {
         try (Connection connection = dataSource.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
