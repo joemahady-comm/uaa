@@ -79,7 +79,7 @@ function main() {
     readonly assemble_code="./gradlew '-Dspring.profiles.active=${test_profile}' \
                 '-Djava.security.egd=file:/dev/./urandom' \
                 '-Dorg.gradle.jvmargs=-Dfile.encoding=utf8 -Xms64m -Xmx${gradle_heap} -XX:MaxMetaspaceSize=384m -XX:+UseG1GC -XX:MaxGCPauseMillis=100' \
-                assemble \
+                clean assemble \
                 --no-watch-fs \
                 --no-daemon \
                 --no-configuration-cache \
@@ -98,7 +98,7 @@ function main() {
                 '-Dorg.gradle.daemon.idletimeout=300000' \
                 '-Dorg.gradle.parallel=false' \
                 '-Dorg.gradle.workers.max=2' \
-                clean assemble compileTestJava \
+                compileTestJava \
                 --no-watch-fs \
                 --no-daemon \
                 --no-configuration-cache \

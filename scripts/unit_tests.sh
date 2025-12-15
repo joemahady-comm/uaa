@@ -29,7 +29,7 @@ function main() {
   ./gradlew -Dspring.profiles.active=${test_profile} \
             -Djava.security.egd=file:/dev/./urandom \
             "-Dorg.gradle.jvmargs=-Dfile.encoding=utf8 -Xms64m -Xmx${gradle_heap} -XX:MaxMetaspaceSize=384m -XX:+UseG1GC -XX:MaxGCPauseMillis=100" \
-            clean assemble compileTestJava \
+            clean compileTestJava \
             --no-watch-fs \
             --no-daemon \
             --no-configuration-cache \
