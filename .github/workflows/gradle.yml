@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ develop ]
 
-# Run unit tests on CF landscape: Ubuntu with various Bellsoft Liberic Java versions
+# Run unit tests on CF landscape: Ubuntu with various Bellsoft Liberica Java versions
 permissions:
   contents: read
 
