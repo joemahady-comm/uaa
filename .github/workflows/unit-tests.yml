@@ -7,7 +7,7 @@ permissions:
   pull-requests: read
 
 jobs:
-  container-test-job:
+  db-unit-test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
