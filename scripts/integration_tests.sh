@@ -109,7 +109,7 @@ function main() {
       # All flags required to prevent classloading deadlocks and thread starvation during test init
       # --no-configuration-cache prevents stale Kotlin compiler state reuse between daemon processes
       ./gradlew \
-        -Dspring.profiles.active=${test_profile} \
+        -Dspring.profiles.active="${test_profile}" \
         -DskipUaaAutoStart=true \
         --no-daemon \
         --no-configuration-cache \
