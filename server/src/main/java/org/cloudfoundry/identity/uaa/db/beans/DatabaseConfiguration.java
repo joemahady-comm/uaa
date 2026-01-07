@@ -5,6 +5,7 @@ import org.cloudfoundry.identity.uaa.resources.jdbc.HsqlDbLimitSqlAdapter;
 import org.cloudfoundry.identity.uaa.resources.jdbc.LimitSqlAdapter;
 import org.cloudfoundry.identity.uaa.resources.jdbc.MySqlLimitSqlAdapter;
 import org.cloudfoundry.identity.uaa.resources.jdbc.PostgresLimitSqlAdapter;
+import org.jspecify.annotations.NonNull;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration;
 import org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration;
@@ -93,8 +94,7 @@ public class DatabaseConfiguration {
         return url -> {
             DatabasePlatform databasePlatform = databaseProperties.getDatabasePlatform();
             var timeout = Duration.ofSeconds(databaseProperties.getConnecttimeout());
-            String connectorCharacter = url.contains("?") ? "&" : "?";
-            return url + connectorCharacter + "connectTimeout=" + databasePlatform.getJdbcUrlTimeoutValue(timeout);
+            return url + getConnectorCharacter(url) + "connectTimeout=" + databasePlatform.getJdbcUrlTimeoutValue(timeout);
         };
     }
 
@@ -115,15 +115,17 @@ public class DatabaseConfiguration {
 
             // this is a mysql scheme url with the mariadb driver
             if (!url.contains("permitMysqlScheme=")) {
-                String connectorCharacter = url.contains("?") ? "&" : "?";
-                url += connectorCharacter + "permitMysqlScheme=true";
+                url += getConnectorCharacter(url) + "permitMysqlScheme=true";
             }
             if (!url.contains("lower_case_table_names")) {
-                String connectorCharacter = url.contains("?") ? "&" : "?";
-                url += connectorCharacter + "lower_case_table_names=1";
+                url += getConnectorCharacter(url) + "lower_case_table_names=1";
             }
             return url;
         };
+    }
+
+    private static @NonNull String getConnectorCharacter(String url) {
+        return url.contains("?") ? "&" : "?";
     }
 
     @Bean
