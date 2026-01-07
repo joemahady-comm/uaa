@@ -94,7 +94,8 @@ class TableAndColumnNormalizationTest {
     }
 
     /**
-     * Only on postgresql, Column names are not case-sensitive in MySQL on any platform.
+     * Only on postgresql are column names case-sensitive.
+     * Column names are not case-sensitive in MySQL on any platform.
      *
      * @throws SQLException
      */
