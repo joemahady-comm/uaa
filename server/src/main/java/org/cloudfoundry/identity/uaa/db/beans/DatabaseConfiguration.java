@@ -94,7 +94,8 @@ public class DatabaseConfiguration {
         return url -> {
             DatabasePlatform databasePlatform = databaseProperties.getDatabasePlatform();
             var timeout = Duration.ofSeconds(databaseProperties.getConnecttimeout());
-            return url + getConnectorCharacter(url) + "connectTimeout=" + databasePlatform.getJdbcUrlTimeoutValue(timeout);
+            long platformSpecificTimeout = databasePlatform.getJdbcUrlTimeoutValue(timeout);
+            return addConnectionParameter(url, "connectTimeout", Long.toString(platformSpecificTimeout));
         };
     }
 
@@ -114,14 +115,17 @@ public class DatabaseConfiguration {
             }
 
             // this is a mysql scheme url with the mariadb driver
-            if (!url.contains("permitMysqlScheme=")) {
-                url += getConnectorCharacter(url) + "permitMysqlScheme=true";
-            }
-            if (!url.contains("lower_case_table_names")) {
-                url += getConnectorCharacter(url) + "lower_case_table_names=1";
-            }
+            url = addConnectionParameter(url, "permitMysqlScheme", "true");
+            url = addConnectionParameter(url, "lower_case_table_names", "1");
             return url;
         };
+    }
+
+    private static @NonNull String addConnectionParameter(String url, String parameter, String value) {
+        if (!url.contains(parameter + "=")) {
+            url += getConnectorCharacter(url) + parameter + "=" + value;
+        }
+        return url;
     }
 
     private static @NonNull String getConnectorCharacter(String url) {
