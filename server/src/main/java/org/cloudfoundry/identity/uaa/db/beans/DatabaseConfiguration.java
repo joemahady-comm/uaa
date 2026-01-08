@@ -94,7 +94,8 @@ public class DatabaseConfiguration {
         return url -> {
             DatabasePlatform databasePlatform = databaseProperties.getDatabasePlatform();
             var timeout = Duration.ofSeconds(databaseProperties.getConnecttimeout());
-            return url + getConnectorCharacter(url) + "connectTimeout=" + databasePlatform.getJdbcUrlTimeoutValue(timeout);
+            long platformSpecificTimeout = databasePlatform.getJdbcUrlTimeoutValue(timeout);
+            return addConnectionParameter(url, "connectTimeout", Long.toString(platformSpecificTimeout));
         };
     }
 
