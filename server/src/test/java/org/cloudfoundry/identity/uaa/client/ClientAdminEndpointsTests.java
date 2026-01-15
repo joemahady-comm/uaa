@@ -54,6 +54,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
@@ -580,6 +581,27 @@ class ClientAdminEndpointsTests {
         assertThat(result.getClientSecret()).isNull();
         detail.setScope(input.getScope());
         detail.setAdditionalInformation(Collections.emptyMap());
+        verify(clientRegistrationService).updateClientDetails(detail, "testzone");
+    }
+
+    @Test
+    void updateClientDetailsHandlesMultipleNullValuesInAdditionalInformation() {
+        Mockito.when(clientDetailsService.retrieve(input.getClientId(), IdentityZoneHolder.get().getId())).thenReturn(
+                new UaaClientDetails(input));
+        when(mockSecurityContextAccessor.getClientId()).thenReturn(detail.getClientId());
+        when(mockSecurityContextAccessor.isClient()).thenReturn(true);
+
+        input.setScope(Collections.singletonList(input.getClientId() + ".read"));
+        Map<String, Object> additionalInformation = new HashMap<>();
+        additionalInformation.put(ClientConstants.ALLOW_PUBLIC, null);
+        additionalInformation.put("notEmpty", "notEmpty");
+        additionalInformation.put("empty", null);
+        input.setAdditionalInformation(additionalInformation);
+
+        ClientDetails result = endpoints.updateClientDetails(input, input.getClientId());
+        assertThat(result).isNotNull();
+        detail.setScope(input.getScope());
+        detail.setAdditionalInformation(Map.of("notEmpty", "notEmpty"));
         verify(clientRegistrationService).updateClientDetails(detail, "testzone");
     }
 
