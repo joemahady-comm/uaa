@@ -81,12 +81,14 @@ class TokenRevocationEndpointMockMvcTest extends AbstractTokenMockMvcTests {
             TokenRevocationEvent tokenRevocationEvent = tokenRevocationEventListener.getEvents().getFirst();
             assertThat(tokenRevocationEvent.getClientId()).isEqualTo(client.getClientId());
             assertThat(tokenRevocationEvent.getUserId()).isNull();
-            assertThat(tokenRevocationEvent.getAuditEvent().getData()).contains(client.getClientId());
-            assertThat(tokenRevocationEvent.getAuditEvent().getData()).doesNotContain("UserID");
+            assertThat(tokenRevocationEvent.getAuditEvent().getData())
+                    .contains(client.getClientId())
+                    .doesNotContain("UserID");
             assertThat(tokenRevocationEvent.getAuditEvent().getOrigin()).contains(client.getClientId());
             revocableTokenProvisioning.retrieve(jti, IdentityZoneHolder.get().getId());
             fail("Expected EmptyResultDataAccessException to be thrown for revoked token");
         } catch (EmptyResultDataAccessException ignored) {
+            // expected
         } finally {
             defaultZone.getConfig().getTokenPolicy().setJwtRevocable(false);
             identityZoneProvisioning.update(defaultZone);
@@ -202,7 +204,7 @@ class TokenRevocationEndpointMockMvcTest extends AbstractTokenMockMvcTests {
             revocableTokenProvisioning.retrieve(tokenToBeRevoked, IdentityZoneHolder.get().getId());
             fail("Token should have been deleted");
         } catch (EmptyResultDataAccessException e) {
-            //expected
+            // expected
         }
     }
 
@@ -323,8 +325,10 @@ class TokenRevocationEndpointMockMvcTest extends AbstractTokenMockMvcTests {
         ).andExpect(status().isOk());
         assertThat(tokenRevocationEventListener.getEventCount()).isOne();
         assertThat(tokenRevocationEventListener.getEvents().getFirst().getClientId()).isEqualTo(client.getClientId());
-        assertThat(tokenRevocationEventListener.getEvents().getFirst().getUserId()).as("Event for client based revocation should not contain userid").isNull();
-        assertThat(tokenRevocationEventListener.getEvents().getFirst().getAuditEvent().getData()).contains(client.getClientId())
+        assertThat(tokenRevocationEventListener.getEvents().getFirst().getUserId())
+                .as("Event for client based revocation should not contain userid").isNull();
+        assertThat(tokenRevocationEventListener.getEvents().getFirst().getAuditEvent().getData())
+                .contains(client.getClientId())
                 .doesNotContain("UserID");
         assertThat(tokenRevocationEventListener.getEvents().getFirst().getAuditEvent().getOrigin()).contains("admin");
 
@@ -376,8 +380,9 @@ class TokenRevocationEndpointMockMvcTest extends AbstractTokenMockMvcTests {
         assertThat(tokenRevocationEventListener.getEventCount()).isOne();
         assertThat(tokenRevocationEventListener.getEvents().getFirst().getUserId()).isEqualTo(user.getId());
         assertThat(tokenRevocationEventListener.getEvents().getFirst().getClientId()).isNull();
-        assertThat(tokenRevocationEventListener.getEvents().getFirst().getAuditEvent().getData()).contains(user.getId());
-        assertThat(tokenRevocationEventListener.getEvents().getFirst().getAuditEvent().getData()).doesNotContain("ClientID");
+        assertThat(tokenRevocationEventListener.getEvents().getFirst().getAuditEvent().getData())
+                .contains(user.getId())
+                .doesNotContain("ClientID");
         assertThat(tokenRevocationEventListener.getEvents().getFirst().getAuditEvent().getOrigin()).contains("admin");
         //should fail with 401
         mockMvc.perform(
@@ -416,8 +421,9 @@ class TokenRevocationEndpointMockMvcTest extends AbstractTokenMockMvcTests {
         assertThat(tokenRevocationEventListener.getEventCount()).isOne();
         assertThat(tokenRevocationEventListener.getEvents().getFirst().getUserId()).isEqualTo(user.getId());
         assertThat(tokenRevocationEventListener.getEvents().getFirst().getClientId()).isNull();
-        assertThat(tokenRevocationEventListener.getEvents().getFirst().getAuditEvent().getData()).contains(user.getId());
-        assertThat(tokenRevocationEventListener.getEvents().getFirst().getAuditEvent().getData()).doesNotContain("ClientID");
+        assertThat(tokenRevocationEventListener.getEvents().getFirst().getAuditEvent().getData())
+                .contains(user.getId())
+                .doesNotContain("ClientID");
         assertThat(tokenRevocationEventListener.getEvents().getFirst().getAuditEvent().getOrigin()).contains(user.getUserName());
 
         //should fail with 401
@@ -429,7 +435,7 @@ class TokenRevocationEndpointMockMvcTest extends AbstractTokenMockMvcTests {
     }
 
     @Test
-    void aUserCannotRevokeClientTokens() throws Exception {
+    void aUserCannotRevokeAnotherUsersClientTokens() throws Exception {
         IdentityZone zone = IdentityZoneHolder.get();
         UaaClientDetails client = getAClientWithClientsRead();
         ScimUser user2 = setUpUser(generator.generate().toLowerCase() + "@test.org");
@@ -446,7 +452,7 @@ class TokenRevocationEndpointMockMvcTest extends AbstractTokenMockMvcTests {
                 true
         );
 
-        //ensure our token works
+        //ensure user2's token works
         mockMvc.perform(
                 get("/userinfo").header("Authorization", "Bearer " + userInfoToken2)
         ).andExpect(status().isOk());
@@ -465,19 +471,19 @@ class TokenRevocationEndpointMockMvcTest extends AbstractTokenMockMvcTests {
                 true
         );
 
-        //ensure our token works
+        //ensure user1's token works
         mockMvc.perform(
                 get("/userinfo").header("Authorization", "Bearer " + userInfoToken1)
         ).andExpect(status().isOk());
 
-        //revoke our own token
+        // attempt to revoke user1's tokens while authenticated as user2
         mockMvc.perform(
-                get("/oauth/token/revoke/user/" + user1.getId()+"/client/"+client.getClientId())
-                        .header("Authorization", "Bearer " + userInfoToken2)
-        )
+                        get("/oauth/token/revoke/user/" + user1.getId() + "/client/" + client.getClientId())
+                                .header("Authorization", "Bearer " + userInfoToken2)
+                )
                 .andExpect(status().isForbidden());
 
-        //ensure our token works
+        //ensure both tokens work
         mockMvc.perform(
                 get("/userinfo").header("Authorization", "Bearer " + userInfoToken1)
         ).andExpect(status().isOk());
@@ -556,8 +562,9 @@ class TokenRevocationEndpointMockMvcTest extends AbstractTokenMockMvcTests {
         assertThat(tokenRevocationEventListener.getEventCount()).isOne();
         assertThat(tokenRevocationEventListener.getEvents().getFirst().getClientId()).isEqualTo(client.getClientId());
         assertThat(tokenRevocationEventListener.getEvents().getFirst().getUserId()).isEqualTo(user1.getId());
-        assertThat(tokenRevocationEventListener.getEvents().getFirst().getAuditEvent().getData()).contains(client.getClientId());
-        assertThat(tokenRevocationEventListener.getEvents().getFirst().getAuditEvent().getData()).contains(user1.getId());
+        assertThat(tokenRevocationEventListener.getEvents().getFirst().getAuditEvent().getData())
+                .contains(client.getClientId())
+                .contains(user1.getId());
         assertThat(tokenRevocationEventListener.getEvents().getFirst().getAuditEvent().getOrigin()).contains("admin");
 
         //should fail with 401
