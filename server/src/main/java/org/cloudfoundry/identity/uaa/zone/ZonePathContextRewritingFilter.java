@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 import static org.cloudfoundry.identity.uaa.util.UaaStringUtils.hasText;
 
@@ -61,8 +62,12 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
             // Request does not use zone path: pass through unchanged so downstream (e.g. rate limiter,
             // Spring Security matchers) see the container's request as-is. Set ZONE_ORIGINAL_CONTEXT_PATH
             // to the actual context path so zone-aware link builders have a consistent attribute.
+            // Wrap response so cookies with path "/" get rewritten to context path (e.g. /uaa), matching zone-path behaviour.
             request.setAttribute(ZONE_ORIGINAL_CONTEXT_PATH, contextPath);
-            filterChain.doFilter(request, response);
+            HttpServletResponse responseToUse = hasText(contextPath) && !"/".equals(contextPath)
+                    ? new CookiePathRewritingResponse(response, contextPath)
+                    : response;
+            filterChain.doFilter(request, responseToUse);
             return;
         }
 
@@ -75,6 +80,21 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
 
         String pathAfterZonePrefix = getPathAfterZonePrefix(pathAfterContext, subdomain);
         String newContextPath = getNewContextPath(contextPath, subdomain);
+        PathResult pathResult = getPathResult(pathAfterZonePrefix, pathAfterContext);
+        HttpServletRequest wrappedRequest = new ZonePathRewrittenRequest(
+                request,
+                newContextPath,
+                pathResult.servletPath(),
+                pathResult.pathInfo()
+        );
+        wrappedRequest.setAttribute(ZONE_SUBDOMAIN_FROM_PATH, subdomain);
+        wrappedRequest.setAttribute(ZONE_ORIGINAL_CONTEXT_PATH, contextPath);
+        HttpServletResponse wrappedResponse = new CookiePathRewritingResponse(response, contextPath);
+
+        filterChain.doFilter(wrappedRequest, wrappedResponse);
+    }
+
+    private PathResult getPathResult(String pathAfterZonePrefix, String pathAfterContext) {
         String servletPath;
         String pathInfo;
         if ("/".equals(pathAfterZonePrefix) && pathAfterContext.endsWith("/")) {
@@ -86,12 +106,11 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
             servletPath = pathAfterZonePrefix;
             pathInfo = null;
         }
-        HttpServletRequest wrappedRequest = new ZonePathRewrittenRequest(request, newContextPath, servletPath, pathInfo);
-        wrappedRequest.setAttribute(ZONE_SUBDOMAIN_FROM_PATH, subdomain);
-        wrappedRequest.setAttribute(ZONE_ORIGINAL_CONTEXT_PATH, contextPath);
-        HttpServletResponse wrappedResponse = new CookiePathRewritingResponse(response, contextPath);
+        PathResult pathResult = new PathResult(servletPath, pathInfo);
+        return pathResult;
+    }
 
-        filterChain.doFilter(wrappedRequest, wrappedResponse);
+    private record PathResult(String servletPath, String pathInfo) {
     }
 
     private String getNewContextPath(String contextPath, String subdomain) {
@@ -217,6 +236,7 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
     private static final class CookiePathRewritingResponse extends HttpServletResponseWrapper {
 
         private final String originalContextPath;
+        private final Set<String> ignoreCookies = Set.of("Current-User");
 
         CookiePathRewritingResponse(HttpServletResponse response, String originalContextPath) {
             super(response);
@@ -230,7 +250,7 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
         @Override
         public void addCookie(Cookie cookie) {
             Cookie toAdd = cookie;
-            if (shouldRewritePath(cookie.getPath())) {
+            if (shouldRewritePath(cookie.getName(), cookie.getPath())) {
                 toAdd = cloneCookieWithPath(cookie, effectiveCookiePath());
             }
             getHttpResponse().addCookie(toAdd);
@@ -254,7 +274,10 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
             }
         }
 
-        private boolean shouldRewritePath(String path) {
+        private boolean shouldRewritePath(String name, String path) {
+            if (ignoreCookies.contains(name)) {
+                return false;
+            }
             if (originalContextPath.isEmpty() || "/".equals(originalContextPath)) {
                 return false;
             }
@@ -286,6 +309,10 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
             if (originalContextPath.isEmpty() || "/".equals(originalContextPath)) {
                 return headerValue;
             }
+            String cookieName = extractCookieNameFromSetCookieHeader(headerValue);
+            if (cookieName != null && ignoreCookies.contains(cookieName)) {
+                return headerValue;
+            }
             String pathToUse = originalContextPath;
             String[] parts = headerValue.split(";");
             List<String> result = new ArrayList<>();
@@ -311,6 +338,20 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
                 result.add("Path=" + pathToUse);
             }
             return String.join("; ", result);
+        }
+
+        /**
+         * Extracts the cookie name from a Set-Cookie header value (name is the token before the first "=").
+         */
+        private String extractCookieNameFromSetCookieHeader(String headerValue) {
+            if (headerValue == null || headerValue.isEmpty()) {
+                return null;
+            }
+            int eq = headerValue.indexOf('=');
+            if (eq <= 0) {
+                return null;
+            }
+            return headerValue.substring(0, eq).trim();
         }
     }
 }

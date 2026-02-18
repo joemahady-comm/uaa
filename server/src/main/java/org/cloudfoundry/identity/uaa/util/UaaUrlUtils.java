@@ -12,6 +12,8 @@ import org.springframework.web.util.InvalidUrlException;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.util.UriUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -70,6 +72,10 @@ public abstract class UaaUrlUtils {
             IdentityZone currentIdentityZone, UriComponentsBuilder baseBuilder) {
         UriComponentsBuilder builder = baseBuilder != null ? baseBuilder : ServletUriComponentsBuilder.fromCurrentContextPath().path(path);
         if (zoneSwitchPossible) {
+            // When zone is in the path (context path contains /z/subdomain), do not add subdomain to host
+            if (isZoneInRequestPath()) {
+                return builder;
+            }
             String host = builder.build().getHost();
             if (host != null && !currentIdentityZone.isUaa() &&
                     !host.startsWith(currentIdentityZone.getSubdomain() + ".")) {
@@ -78,6 +84,18 @@ public abstract class UaaUrlUtils {
             }
         }
         return builder;
+    }
+
+    private static boolean isZoneInRequestPath() {
+        try {
+            if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs) {
+                String contextPath = attrs.getRequest().getContextPath();
+                return contextPath != null && contextPath.contains("/z/");
+            }
+        } catch (IllegalStateException ignored) {
+            // No request bound
+        }
+        return false;
     }
 
     private static final Pattern allowedRedirectUriPattern = Pattern.compile(

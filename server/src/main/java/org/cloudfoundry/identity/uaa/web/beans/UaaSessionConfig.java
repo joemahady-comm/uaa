@@ -34,7 +34,7 @@ public class UaaSessionConfig {
         cookieSerializer.setCookieMaxAge(servlet.sessionCookie().maxAge() != null ? servlet.sessionCookie().maxAge() : -1);
         cookieSerializer.setCookieName("JSESSIONID");
         cookieSerializer.setUseBase64Encoding(servlet.sessionCookie().encodeBase64());
-
+        cookieSerializer.setCookiePath("/");
         return cookieSerializer;
     }
 }

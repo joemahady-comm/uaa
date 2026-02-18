@@ -1960,7 +1960,7 @@ public class LoginMockMvcTests {
 
         mockMvc.perform(post)
                 .andExpect(status().isFound())
-                .andExpect(redirectedUrlPattern("accept?error_message_code=form_error&code=*"))
+                .andExpect(redirectedUrlPattern("/invitations/accept?error_message_code=form_error&code=*"))
         ;
 
         //logged in, invalid CSRF
