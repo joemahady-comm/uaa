@@ -53,6 +53,7 @@ import org.cloudfoundry.identity.uaa.util.AlphanumericRandomValueStringGenerator
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
 import org.cloudfoundry.identity.uaa.util.SessionUtils;
 import org.cloudfoundry.identity.uaa.util.SetServerNameRequestPostProcessor;
+import org.cloudfoundry.identity.uaa.util.TimeService;
 import org.cloudfoundry.identity.uaa.web.LimitedModeUaaFilter;
 import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneConfiguration;
@@ -175,6 +176,15 @@ public final class MockMvcUtils {
                 (FilterRegistrationBean<LimitedModeUaaFilter>) context.getBean("limitedModeUaaFilter", FilterRegistrationBean.class);
         return bean.getFilter();
     }
+
+    public static long ensureClockMoved(TimeService timeService, long notBefore) throws InterruptedException{
+        final long delay = 2;
+        while (timeService.getCurrentTimeMillis() <= notBefore) {
+            Thread.sleep(delay);
+        }
+        return timeService.getCurrentTimeMillis();
+    }
+
     public static File getLimitedModeStatusFile(ApplicationContext context) {
         return getLimitedModeUaaFilter(context).getStatusFile();
     }

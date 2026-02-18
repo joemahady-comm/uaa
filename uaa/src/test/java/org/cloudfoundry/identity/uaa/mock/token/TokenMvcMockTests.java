@@ -10,6 +10,7 @@ import org.cloudfoundry.identity.uaa.authentication.UaaAuthenticationDetails;
 import org.cloudfoundry.identity.uaa.authentication.UaaPrincipal;
 import org.cloudfoundry.identity.uaa.client.UaaClientDetails;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
+import org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils;
 import org.cloudfoundry.identity.uaa.mock.util.OAuthToken;
 import org.cloudfoundry.identity.uaa.oauth.DisableIdTokenResponseTypeFilter;
 import org.cloudfoundry.identity.uaa.oauth.TokenEndpointBuilder;
@@ -50,6 +51,7 @@ import org.cloudfoundry.identity.uaa.util.AlphanumericRandomValueStringGenerator
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
 import org.cloudfoundry.identity.uaa.util.SessionUtils;
 import org.cloudfoundry.identity.uaa.util.SetServerNameRequestPostProcessor;
+import org.cloudfoundry.identity.uaa.util.TimeService;
 import org.cloudfoundry.identity.uaa.util.UaaTokenUtils;
 import org.cloudfoundry.identity.uaa.util.UaaUrlUtils;
 import org.cloudfoundry.identity.uaa.zone.IdentityZone;
@@ -1021,18 +1023,20 @@ public class TokenMvcMockTests extends AbstractTokenMockMvcTests {
 
     @Test
     void getToken_withPasswordGrantType_resultsInUserLastLogonTimestampUpdate() throws Exception {
-        long delayTime = 15;
+        TimeService timeService = webApplicationContext.getBean(TimeService.class);
         String username = "testuser" + generator.generate();
         String userScopes = "uaa.user";
         ScimUser user = setUpUser(jdbcScimUserProvisioning, jdbcScimGroupMembershipManager, jdbcScimGroupProvisioning, username, userScopes, OriginKeys.UAA, IdentityZone.getUaaZoneId());
+        long now = timeService.getCurrentTimeMillis();
         webApplicationContext.getBean(UaaUserDatabase.class).updateLastLogonTime(user.getId());
+        now = MockMvcUtils.ensureClockMoved(timeService, now);
         webApplicationContext.getBean(UaaUserDatabase.class).updateLastLogonTime(user.getId());
-
+        now = MockMvcUtils.ensureClockMoved(timeService, now);
         String accessToken = getAccessTokenForPasswordGrant(username);
         Long firstTimestamp = getPreviousLogonTime(accessToken);
         //simulate two sequential tests
         //on a fast processor, there isn't enough granularity in the time
-        Thread.sleep(delayTime);
+        MockMvcUtils.ensureClockMoved(timeService, now);
         String accessToken2 = getAccessTokenForPasswordGrant(username);
         Long secondTimestamp = getPreviousLogonTime(accessToken2);
 
