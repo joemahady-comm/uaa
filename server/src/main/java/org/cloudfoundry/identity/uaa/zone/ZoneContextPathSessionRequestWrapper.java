@@ -1,0 +1,114 @@
+package org.cloudfoundry.identity.uaa.zone;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.http.HttpSession;
+
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Request wrapper that intercepts {@link #getSession(boolean)} and returns a
+ * {@link ZonePathHttpSession} keyed by {@link HttpServletRequest#getContextPath()}
+ * (or "" if none). The container session holds one attribute per context path,
+ * each value being the attribute map for that context path's sub-session.
+ */
+public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrapper {
+
+    /**
+     * Prefix for container session attribute names. Each context path has one attribute:
+     * {@code ATTRIBUTE_NAME_PREFIX + contextPathKey} (with "" mapped to "default").
+     */
+    public static final String ATTRIBUTE_NAME_PREFIX =
+            "org.cloudfoundry.identity.uaa.zone.ZoneContextPathSession.";
+
+    public ZoneContextPathSessionRequestWrapper(HttpServletRequest request) {
+        super(request);
+    }
+
+    private HttpServletRequest getDelegateRequest() {
+        return (HttpServletRequest) getRequest();
+    }
+
+    @Override
+    public HttpSession getSession(boolean create) {
+        HttpSession containerSession = getDelegateRequest().getSession(create);
+        if (containerSession == null) {
+            return null;
+        }
+
+        String contextPathKey = contextPathKey();
+        String attributeName = attributeNameForContextPath(contextPathKey);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> attributes = (Map<String, Object>) containerSession.getAttribute(attributeName);
+        if (attributes == null) {
+            attributes = new ConcurrentHashMap<>();
+            containerSession.setAttribute(attributeName, attributes);
+        }
+
+        return new ZonePathHttpSession(containerSession, contextPathKey, attributes, attributeName);
+    }
+
+    /**
+     * Attribute name on the container session for this context path. Empty context path uses "default".
+     */
+    public static String attributeNameForContextPath(String contextPathKey) {
+        return ATTRIBUTE_NAME_PREFIX + (contextPathKey.isEmpty() ? "default" : contextPathKey);
+    }
+
+    @Override
+    public HttpSession getSession() {
+        return getSession(true);
+    }
+
+    /**
+     * Delegates to the underlying request so the container session's ID is changed (e.g. for session
+     * fixation prevention after login). If the container creates a new session object, our
+     * context-path attributes are copied to the new session so sub-sessions still work.
+     */
+    @Override
+    public String changeSessionId() {
+        HttpServletRequest delegate = getDelegateRequest();
+        HttpSession containerSessionBefore = delegate.getSession(false);
+        Map<String, Object> ourAttributesSnapshot = null;
+        if (containerSessionBefore != null) {
+            ourAttributesSnapshot = snapshotOurAttributes(containerSessionBefore);
+        }
+        String newId = delegate.changeSessionId();
+        if (containerSessionBefore != null && ourAttributesSnapshot != null && !ourAttributesSnapshot.isEmpty()) {
+            HttpSession containerSessionAfter = delegate.getSession(false);
+            if (containerSessionAfter != null && containerSessionAfter != containerSessionBefore) {
+                restoreOurAttributes(containerSessionAfter, ourAttributesSnapshot);
+            }
+        }
+        return newId;
+    }
+
+    private Map<String, Object> snapshotOurAttributes(HttpSession containerSession) {
+        Map<String, Object> snapshot = new HashMap<>();
+        Enumeration<String> names = containerSession.getAttributeNames();
+        if (names == null) {
+            names = Collections.emptyEnumeration();
+        }
+        while (names.hasMoreElements()) {
+            String name = names.nextElement();
+            if (name.startsWith(ATTRIBUTE_NAME_PREFIX)) {
+                snapshot.put(name, containerSession.getAttribute(name));
+            }
+        }
+        return snapshot;
+    }
+
+    private void restoreOurAttributes(HttpSession containerSession, Map<String, Object> snapshot) {
+        snapshot.forEach(containerSession::setAttribute);
+    }
+
+    private String contextPathKey() {
+        String cp = getContextPath();
+        return (cp != null && !cp.isEmpty()) ? cp : "";
+    }
+}

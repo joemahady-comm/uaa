@@ -1425,8 +1425,8 @@ public class TokenMvcMockTests extends AbstractTokenMockMvcTests {
         authorizationRequest.setResponseTypes(new TreeSet<>(Arrays.asList("code", "id_token")));
         authorizationRequest.setState(state);
 
-        session.setAttribute(UaaAuthorizationEndpoint.AUTHORIZATION_REQUEST, authorizationRequest);
-        session.setAttribute(UaaAuthorizationEndpoint.ORIGINAL_AUTHORIZATION_REQUEST, unmodifiableMap(authorizationRequest));
+        MockMvcUtils.getZoneSession(session).setAttribute(UaaAuthorizationEndpoint.AUTHORIZATION_REQUEST, authorizationRequest);
+        MockMvcUtils.getZoneSession(session).setAttribute(UaaAuthorizationEndpoint.ORIGINAL_AUTHORIZATION_REQUEST, unmodifiableMap(authorizationRequest));
 
         MvcResult result = mockMvc.perform(
                 post("/oauth/authorize")
@@ -1462,8 +1462,8 @@ public class TokenMvcMockTests extends AbstractTokenMockMvcTests {
         authorizationRequest.setScope(new ArrayList<>(Collections.singletonList("openid")));
         authorizationRequest.setResponseTypes(new TreeSet<>(Arrays.asList("code", "id_token")));
         authorizationRequest.setState(state);
-        session.setAttribute(UaaAuthorizationEndpoint.AUTHORIZATION_REQUEST, authorizationRequest);
-        session.setAttribute(UaaAuthorizationEndpoint.ORIGINAL_AUTHORIZATION_REQUEST, unmodifiableMap(authorizationRequest));
+        MockMvcUtils.getZoneSession(session).setAttribute(UaaAuthorizationEndpoint.AUTHORIZATION_REQUEST, authorizationRequest);
+        MockMvcUtils.getZoneSession(session).setAttribute(UaaAuthorizationEndpoint.ORIGINAL_AUTHORIZATION_REQUEST, unmodifiableMap(authorizationRequest));
 
         MvcResult result = mockMvc.perform(
                 post("/oauth/authorize")
@@ -1644,7 +1644,7 @@ public class TokenMvcMockTests extends AbstractTokenMockMvcTests {
 
         MockHttpSession session = (MockHttpSession) result.getRequest().getSession(false);
         assertThat(session).isNotNull();
-        SavedRequest savedRequest = SessionUtils.getSavedRequestSession(session);
+        SavedRequest savedRequest = SessionUtils.getSavedRequestSession(MockMvcUtils.getZoneSession(session));
         assertThat(savedRequest).isNotNull();
         assertThat(savedRequest.getRedirectUrl()).isEqualTo(authUrl);
 
@@ -1672,7 +1672,7 @@ public class TokenMvcMockTests extends AbstractTokenMockMvcTests {
 
         session = (MockHttpSession) result.getRequest().getSession(false);
         assertThat(session).isNotNull();
-        savedRequest = SessionUtils.getSavedRequestSession(session);
+        savedRequest = SessionUtils.getSavedRequestSession(MockMvcUtils.getZoneSession(session));
         assertThat(savedRequest).isNotNull();
 
         mockMvc.perform(
@@ -4068,11 +4068,12 @@ public class TokenMvcMockTests extends AbstractTokenMockMvcTests {
     private void setAuthentication(MockHttpSession session, ScimUser developer, boolean forcePasswordChange, String... authMethods) {
         UaaPrincipal p = new UaaPrincipal(developer.getId(), developer.getUserName(), developer.getPrimaryEmail(), OriginKeys.UAA, "", IdentityZoneHolder.get().getId());
         UaaAuthentication auth = new UaaAuthentication(p, UaaAuthority.USER_AUTHORITIES, new UaaAuthenticationDetails(false, "clientId", OriginKeys.ORIGIN, "sessionId"));
-        SessionUtils.setPasswordChangeRequired(session, forcePasswordChange);
+        HttpSession zoneSession = MockMvcUtils.getZoneSession(session);
+        SessionUtils.setPasswordChangeRequired(zoneSession, forcePasswordChange);
         auth.setAuthenticationMethods(new HashSet<>(Arrays.asList(authMethods)));
         assertThat(auth.isAuthenticated()).isTrue();
         SecurityContextHolder.getContext().setAuthentication(auth);
-        session.setAttribute(
+        zoneSession.setAttribute(
                 HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
                 new MockSecurityContext(auth)
         );

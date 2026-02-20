@@ -109,6 +109,31 @@ class ZonePathContextRewritingFilterTests {
     }
 
     @Test
+    void pathWithReservedSubdomain_default_rejectsWithBadRequest() throws ServletException, IOException {
+        request.setContextPath("/uaa");
+        request.setRequestURI("/uaa/z/default/login");
+
+        FilterChain chain = (req, res) -> requestPassedToChain.set((HttpServletRequest) req);
+        filter.doFilter(request, response, chain);
+
+        assertThat(requestPassedToChain.get()).isNull();
+        assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_BAD_REQUEST);
+        assertThat(response.getErrorMessage()).contains("reserved");
+    }
+
+    @Test
+    void pathWithReservedSubdomain_DEFAULT_caseInsensitive_rejectsWithBadRequest() throws ServletException, IOException {
+        request.setContextPath("/uaa");
+        request.setRequestURI("/uaa/z/DEFAULT/login");
+
+        FilterChain chain = (req, res) -> requestPassedToChain.set((HttpServletRequest) req);
+        filter.doFilter(request, response, chain);
+
+        assertThat(requestPassedToChain.get()).isNull();
+        assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_BAD_REQUEST);
+    }
+
+    @Test
     void pathWithZonePrefix_rewritesRequestAndSetsAttribute() throws ServletException, IOException {
         request.setContextPath("/uaa");
         request.setRequestURI("/uaa/z/myzone/login");

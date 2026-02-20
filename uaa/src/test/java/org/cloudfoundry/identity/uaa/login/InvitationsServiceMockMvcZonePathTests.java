@@ -182,7 +182,7 @@ public class InvitationsServiceMockMvcZonePathTests {
                 .andReturn();
         MockHttpSession inviteSession = (MockHttpSession) result.getRequest().getSession(false);
         assertThat(inviteSession).isNotNull();
-        assertThat(inviteSession.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY)).isNotNull();
+        assertThat(MockMvcUtils.getZoneSession(inviteSession).getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY)).isNotNull();
         String redirectUri = "https://example.com/dashboard/?appGuid=app-guid";
         String clientId = "authclient-" + new AlphanumericRandomValueStringGenerator().generate();
         UaaClientDetails client = new UaaClientDetails(clientId, "", "openid", GRANT_TYPE_AUTHORIZATION_CODE, "", redirectUri);
@@ -246,7 +246,7 @@ public class InvitationsServiceMockMvcZonePathTests {
                 .andReturn();
         MockHttpSession inviteSession = (MockHttpSession) result.getRequest().getSession(false);
         assertThat(inviteSession).isNotNull();
-        assertThat(inviteSession.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY)).isNotNull();
+        assertThat(MockMvcUtils.getZoneSession(inviteSession, mode, subdomain).getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY)).isNotNull();
 
         String redirectUri = "https://example.com/dashboard/?appGuid=app-guid";
         String authClientId = "authclient-" + generator.generate();
@@ -526,7 +526,7 @@ public class InvitationsServiceMockMvcZonePathTests {
                 .andReturn();
 
         assertThat(queryUserForField(jdbcTemplate, email, "verified", Boolean.class)).as("User should be not yet be verified").isFalse();
-        assertThat(session.getAttribute("SPRING_SECURITY_CONTEXT")).isNull();
+        assertThat(MockMvcUtils.getZoneSession(session).getAttribute("SPRING_SECURITY_CONTEXT")).isNull();
 
         session = (MockHttpSession) result.getRequest().getSession(false);
         //not logged in anymore

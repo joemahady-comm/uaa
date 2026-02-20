@@ -138,14 +138,14 @@ class ForcePasswordChangeControllerZonePathMockMvcTest {
                     .andExpect(status().isFound())
                     .andExpect(redirectedUrl(mode == ZoneResolutionMode.ZONE_PATH ? "/z/" + subdomain + "/" : "/"));
 
-            assertThat(((SecurityContext) ((HttpSession) session).getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY)).getAuthentication().isAuthenticated()).isTrue();
-            assertThat(SessionUtils.isPasswordChangeRequired(session)).isTrue();
+            assertThat(((SecurityContext) MockMvcUtils.getZoneSession(session, mode, subdomain).getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY)).getAuthentication().isAuthenticated()).isTrue();
+            assertThat(SessionUtils.isPasswordChangeRequired(MockMvcUtils.getZoneSession(session, mode, subdomain))).isTrue();
 
             mockMvc.perform(mode.createRequestBuilder(subdomain, HttpMethod.GET, "/").session(session))
                     .andExpect(status().isFound())
                     .andExpect(redirectedUrl(mode == ZoneResolutionMode.ZONE_PATH ? "/z/" + subdomain + "/force_password_change" : "/force_password_change"));
 
-            assertThat(SessionUtils.isPasswordChangeRequired(session)).isTrue();
+            assertThat(SessionUtils.isPasswordChangeRequired(MockMvcUtils.getZoneSession(session, mode, subdomain))).isTrue();
 
             MockHttpServletRequestBuilder validPost = mode.createRequestBuilder(subdomain, HttpMethod.POST, "/force_password_change")
                     .param("password", "test")
@@ -155,12 +155,12 @@ class ForcePasswordChangeControllerZonePathMockMvcTest {
             mockMvc.perform(validPost)
                     .andExpect(status().isFound())
                     .andExpect(redirectedUrl(mode == ZoneResolutionMode.ZONE_PATH ? "/z/" + subdomain + "/force_password_change_completed" : "/force_password_change_completed"));
-            assertThat(SessionUtils.isPasswordChangeRequired(session)).isFalse();
+            assertThat(SessionUtils.isPasswordChangeRequired(MockMvcUtils.getZoneSession(session, mode, subdomain))).isFalse();
 
             mockMvc.perform(mode.createRequestBuilder(subdomain, HttpMethod.GET, "/force_password_change_completed").session(session))
                     .andExpect(status().isFound())
                     .andExpect(redirectedUrl(expectedRedirectBase(mode, subdomain) + "/"));
-            assertThat(SessionUtils.isPasswordChangeRequired(session)).isFalse();
+            assertThat(SessionUtils.isPasswordChangeRequired(MockMvcUtils.getZoneSession(session, mode, subdomain))).isFalse();
         }
 
         /**
@@ -294,7 +294,7 @@ class ForcePasswordChangeControllerZonePathMockMvcTest {
             mockMvc.perform(mode.createRequestBuilder(subdomain, HttpMethod.GET, "/force_password_change_completed").session(session))
                     .andExpect(status().isFound())
                     .andExpect(redirectedUrl(expectedRedirectBase(mode, subdomain) + "/"));
-            assertThat(SessionUtils.isPasswordChangeRequired(session)).isFalse();
+            assertThat(SessionUtils.isPasswordChangeRequired(MockMvcUtils.getZoneSession(session, mode, subdomain))).isFalse();
             } finally {
                 identityProvider.setConfig(cleanIdpDefinition);
                 identityProviderProvisioning.update(identityProvider, identityProvider.getIdentityZoneId());

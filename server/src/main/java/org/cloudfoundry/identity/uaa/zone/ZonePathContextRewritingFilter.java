@@ -36,6 +36,12 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
     private static final String ZONE_PATH_PREFIX = SLASH_Z + "/";
 
     /**
+     * "default" is used by {@link ZoneContextPathSessionRequestWrapper} as the sub-session key
+     * for the root context path. Reject it as a zone subdomain to prevent any collision.
+     */
+    private static final String RESERVED_SUBDOMAIN = "default";
+
+    /**
      * Request attribute set when the request was rewritten for a path-based zone.
      * Value is the subdomain string (e.g. "myzone"). Read by {@link IdentityZoneResolvingFilter} to look up and validate the zone.
      */
@@ -75,6 +81,11 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
         String subdomain = extractSubdomainFromPath(pathAfterContext);
         if (!hasText(subdomain)) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid /z/ URL");
+            return;
+        }
+        if (RESERVED_SUBDOMAIN.equalsIgnoreCase(subdomain)) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                    "The subdomain '" + RESERVED_SUBDOMAIN + "' is reserved and cannot be used as a zone path");
             return;
         }
 

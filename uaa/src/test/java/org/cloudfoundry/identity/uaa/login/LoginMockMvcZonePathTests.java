@@ -247,7 +247,8 @@ public class LoginMockMvcZonePathTests {
             JdbcIdentityProviderProvisioning jdbcIdentityProviderProvisioning,
             AlphanumericRandomValueStringGenerator generator,
             String originKey,
-            IdentityZone zone, List<String> allowedProviders) {
+            IdentityZone zone, List<String> allowedProviders,
+            ZoneResolutionMode mode) {
 
         String metadata = MockMvcUtils.IDP_META_DATA.formatted(new AlphanumericRandomValueStringGenerator().generate());
         SamlIdentityProviderDefinition config = (SamlIdentityProviderDefinition) new SamlIdentityProviderDefinition()
@@ -275,7 +276,7 @@ public class LoginMockMvcZonePathTests {
         SavedRequest savedRequest = getSavedRequest(client);
 
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute(SAVED_REQUEST_SESSION_ATTRIBUTE, savedRequest);
+        MockMvcUtils.getZoneSession(session, mode, zone.getSubdomain()).setAttribute(SAVED_REQUEST_SESSION_ATTRIBUTE, savedRequest);
         return session;
     }
 
@@ -293,7 +294,7 @@ public class LoginMockMvcZonePathTests {
         String originKey = "fake-origin-key";
         allowedProviders.add(originKey);
 
-        MockHttpSession session = configure_UAA_for_idp_discovery(webApplicationContext, identityProviderProvisioning, generator, originKey, zone, allowedProviders);
+        MockHttpSession session = configure_UAA_for_idp_discovery(webApplicationContext, identityProviderProvisioning, generator, originKey, zone, allowedProviders, mode);
 
         mockMvc.perform(mode.createRequestBuilder(zone.getSubdomain(), HttpMethod.GET, "/login")
                         .session(session)
@@ -337,7 +338,8 @@ public class LoginMockMvcZonePathTests {
                 generator,
                 originKey,
                 zone,
-                new ArrayList<>(asList(originKey, SAML)));
+                new ArrayList<>(asList(originKey, SAML)),
+                mode);
 
         mockMvc.perform(mode.createRequestBuilder(zone.getSubdomain(), HttpMethod.GET, "/login")
                         .session(session)
@@ -757,14 +759,14 @@ public class LoginMockMvcZonePathTests {
                 .session(session).with(cookieCsrf()).param("username", user.getUserName()).param("password", password);
         mockMvc.perform(loginPost);
         long afterAuthTime = System.currentTimeMillis();
-        SecurityContext securityContext = (SecurityContext) session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
+        SecurityContext securityContext = (SecurityContext) MockMvcUtils.getZoneSession(session, mode, subdomain).getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
         assertThat(((UaaAuthentication) securityContext.getAuthentication()).getLastLoginSuccessTime()).isNull();
         session = new MockHttpSession();
 
         loginPost = mode.createRequestBuilder(subdomain, HttpMethod.POST, "/login.do")
                 .session(session).with(cookieCsrf()).param("username", user.getUserName()).param("password", password);
         mockMvc.perform(loginPost);
-        securityContext = (SecurityContext) session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
+        securityContext = (SecurityContext) MockMvcUtils.getZoneSession(session, mode, subdomain).getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
 
         Long lastLoginTime = ((UaaAuthentication) securityContext.getAuthentication()).getLastLoginSuccessTime();
         assertThat(lastLoginTime).isBetween(beforeAuthTime, afterAuthTime);
@@ -1678,7 +1680,7 @@ public class LoginMockMvcZonePathTests {
 
         MockHttpSession session = new MockHttpSession();
         SavedRequest savedRequest = new MockMvcUtils.MockSavedRequest();
-        SessionUtils.setSavedRequestSession(session, savedRequest);
+        SessionUtils.setSavedRequestSession(MockMvcUtils.getZoneSession(session, mode, identityZone.getSubdomain()), savedRequest);
 
         String expectedSamlRedirect = mode == ZoneResolutionMode.ZONE_PATH ? "/z/" + identityZone.getSubdomain() + "/saml2/authenticate/" + alias : "/saml2/authenticate/" + alias;
         mockMvc.perform(mode.createRequestBuilder(identityZone.getSubdomain(), HttpMethod.GET, "/login")
@@ -1913,7 +1915,7 @@ public class LoginMockMvcZonePathTests {
         MockHttpSession session = new MockHttpSession();
         SavedRequest savedRequest = mock(DefaultSavedRequest.class);
         when(savedRequest.getParameterValues("login_hint")).thenReturn(new String[]{"example.com"});
-        SessionUtils.setSavedRequestSession(session, savedRequest);
+        SessionUtils.setSavedRequestSession(MockMvcUtils.getZoneSession(session, mode, identityZone.getSubdomain()), savedRequest);
 
         MvcResult mvcResult = mockMvc.perform(mode.createRequestBuilder(identityZone.getSubdomain(), HttpMethod.GET, "/login")
                         .accept(TEXT_HTML)
@@ -2078,7 +2080,7 @@ public class LoginMockMvcZonePathTests {
                 return null;
             }
         };
-        SessionUtils.setSavedRequestSession(session, savedRequest);
+        SessionUtils.setSavedRequestSession(MockMvcUtils.getZoneSession(session, mode, identityZone.getSubdomain()), savedRequest);
 
         mockMvc.perform(mode.createRequestBuilder(identityZone.getSubdomain(), HttpMethod.GET, "/login")
                         .accept(TEXT_HTML)
@@ -2370,7 +2372,7 @@ public class LoginMockMvcZonePathTests {
         MockHttpSession inviteSession = new MockHttpSession();
         SecurityContext inviteContext = new SecurityContextImpl();
         inviteContext.setAuthentication(inviteToken);
-        inviteSession.setAttribute("SPRING_SECURITY_CONTEXT", inviteContext);
+        MockMvcUtils.getZoneSession(inviteSession, mode, subdomain).setAttribute("SPRING_SECURITY_CONTEXT", inviteContext);
 
         Map<String, String> codeData = new HashMap();
         codeData.put("user_id", ((UaaPrincipal) marissaContext.getAuthentication().getPrincipal()).getId());
@@ -2671,7 +2673,7 @@ public class LoginMockMvcZonePathTests {
         marissa.setPrimaryEmail("marissa@test.org");
         marissa.setOrigin(UAA);
         scimUserProvisioning.createUser(marissa, "koala", zone.getId());
-        MockHttpSession session = MockMvcUtils.getSavedRequestSession();
+        MockHttpSession session = MockMvcUtils.getSavedRequestSession(mode, subdomain);
 
         MockMvcUtils.PredictableGenerator predictableGenerator = new MockMvcUtils.PredictableGenerator();
         jdbcExpiringCodeStore.setGenerator(predictableGenerator);
@@ -2788,7 +2790,7 @@ public class LoginMockMvcZonePathTests {
         MockMvcUtils.createClient(webApplicationContext, client, zone);
 
         SavedRequest savedRequest = getSavedRequest(client);
-        SessionUtils.setSavedRequestSession(session, savedRequest);
+        SessionUtils.setSavedRequestSession(MockMvcUtils.getZoneSession(session, mode, zone.getSubdomain()), savedRequest);
 
         mockMvc.perform(mode.createRequestBuilder(zone.getSubdomain(), HttpMethod.GET, "/login")
                         .session(session)
@@ -2955,7 +2957,7 @@ public class LoginMockMvcZonePathTests {
         createOtherIdentityZone(zone.getSubdomain(), mockMvc, webApplicationContext, false, IdentityZoneHolder.getCurrentZoneId());
 
         String originKey = generator.generate();
-        MockHttpSession session = setUpClientAndProviderForIdpDiscovery(webApplicationContext, jdbcIdentityProviderProvisioning, generator, originKey, zone);
+        MockHttpSession session = setUpClientAndProviderForIdpDiscovery(webApplicationContext, jdbcIdentityProviderProvisioning, generator, originKey, zone, mode);
 
         mockMvc.perform(mode.createRequestBuilder(zone.getSubdomain(), HttpMethod.POST, "/login/idp_discovery")
                         .with(cookieCsrf())
@@ -3031,7 +3033,7 @@ public class LoginMockMvcZonePathTests {
 
         String originKey = generator.generate();
 
-        MockHttpSession session = setUpClientAndProviderForIdpDiscovery(webApplicationContext, jdbcIdentityProviderProvisioning, generator, originKey, zone);
+        MockHttpSession session = setUpClientAndProviderForIdpDiscovery(webApplicationContext, jdbcIdentityProviderProvisioning, generator, originKey, zone, mode);
 
         mockMvc.perform(mode.createRequestBuilder(zone.getSubdomain(), HttpMethod.POST, "/login/idp_discovery")
                         .with(cookieCsrf())
@@ -3056,7 +3058,7 @@ public class LoginMockMvcZonePathTests {
 
         String originKey = generator.generate();
 
-        MockHttpSession session = setUpClientAndProviderForIdpDiscovery(webApplicationContext, jdbcIdentityProviderProvisioning, generator, originKey, zone);
+        MockHttpSession session = setUpClientAndProviderForIdpDiscovery(webApplicationContext, jdbcIdentityProviderProvisioning, generator, originKey, zone, mode);
 
         mockMvc.perform(mode.createRequestBuilder(zone.getSubdomain(), HttpMethod.POST, "/login/idp_discovery")
                         .with(cookieCsrf())
@@ -3076,7 +3078,7 @@ public class LoginMockMvcZonePathTests {
 
         String originKey = generator.generate();
 
-        MockHttpSession session = setUpClientAndProviderForIdpDiscovery(webApplicationContext, jdbcIdentityProviderProvisioning, generator, originKey, zone);
+        MockHttpSession session = setUpClientAndProviderForIdpDiscovery(webApplicationContext, jdbcIdentityProviderProvisioning, generator, originKey, zone, mode);
 
         mockMvc.perform(mode.createRequestBuilder(zone.getSubdomain(), HttpMethod.POST, "/login/idp_discovery")
                         .with(cookieCsrf())
@@ -3109,7 +3111,7 @@ public class LoginMockMvcZonePathTests {
 
         String originKey = generator.generate();
 
-        MockHttpSession session = setUpClientAndProviderForIdpDiscovery(webApplicationContext, jdbcIdentityProviderProvisioning, generator, originKey, zone);
+        MockHttpSession session = setUpClientAndProviderForIdpDiscovery(webApplicationContext, jdbcIdentityProviderProvisioning, generator, originKey, zone, mode);
 
         mockMvc.perform(mode.createRequestBuilder(zone.getSubdomain(), HttpMethod.POST, "/login/idp_discovery")
                         .with(cookieCsrf())
@@ -3250,7 +3252,8 @@ public class LoginMockMvcZonePathTests {
             JdbcIdentityProviderProvisioning jdbcIdentityProviderProvisioning,
             AlphanumericRandomValueStringGenerator generator,
             String originKey,
-            IdentityZone zone) {
+            IdentityZone zone,
+            ZoneResolutionMode mode) {
         String metadata = MockMvcUtils.IDP_META_DATA.formatted(new AlphanumericRandomValueStringGenerator().generate());
         SamlIdentityProviderDefinition config = (SamlIdentityProviderDefinition) new SamlIdentityProviderDefinition()
                 .setMetaDataLocation(metadata)
@@ -3273,7 +3276,7 @@ public class LoginMockMvcZonePathTests {
 
         SavedRequest savedRequest = getSavedRequest(client);
         MockHttpSession session = new MockHttpSession();
-        SessionUtils.setSavedRequestSession(session, savedRequest);
+        SessionUtils.setSavedRequestSession(MockMvcUtils.getZoneSession(session, mode, zone.getSubdomain()), savedRequest);
         return session;
     }
 
@@ -3395,7 +3398,7 @@ public class LoginMockMvcZonePathTests {
             MockHttpSession session = new MockHttpSession();
             MockHttpServletRequest savedReq = new MockHttpServletRequest("GET", "/oauth/authorize");
             savedReq.setServerName(mode == ZoneResolutionMode.ZONE_PATH ? "localhost" : subdomain + ".localhost");
-            SessionUtils.setSavedRequestSession(session, new UaaSavedRequestCache.ClientRedirectSavedRequest(savedReq, savedRedirectUrl));
+            SessionUtils.setSavedRequestSession(MockMvcUtils.getZoneSession(session, mode, subdomain), new UaaSavedRequestCache.ClientRedirectSavedRequest(savedReq, savedRedirectUrl));
 
             MockHttpServletRequestBuilder post = mode.createRequestBuilder(subdomain, HttpMethod.POST, "/login.do")
                     .session(session)

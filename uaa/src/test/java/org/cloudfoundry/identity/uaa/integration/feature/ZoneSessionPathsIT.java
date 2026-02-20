@@ -26,12 +26,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Cookie;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpMethod.GET;
@@ -47,7 +49,6 @@ import static org.springframework.http.HttpMethod.POST;
  */
 @SpringJUnitConfig(classes = DefaultIntegrationTestConfig.class)
 @ExtendWith(ScreenshotOnFailExtension.class)
-@Disabled("not yet implemented")
 class ZoneSessionPathsIT {
 
     private static final String PASSWORD = "secr3T";
@@ -190,6 +191,63 @@ class ZoneSessionPathsIT {
         assertThat(webDriver.getCurrentUrl())
                 .as("After logging out of zone1, visiting zone1 profile should redirect to zone1 login page")
                 .contains("/z/" + ZONE1 + "/login");
+    }
+
+    @Test
+    void mainJSESSIONIDCookieDeletedAfterAllLogout() {
+        LoginPage.go(webDriver, baseUrl)
+                .sendLoginCredentials(userDefaultEmail, PASSWORD);
+        webDriver.get(baseUrl + "/profile");
+        assertThat(webDriver.findElement(By.cssSelector("h1")).getText()).contains("Account Settings");
+        assertThat(webDriver.getPageSource()).contains(userDefaultEmail);
+
+        LoginPage.go(webDriver, zonePathUrl(ZONE1))
+                .sendLoginCredentials(userZone1Email, PASSWORD);
+        webDriver.get(zonePathUrl(ZONE1) + "/profile");
+        assertThat(webDriver.findElement(By.cssSelector("h1")).getText()).contains("Account Settings");
+        assertThat(webDriver.getPageSource()).contains(userZone1Email);
+
+        LoginPage.go(webDriver, zonePathUrl(ZONE2))
+                .sendLoginCredentials(userZone2Email, PASSWORD);
+        webDriver.get(zonePathUrl(ZONE2) + "/profile");
+        assertThat(webDriver.findElement(By.cssSelector("h1")).getText()).contains("Account Settings");
+        assertThat(webDriver.getPageSource()).contains(userZone2Email);
+
+        //lets move around too
+        webDriver.get(baseUrl + "/profile");
+        assertThat(webDriver.findElement(By.cssSelector("h1")).getText()).contains("Account Settings");
+        assertThat(webDriver.getPageSource()).contains(userDefaultEmail);
+
+        webDriver.get(zonePathUrl(ZONE1) + "/profile");
+        assertThat(webDriver.findElement(By.cssSelector("h1")).getText()).contains("Account Settings");
+        assertThat(webDriver.getPageSource()).contains(userZone1Email);
+
+        webDriver.get(zonePathUrl(ZONE2) + "/profile");
+        assertThat(webDriver.findElement(By.cssSelector("h1")).getText()).contains("Account Settings");
+        assertThat(webDriver.getPageSource()).contains(userZone2Email);
+
+        //logout of all zones
+        webDriver.get(baseUrl + "/logout.do");
+        webDriver.get(zonePathUrl(ZONE1) + "/logout.do");
+        webDriver.get(zonePathUrl(ZONE2) + "/logout.do");
+
+        Set<Cookie> cookiesList = webDriver.manage().getCookies();
+        System.out.println("Cookies: " + cookiesList);
+
+        webDriver.get(zonePathUrl(ZONE1) + "/profile");
+        assertThat(webDriver.getCurrentUrl())
+                .as("After logging out of zone1, visiting zone1 profile should redirect to zone1 login page")
+                .contains("/z/" + ZONE1 + "/login");
+
+        webDriver.get(zonePathUrl(ZONE2) + "/profile");
+        assertThat(webDriver.getCurrentUrl())
+                .as("After logging out of zone2, visiting zone2 profile should redirect to zone2 login page")
+                .contains("/z/" + ZONE2 + "/login");
+
+        webDriver.get(baseUrl + "/profile");
+        assertThat(webDriver.getCurrentUrl())
+                .as("After logging out of default zone, visiting default zone profile should redirect to default zone login page")
+                .contains("/uaa/login");
     }
 
     private String zonePathUrl(String subdomain) {

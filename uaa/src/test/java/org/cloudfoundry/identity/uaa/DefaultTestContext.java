@@ -6,6 +6,7 @@ import org.cloudfoundry.identity.uaa.db.beans.JdbcUrlCustomizer;
 import org.cloudfoundry.identity.uaa.extensions.PollutionPreventionExtension;
 import org.cloudfoundry.identity.uaa.impl.config.YamlServletProfileInitializer;
 import org.cloudfoundry.identity.uaa.test.TestClient;
+import org.cloudfoundry.identity.uaa.zone.ZoneContextPathSessionFilter;
 import org.cloudfoundry.identity.uaa.zone.ZonePathContextRewritingFilter;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -78,10 +79,12 @@ class TestClientAndMockMvcTestConfig {
     public MockMvc mockMvc(
             WebApplicationContext webApplicationContext,
             @Qualifier(SPRING_SECURITY_FILTER_CHAIN) FilterChainProxy securityFilterChain,
-            @Qualifier(ZonePathContextRewritingFilter.BEAN_NAME) org.springframework.boot.web.servlet.FilterRegistrationBean<ZonePathContextRewritingFilter> zonePathFilterRegistration
+            @Qualifier(ZonePathContextRewritingFilter.BEAN_NAME) org.springframework.boot.web.servlet.FilterRegistrationBean<ZonePathContextRewritingFilter> zonePathFilterRegistration,
+            @Qualifier(ZoneContextPathSessionFilter.BEAN_NAME) org.springframework.boot.web.servlet.FilterRegistrationBean<ZoneContextPathSessionFilter> zoneContextPathSessionFilterRegistration
     ) {
         return MockMvcBuilders.webAppContextSetup(webApplicationContext)
                 .addFilter(zonePathFilterRegistration.getFilter())
+                .addFilter(zoneContextPathSessionFilterRegistration.getFilter())
                 .addFilter(securityFilterChain)
                 .build();
     }

@@ -302,7 +302,7 @@ public class ResetPasswordControllerMockMvcZonePathTests {
                 return null;
             }
         };
-        SessionUtils.setSavedRequestSession(session, savedRequest);
+        SessionUtils.setSavedRequestSession(MockMvcUtils.getZoneSession(session), savedRequest);
 
         PredictableGenerator generator = new PredictableGenerator();
         JdbcExpiringCodeStore store = webApplicationContext.getBean(JdbcExpiringCodeStore.class);

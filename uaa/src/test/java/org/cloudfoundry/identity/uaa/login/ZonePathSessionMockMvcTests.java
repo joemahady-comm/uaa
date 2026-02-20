@@ -53,7 +53,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * use container default session and pass. Zone-namespaced browse-back is covered by ZoneSessionPathsIT.
  */
 @DefaultTestContext
-@Disabled("not yet implemented")
 class ZonePathSessionMockMvcTests {
 
     private static final ZoneResolutionMode MODE = ZoneResolutionMode.ZONE_PATH;
@@ -201,7 +200,6 @@ class ZonePathSessionMockMvcTests {
      * Re-enable when zone-namespaced logout is fixed so only the target zone's session is removed.
      */
     @Test
-    @Disabled("Default zone session is lost after path-zone logout; see zone-namespaced session logout handling")
     void logoutOfOnePathZoneLeavesOtherZonesLoggedIn() throws Exception {
         MockHttpSession session = new MockHttpSession();
         performLogin("", DEFAULT_ZONE_USER, DEFAULT_ZONE_PASSWORD, session);
