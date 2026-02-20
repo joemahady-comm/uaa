@@ -25,6 +25,8 @@ import org.cloudfoundry.identity.uaa.util.JsonUtils;
 import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneSwitchingFilter;
+import org.cloudfoundry.identity.uaa.zone.ZoneContextPathSessionFilter;
+import org.cloudfoundry.identity.uaa.zone.ZonePathContextRewritingFilter;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +44,7 @@ import org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders;
 import org.springframework.restdocs.payload.FieldDescriptor;
 import org.springframework.restdocs.request.ParameterDescriptor;
 import org.springframework.restdocs.snippet.Snippet;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.test.context.TestPropertySource;
@@ -160,6 +163,14 @@ class TokenEndpointDocs extends AbstractTokenMockMvcTests {
     @Autowired
     FilterChainProxy securityFilterChain;
 
+    @Qualifier(ZonePathContextRewritingFilter.BEAN_NAME)
+    @Autowired
+    FilterRegistrationBean<ZonePathContextRewritingFilter> zonePathFilterRegistration;
+
+    @Qualifier(ZoneContextPathSessionFilter.BEAN_NAME)
+    @Autowired
+    FilterRegistrationBean<ZoneContextPathSessionFilter> zoneContextPathSessionFilterRegistration;
+
     @BeforeAll
     static void beforeAll() {
         Security.addProvider(new BouncyCastleFipsProvider());
@@ -175,6 +186,8 @@ class TokenEndpointDocs extends AbstractTokenMockMvcTests {
     @BeforeEach
     void setUpContext(ManualRestDocumentation manualRestDocumentation) {
         mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .addFilter(zonePathFilterRegistration.getFilter())
+                .addFilter(zoneContextPathSessionFilterRegistration.getFilter())
                 .addFilter(securityFilterChain)
                 .apply(documentationConfiguration(manualRestDocumentation)
                         .uris().withPort(80)
@@ -645,7 +658,7 @@ class TokenEndpointDocs extends AbstractTokenMockMvcTests {
                 Collections.singletonList(UaaAuthority.fromAuthorities("uaa.user")), null);
 
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute(
+        MockMvcUtils.getZoneSession(session).setAttribute(
                 HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
                 new MockSecurityContext(principal)
         );
