@@ -8,10 +8,8 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.List;
 
 /**
  * Wraps the request so that {@link HttpServletRequest#getSession()} returns a
@@ -20,9 +18,9 @@ import java.util.List;
  * (when Spring Session is active) so that the zone session wrapper delegates to the
  * Spring Session-backed session.
  *
- * <p>After the filter chain completes, flushes all sub-session attribute maps back to the
- * container session via {@code setAttribute} so that Spring Session's dirty-tracking
- * detects the changes and persists them.
+ * <p>After the filter chain completes, flushes only dirty sub-session attribute maps back
+ * to the container session via {@code setAttribute} so that Spring Session's
+ * dirty-tracking detects the changes and persists them.
  */
 public class ZoneContextPathSessionFilter extends OncePerRequestFilter {
 
@@ -38,38 +36,21 @@ public class ZoneContextPathSessionFilter extends OncePerRequestFilter {
         try {
             filterChain.doFilter(wrappedRequest, wrappedResponse);
         } finally {
-            flushSubSessionAttributes(request);
+            flushSubSessionAttributes(wrappedRequest);
             maybeClearJSessionIdIfNoSubSessions(request, wrappedResponse);
         }
     }
 
     /**
-     * Re-sets each sub-session attribute map on the container session so that Spring Session's
-     * dirty-tracking picks up in-place modifications to the map contents. Without this,
-     * changes made through {@link ZonePathHttpSession#setAttribute} (which mutates the map
-     * in-place) would not be persisted to the session store.
+     * Re-sets dirty sub-session attribute maps on the container session so that
+     * Spring Session's dirty-tracking picks up in-place modifications to the map
+     * contents. Only sub-sessions that were actually modified during the request
+     * are flushed.
      */
-    private void flushSubSessionAttributes(HttpServletRequest request) {
-        HttpSession containerSession = request.getSession(false);
-        if (containerSession == null) {
-            return;
-        }
-        String prefix = ZoneContextPathSessionRequestWrapper.ATTRIBUTE_NAME_PREFIX;
-        Enumeration<String> names = containerSession.getAttributeNames();
-        if (names == null) {
-            return;
-        }
-        List<String> subSessionNames = new ArrayList<>();
-        while (names.hasMoreElements()) {
-            String name = names.nextElement();
-            if (name.startsWith(prefix)) {
-                subSessionNames.add(name);
-            }
-        }
-        for (String name : subSessionNames) {
-            Object value = containerSession.getAttribute(name);
-            if (value != null) {
-                containerSession.setAttribute(name, value);
+    private void flushSubSessionAttributes(ZoneContextPathSessionRequestWrapper wrappedRequest) {
+        for (ZonePathHttpSession subSession : wrappedRequest.getSubSessions()) {
+            if (subSession.isDirty()) {
+                subSession.flushToContainerSession();
             }
         }
     }

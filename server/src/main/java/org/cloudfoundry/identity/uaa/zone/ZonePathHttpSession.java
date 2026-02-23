@@ -25,6 +25,7 @@ public class ZonePathHttpSession implements HttpSession {
     private final String containerSessionAttributeName;
     /** Suffix for {@link #getId()}: context path with '/' replaced by '-', or "default" for root. */
     private final String sessionIdSuffix;
+    private boolean dirty;
 
     public ZonePathHttpSession(HttpSession containerSession,
                                String contextPathKey,
@@ -51,6 +52,7 @@ public class ZonePathHttpSession implements HttpSession {
 
     @Override
     public void setAttribute(String name, Object value) {
+        dirty = true;
         if (value != null) {
             attributes.put(name, value);
         } else {
@@ -60,6 +62,7 @@ public class ZonePathHttpSession implements HttpSession {
 
     @Override
     public void removeAttribute(String name) {
+        dirty = true;
         attributes.remove(name);
     }
 
@@ -100,8 +103,27 @@ public class ZonePathHttpSession implements HttpSession {
 
     @Override
     public void invalidate() {
+        dirty = false;
         attributes.clear();
         containerSession.removeAttribute(containerSessionAttributeName);
+    }
+
+    public boolean isDirty() {
+        return dirty;
+    }
+
+    /**
+     * Re-sets this sub-session's attribute map on the container session so that
+     * Spring Session's dirty-tracking detects the change, then clears the dirty flag.
+     * Silently does nothing if the container session has been invalidated.
+     */
+    public void flushToContainerSession() {
+        try {
+            containerSession.setAttribute(containerSessionAttributeName, attributes);
+        } catch (IllegalStateException ignored) {
+            // Container session was invalidated during the request
+        }
+        dirty = false;
     }
 
     @Override

@@ -25,6 +25,8 @@ public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrap
     public static final String ATTRIBUTE_NAME_PREFIX =
             "org.cloudfoundry.identity.uaa.zone.ZoneContextPathSession.";
 
+    private final Map<String, ZonePathHttpSession> subSessions = new HashMap<>();
+
     public ZoneContextPathSessionRequestWrapper(HttpServletRequest request) {
         super(request);
     }
@@ -41,6 +43,12 @@ public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrap
         }
 
         String contextPathKey = contextPathKey();
+
+        ZonePathHttpSession cached = subSessions.get(contextPathKey);
+        if (cached != null) {
+            return cached;
+        }
+
         String attributeName = attributeNameForContextPath(contextPathKey);
 
         @SuppressWarnings("unchecked")
@@ -50,7 +58,13 @@ public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrap
             containerSession.setAttribute(attributeName, attributes);
         }
 
-        return new ZonePathHttpSession(containerSession, contextPathKey, attributes, attributeName);
+        ZonePathHttpSession session = new ZonePathHttpSession(containerSession, contextPathKey, attributes, attributeName);
+        subSessions.put(contextPathKey, session);
+        return session;
+    }
+
+    Iterable<ZonePathHttpSession> getSubSessions() {
+        return subSessions.values();
     }
 
     /**
