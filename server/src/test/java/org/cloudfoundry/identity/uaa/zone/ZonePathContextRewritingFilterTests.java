@@ -574,4 +574,61 @@ class ZonePathContextRewritingFilterTests {
         String header = response.getHeader("Set-Cookie");
         assertThat(header).contains("Path=/");
     }
+
+    // --- zones.paths.enabled flag ---
+
+    @Test
+    void zonePathsDisabled_zonePathRequest_returns404() throws ServletException, IOException {
+        ZonePathContextRewritingFilter disabledFilter = new ZonePathContextRewritingFilter(false);
+        request.setContextPath("/uaa");
+        request.setRequestURI("/uaa/z/myzone/login");
+
+        FilterChain chain = (req, res) -> requestPassedToChain.set((HttpServletRequest) req);
+        disabledFilter.doFilter(request, response, chain);
+
+        assertThat(requestPassedToChain.get()).isNull();
+        assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_NOT_FOUND);
+    }
+
+    @Test
+    void zonePathsDisabled_nonZonePathRequest_passesThrough() throws ServletException, IOException {
+        ZonePathContextRewritingFilter disabledFilter = new ZonePathContextRewritingFilter(false);
+        request.setContextPath("/uaa");
+        request.setRequestURI("/uaa/login");
+
+        FilterChain chain = (req, res) -> requestPassedToChain.set((HttpServletRequest) req);
+        disabledFilter.doFilter(request, response, chain);
+
+        HttpServletRequest passed = requestPassedToChain.get();
+        assertThat(passed).isSameAs(request);
+        assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_OK);
+    }
+
+    @Test
+    void zonePathsEnabled_zonePathRequest_rewritesNormally() throws ServletException, IOException {
+        ZonePathContextRewritingFilter enabledFilter = new ZonePathContextRewritingFilter(true);
+        request.setContextPath("/uaa");
+        request.setRequestURI("/uaa/z/myzone/login");
+
+        FilterChain chain = (req, res) -> requestPassedToChain.set((HttpServletRequest) req);
+        enabledFilter.doFilter(request, response, chain);
+
+        HttpServletRequest passed = requestPassedToChain.get();
+        assertThat(passed.getContextPath()).isEqualTo("/uaa/z/myzone");
+        assertThat(passed.getServletPath()).isEqualTo("/login");
+        assertThat(passed.getAttribute(ZonePathContextRewritingFilter.ZONE_SUBDOMAIN_FROM_PATH)).isEqualTo("myzone");
+    }
+
+    @Test
+    void defaultConstructor_zonePathsEnabled() throws ServletException, IOException {
+        request.setContextPath("/uaa");
+        request.setRequestURI("/uaa/z/myzone/login");
+
+        FilterChain chain = (req, res) -> requestPassedToChain.set((HttpServletRequest) req);
+        filter.doFilter(request, response, chain);
+
+        HttpServletRequest passed = requestPassedToChain.get();
+        assertThat(passed.getContextPath()).isEqualTo("/uaa/z/myzone");
+        assertThat(passed.getAttribute(ZonePathContextRewritingFilter.ZONE_SUBDOMAIN_FROM_PATH)).isEqualTo("myzone");
+    }
 }

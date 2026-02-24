@@ -69,6 +69,7 @@ import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.WebApplicationContext;
+import org.cloudfoundry.identity.uaa.extensions.EnabledIfZonePathsEnabled;
 
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -97,6 +98,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 // TODO: Check to see if the helper methods can be moved to MockMvcUtils
 @DefaultTestContext
+@EnabledIfZonePathsEnabled
 class IdentityProviderEndpointsMockMvcZonePathTests {
     private String adminToken;
     private String identityToken;

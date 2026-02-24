@@ -10,6 +10,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.savedrequest.DefaultSavedRequest;
+import org.cloudfoundry.identity.uaa.extensions.EnabledIfZonePathsEnabled;
 
 import jakarta.servlet.ServletException;
 import java.io.IOException;
@@ -21,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@EnabledIfZonePathsEnabled
 class SamlLoginAuthenticationFailureHandlerZonePathTest {
 
     @ParameterizedTest

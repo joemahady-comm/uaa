@@ -45,6 +45,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.context.support.StandardServletEnvironment;
+import org.cloudfoundry.identity.uaa.extensions.EnabledIfZonePathsEnabled;
 
 import java.util.Collections;
 
@@ -65,6 +66,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.util.StringUtils.hasLength;
 
 @DefaultTestContext
+@EnabledIfZonePathsEnabled
 class AccountsControllerMockMvcZonePathTests {
 
     private static final String LOGIN_REDIRECT = "/login?success=verify_success";

@@ -47,6 +47,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.cloudfoundry.identity.uaa.extensions.EnabledIfZonePathsEnabled;
 
 import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -97,6 +98,7 @@ import static org.springframework.util.StringUtils.hasText;
 
 @ExtendWith(ZoneSeederExtension.class)
 @DefaultTestContext
+@EnabledIfZonePathsEnabled
 class ScimUserEndpointsMockMvcZonePathTests {
     private static final String HTTP_REDIRECT_EXAMPLE_COM = "http://redirect.example.com";
     private static final String USER_PASSWORD = "pas5Word";

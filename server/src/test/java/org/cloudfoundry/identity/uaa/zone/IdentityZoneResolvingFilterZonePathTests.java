@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.cloudfoundry.identity.uaa.extensions.EnabledIfZonePathsEnabled;
 
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -36,6 +37,7 @@ import static org.mockito.Mockito.when;
  * Tests for {@link IdentityZoneResolvingFilter} covering both hostname-based and path-based
  * (/z/{subdomain}/) zone resolution, plus all error cases (400, 404, 500, static resources).
  */
+@EnabledIfZonePathsEnabled
 class IdentityZoneResolvingFilterZonePathTests {
 
     private IdentityZoneProvisioning dao;

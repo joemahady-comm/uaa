@@ -16,6 +16,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.cloudfoundry.identity.uaa.oauth.common.util.OAuth2Utils;
 import org.springframework.http.HttpMethod;
+import org.cloudfoundry.identity.uaa.extensions.EnabledIfZonePathsEnabled;
 
 import java.util.Map;
 import java.util.Objects;
@@ -31,6 +32,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@EnabledIfZonePathsEnabled
 class IntrospectEndpointMockMvcZonePathTest extends AbstractTokenMockMvcTests {
 
     private static final String CLIENT_ID = "oauth_showcase_password_grant";

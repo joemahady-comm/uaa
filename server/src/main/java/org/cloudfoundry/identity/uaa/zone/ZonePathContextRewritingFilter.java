@@ -54,7 +54,14 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
      */
     public static final String ZONE_ORIGINAL_CONTEXT_PATH = "org.cloudfoundry.identity.uaa.zone.ZoneOriginalContextPath";
 
+    private final boolean zonePathsEnabled;
+
     public ZonePathContextRewritingFilter() {
+        this(true);
+    }
+
+    public ZonePathContextRewritingFilter(boolean zonePathsEnabled) {
+        this.zonePathsEnabled = zonePathsEnabled;
     }
 
     @Override
@@ -64,11 +71,14 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
         String requestURI = request.getRequestURI() != null ? request.getRequestURI() : "";
         String pathAfterContext = getPathAfterContext(requestURI, contextPath);
 
-        if (!pathAfterContext.startsWith(ZONE_PATH_PREFIX) && !pathAfterContext.equals(SLASH_Z)) {
-            // Request does not use zone path: pass through unchanged so downstream (e.g. rate limiter,
-            // Spring Security matchers) see the container's request as-is. Set ZONE_ORIGINAL_CONTEXT_PATH
-            // to the actual context path so zone-aware link builders have a consistent attribute.
-            // Wrap response so cookies with path "/" get rewritten to context path (e.g. /uaa), matching zone-path behaviour.
+        boolean isZonePath = pathAfterContext.startsWith(ZONE_PATH_PREFIX) || pathAfterContext.equals(SLASH_Z);
+
+        if (isZonePath && !zonePathsEnabled) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Identity zone paths are not enabled (zones.paths.enabled)");
+            return;
+        }
+
+        if (!isZonePath) {
             request.setAttribute(ZONE_ORIGINAL_CONTEXT_PATH, contextPath);
             HttpServletResponse responseToUse = hasText(contextPath) && !"/".equals(contextPath)
                     ? new CookiePathRewritingResponse(response, contextPath)

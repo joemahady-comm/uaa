@@ -24,6 +24,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.http.HttpMethod;
+import org.cloudfoundry.identity.uaa.extensions.EnabledIfZonePathsEnabled;
 
 import java.util.stream.Stream;
 import org.mockito.ArgumentCaptor;
@@ -78,6 +79,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ExtendWith(PollutionPreventionExtension.class)
 @WebAppConfiguration
 @SpringJUnitConfig(classes = ProfileControllerMockMvcZonePathTests.ContextConfiguration.class)
+@EnabledIfZonePathsEnabled
 class ProfileControllerMockMvcZonePathTests {
 
     @EnableWebMvc

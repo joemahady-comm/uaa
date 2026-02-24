@@ -71,6 +71,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.WebApplicationContext;
+import org.cloudfoundry.identity.uaa.extensions.EnabledIfZonePathsEnabled;
 
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
@@ -108,6 +109,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 // TODO: This class has a lot of helpers, why?
 @DefaultTestContext
+@EnabledIfZonePathsEnabled
 class ClientAdminEndpointsMockMvcZonePathTests {
     @Autowired
     private WebApplicationContext webApplicationContext;

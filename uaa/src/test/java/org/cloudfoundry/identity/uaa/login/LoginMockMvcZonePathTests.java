@@ -81,6 +81,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.cloudfoundry.identity.uaa.extensions.EnabledIfZonePathsEnabled;
 
 import java.io.File;
 import java.net.URI;
@@ -153,6 +154,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DefaultTestContext
 @DirtiesContext
 // public for LimitedModeLoginMockMvcTests
+@EnabledIfZonePathsEnabled
 public class LoginMockMvcZonePathTests {
 
     @Autowired

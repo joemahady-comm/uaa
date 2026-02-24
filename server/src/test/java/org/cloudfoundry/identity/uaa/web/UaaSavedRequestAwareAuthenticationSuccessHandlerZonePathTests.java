@@ -24,6 +24,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.Authentication;
+import org.cloudfoundry.identity.uaa.extensions.EnabledIfZonePathsEnabled;
 
 import jakarta.servlet.ServletException;
 import java.io.IOException;
@@ -37,6 +38,7 @@ import static org.mockito.Mockito.when;
  * ZONE_PATH uses context path (via {@link ZoneRequestPathMode#applyRequestPath}); the handler returns
  * context-relative "/" and RedirectStrategy prepends the request's context path for the final redirect URL.
  */
+@EnabledIfZonePathsEnabled
 class UaaSavedRequestAwareAuthenticationSuccessHandlerZonePathTests {
 
     private static final String SPRING_SECURITY_SAVED_REQUEST = "SPRING_SECURITY_SAVED_REQUEST";

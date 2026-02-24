@@ -23,6 +23,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.context.support.GenericWebApplicationContext;
+import org.cloudfoundry.identity.uaa.extensions.EnabledIfZonePathsEnabled;
 
 import java.util.Collections;
 import java.util.Map;
@@ -39,6 +40,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@EnabledIfZonePathsEnabled
 class TokenRevocationEndpointMockMvcZonePathTest extends AbstractTokenMockMvcTests {
     protected AlphanumericRandomValueStringGenerator generator = new AlphanumericRandomValueStringGenerator();
     private TestApplicationEventListener<TokenRevocationEvent> tokenRevocationEventListener;

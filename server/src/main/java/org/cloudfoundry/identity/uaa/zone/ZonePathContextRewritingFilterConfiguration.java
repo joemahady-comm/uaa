@@ -1,5 +1,6 @@
 package org.cloudfoundry.identity.uaa.zone;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,8 +15,9 @@ public class ZonePathContextRewritingFilterConfiguration {
      * (e.g. /z/myzone + /Codes) before security matchers run, so patterns like /Codes/** match correctly.
      */
     @Bean(ZonePathContextRewritingFilter.BEAN_NAME)
-    FilterRegistrationBean<ZonePathContextRewritingFilter> zonePathContextRewritingFilter() {
-        ZonePathContextRewritingFilter filter = new ZonePathContextRewritingFilter();
+    FilterRegistrationBean<ZonePathContextRewritingFilter> zonePathContextRewritingFilter(
+            @Value("${zones.paths.enabled:true}") boolean zonePathsEnabled) {
+        ZonePathContextRewritingFilter filter = new ZonePathContextRewritingFilter(zonePathsEnabled);
         FilterRegistrationBean<ZonePathContextRewritingFilter> bean = new FilterRegistrationBean<>(filter);
         bean.addUrlPatterns("/*");
         bean.setOrder(Ordered.HIGHEST_PRECEDENCE + 1); // before SessionRepositoryFilter (HIGHEST_PRECEDENCE + 50) and Spring Security

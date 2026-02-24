@@ -148,6 +148,52 @@ Extends `StandardLinkBuilder` and overrides `computeContextPath()`. For URLs sta
 
 ---
 
+## 3.8 Feature Flag: `zones.paths.enabled`
+
+The entire zone-path feature can be enabled or disabled at runtime through the `zones.paths.enabled` property.
+
+### How it works
+
+`ZonePathContextRewritingFilter` accepts a `boolean zonePathsEnabled` constructor parameter (defaulting to `true`). When the flag is `false`, any request whose path starts with `/z/` receives a **404 Not Found** response immediately — the filter does not rewrite the request or invoke the rest of the filter chain. Non-zone-path requests are unaffected and pass through normally regardless of the flag.
+
+`ZonePathContextRewritingFilterConfiguration` reads the property via `@Value("${zones.paths.enabled:true}")` and passes it to the filter constructor.
+
+### Configuration
+
+| File | Value | Purpose |
+|---|---|---|
+| `uaa/src/main/resources/uaa.yml` | `false` | Default for production — zone paths are **off** unless explicitly enabled by the deployer. |
+| `scripts/boot/uaa.yml` | `true` | Development/integration test server — zone paths are **on** so that integration tests exercise the feature. |
+| `uaa/src/test/resources/integration_test_properties.yml` | `true` | Unit test properties — zone paths are **on** so that `@DefaultTestContext` MockMvc tests exercise zone-path filters. |
+
+YAML syntax in all three files:
+
+```yaml
+zones:
+  paths:
+    enabled: true   # or false
+```
+
+### Gradle / command-line override
+
+The flag is forwarded from Gradle's `-D` arguments to the test JVM and the `bootWarRun` task via `systemProperty("zones.paths.enabled", ...)`. This allows running the full test suite in either mode:
+
+```bash
+# All tests (zone-path tests included — the default)
+./gradlew clean test
+./gradlew integrationTest
+
+# Zone-path tests skipped
+./gradlew -Dzones.paths.enabled=false clean test
+./gradlew -Dzones.paths.enabled=false integrationTest
+```
+
+### Test skipping mechanism
+
+All zone-path test classes (42 unit/MockMvc test classes + `ZoneSessionPathsIT`) are annotated with `@EnabledIfZonePathsEnabled`, a meta-annotation backed by JUnit 5's `@EnabledIfSystemProperty(named = "zones.paths.enabled", matches = "true")`. When the system property is `false`, these tests are reported as **skipped** rather than failing.
+
+---
+
 ## 4. Modified Existing Test Code
 
 ### 4.1 `DefaultTestContext.java` — MockMvc filter chain setup

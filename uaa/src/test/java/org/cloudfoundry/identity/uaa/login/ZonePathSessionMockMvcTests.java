@@ -38,6 +38,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.web.context.WebApplicationContext;
+import org.cloudfoundry.identity.uaa.extensions.EnabledIfZonePathsEnabled;
 
 import jakarta.servlet.http.Cookie;
 
@@ -53,6 +54,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * use container default session and pass. Zone-namespaced browse-back is covered by ZoneSessionPathsIT.
  */
 @DefaultTestContext
+@EnabledIfZonePathsEnabled
 class ZonePathSessionMockMvcTests {
 
     private static final ZoneResolutionMode MODE = ZoneResolutionMode.ZONE_PATH;

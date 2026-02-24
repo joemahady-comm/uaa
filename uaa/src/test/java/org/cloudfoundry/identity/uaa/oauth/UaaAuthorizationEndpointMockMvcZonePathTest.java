@@ -26,6 +26,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.web.context.WebApplicationContext;
+import org.cloudfoundry.identity.uaa.extensions.EnabledIfZonePathsEnabled;
 
 import java.util.Collections;
 
@@ -45,6 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ExtendWith(ZoneSeederExtension.class)
 @DefaultTestContext
+@EnabledIfZonePathsEnabled
 class UaaAuthorizationEndpointMockMvcZonePathTest {
 
     private static final String REDIRECT_CLIENT_ID = "redirect-client";

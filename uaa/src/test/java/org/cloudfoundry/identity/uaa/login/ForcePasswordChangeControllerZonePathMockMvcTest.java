@@ -36,6 +36,7 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.web.context.WebApplicationContext;
+import org.cloudfoundry.identity.uaa.extensions.EnabledIfZonePathsEnabled;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpSession;
@@ -61,6 +62,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * force password change is covered for subdomain-based and path-based identity zones.
  */
 @DefaultTestContext
+@EnabledIfZonePathsEnabled
 class ForcePasswordChangeControllerZonePathMockMvcTest {
 
     private ScimUser user;

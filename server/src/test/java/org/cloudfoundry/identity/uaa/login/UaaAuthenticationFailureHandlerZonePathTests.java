@@ -20,6 +20,7 @@ import jakarta.servlet.http.Cookie;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import org.cloudfoundry.identity.uaa.extensions.EnabledIfZonePathsEnabled;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.same;
@@ -45,6 +46,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.ExceptionMappingAuthenticationFailureHandler;
 
+@EnabledIfZonePathsEnabled
 class UaaAuthenticationFailureHandlerZonePathTests {
 
     private ExceptionMappingAuthenticationFailureHandler failureHandler;

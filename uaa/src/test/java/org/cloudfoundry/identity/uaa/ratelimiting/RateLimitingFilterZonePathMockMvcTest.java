@@ -16,6 +16,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
+import org.cloudfoundry.identity.uaa.extensions.EnabledIfZonePathsEnabled;
 
 import static org.cloudfoundry.identity.uaa.test.UaaTestAccounts.getAuthorizationHeader;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -24,6 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @DefaultTestContext
+@EnabledIfZonePathsEnabled
 public class RateLimitingFilterZonePathMockMvcTest {
 
     @Autowired
