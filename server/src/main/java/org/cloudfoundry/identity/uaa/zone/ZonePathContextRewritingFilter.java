@@ -33,13 +33,13 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
     public static final String BEAN_NAME = "zonePathContextRewritingFilter";
 
     private static final String SLASH_Z = "/z";
-    private static final String ZONE_PATH_PREFIX = SLASH_Z + "/";
+    public static final String ZONE_PATH_PREFIX = SLASH_Z + "/";
 
     /**
-     * "default" is used by {@link ZoneContextPathSessionRequestWrapper} as the sub-session key
+     * {@link ZonePathHttpSession#DEFAULT_CONTEXT_PATH_KEY} is used as the sub-session key
      * for the root context path. Reject it as a zone subdomain to prevent any collision.
      */
-    private static final String RESERVED_SUBDOMAIN = "default";
+    private static final String RESERVED_SUBDOMAIN = ZonePathHttpSession.DEFAULT_CONTEXT_PATH_KEY;
 
     /**
      * Request attribute set when the request was rewritten for a path-based zone.
@@ -116,21 +116,17 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
     }
 
     private PathResult getPathResult(String pathAfterZonePrefix, String pathAfterContext) {
-        String servletPath;
-        String pathInfo;
         if ("/".equals(pathAfterZonePrefix) && pathAfterContext.endsWith("/")) {
-            // /z/{subdomain}/ → servlet path "", pathInfo "/"
-            servletPath = "";
-            pathInfo = "/";
-        } else {
-            // /z/{subdomain} (no trailing) or /z/{subdomain}/something → pathInfo null
-            servletPath = pathAfterZonePrefix;
-            pathInfo = null;
+            return new PathResult("", "/");
         }
-        PathResult pathResult = new PathResult(servletPath, pathInfo);
-        return pathResult;
+        return new PathResult(pathAfterZonePrefix, null);
     }
 
+    /**
+     * @param servletPath the path after the zone prefix, used as the servlet path
+     * @param pathInfo extra path info after the servlet path; "/" when the URL ended with a trailing
+     *                 slash (e.g. {@code /z/myzone/}), null otherwise
+     */
     private record PathResult(String servletPath, String pathInfo) {
     }
 
@@ -139,17 +135,13 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
                 (contextPath != null && contextPath.endsWith("/")) ?
                         contextPath.substring(0, contextPath.length() - 1) :
                         contextPath;
-        String newContextPath = (baseContext != null ? baseContext : "") + ZONE_PATH_PREFIX + subdomain;
-        return newContextPath;
+        return (baseContext != null ? baseContext : "") + ZONE_PATH_PREFIX + subdomain;
     }
 
     private String getPathAfterZonePrefix(String pathAfterContext, String subdomain) {
         String pathAfterZonePrefix = pathAfterContext.substring(ZONE_PATH_PREFIX.length() + subdomain.length());
         if (!pathAfterZonePrefix.startsWith("/")) {
             pathAfterZonePrefix = "/" + pathAfterZonePrefix;
-        }
-        if (pathAfterZonePrefix.isEmpty()) {
-            pathAfterZonePrefix = "/";
         }
         return pathAfterZonePrefix;
     }

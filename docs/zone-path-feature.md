@@ -1,10 +1,4 @@
-# Code Review: Zone Path-Based Multi-Tenancy
-
-**Base commit:** `7d0802131af7d0d2401c080be5a47d546d8dce43`
-**Review date:** 2026-02-19
-**Scope:** 81 files changed, +30,763 / -115 lines (977 production, 29,332 test, 339 docs)
-
----
+# Zone Path-Based Multi-Tenancy
 
 ## 1. High-Level Overview
 

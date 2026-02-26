@@ -59,7 +59,7 @@ public class IdentityZoneResolvingFilter extends OncePerRequestFilter implements
             return;
         }
 
-        IdentityZone identityZone = resolveZoneBySubdomain(effectiveSubdomain, request, response);
+        IdentityZone identityZone = resolveZoneBySubdomain(effectiveSubdomain, response);
         if (response.isCommitted()) {
             return;
         }
@@ -93,7 +93,7 @@ public class IdentityZoneResolvingFilter extends OncePerRequestFilter implements
     /**
      * Looks up identity zone by subdomain. On generic exception sends 500 and returns null; caller should check response.isCommitted().
      */
-    private IdentityZone resolveZoneBySubdomain(String subdomain, HttpServletRequest request, HttpServletResponse response) throws IOException {
+    private IdentityZone resolveZoneBySubdomain(String subdomain, HttpServletResponse response) throws IOException {
         if (subdomain == null) {
             return null;
         }
@@ -132,22 +132,21 @@ public class IdentityZoneResolvingFilter extends OncePerRequestFilter implements
         }
     }
 
-    private static final String ZONE_PATH_PREFIX = "/z/";
-
     /**
-     * If context path ends with /z/{subdomain}, return the subdomain; otherwise null.
-     * Supports both /z/myzone and /uaa/z/myzone. Allows zone resolution when the request
-     * was already rewritten (e.g. tests simulating post-rewrite with context path set).
+     * If context path contains /z/{subdomain}, return the subdomain; otherwise null.
+     * Supports both /z/myzone and /uaa/z/myzone. Only matches the prefix at a path
+     * boundary (position 0 or preceded by a path segment like /uaa) to avoid false
+     * positives from user-defined IDs containing "/z/".
      */
     private String extractSubdomainFromContextPath(String contextPath) {
-        if (!StringUtils.hasText(contextPath) || !contextPath.contains(ZONE_PATH_PREFIX)) {
+        if (!StringUtils.hasText(contextPath)) {
             return null;
         }
-        int idx = contextPath.lastIndexOf(ZONE_PATH_PREFIX);
+        int idx = contextPath.indexOf(ZonePathContextRewritingFilter.ZONE_PATH_PREFIX);
         if (idx < 0) {
             return null;
         }
-        String after = contextPath.substring(idx + ZONE_PATH_PREFIX.length());
+        String after = contextPath.substring(idx + ZonePathContextRewritingFilter.ZONE_PATH_PREFIX.length());
         int slash = after.indexOf('/');
         String subdomain = slash < 0 ? after : after.substring(0, slash);
         return StringUtils.hasText(subdomain) ? subdomain : null;

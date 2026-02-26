@@ -26,7 +26,7 @@ public class ZoneContextPathSessionFilter extends OncePerRequestFilter {
 
     public static final String BEAN_NAME = "zoneContextPathSessionFilter";
 
-    private static final String JSESSIONID = "JSESSIONID";
+    public static final String JSESSIONID = "JSESSIONID";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)

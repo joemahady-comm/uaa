@@ -9,8 +9,6 @@ import org.thymeleaf.web.servlet.IServletWebExchange;
 
 import java.util.Map;
 
-import static org.cloudfoundry.identity.uaa.util.UaaStringUtils.hasText;
-
 /**
  * Link builder that uses {@link ZonePathContextRewritingFilter#ZONE_ORIGINAL_CONTEXT_PATH}
  * for URLs starting with {@code /vendor/} or {@code /resources/}, so static assets are not
@@ -21,17 +19,16 @@ public class ZoneAwareStaticResourceLinkBuilder extends StandardLinkBuilder {
 
     @Override
     protected String computeContextPath(IExpressionContext context, String base, Map<String, Object> parameters) {
-        if (!(context instanceof IWebContext)) {
+        if (!(context instanceof IWebContext webContext)) {
             return super.computeContextPath(context, base, parameters);
         }
-        var exchange = ((IWebContext) context).getExchange();
-        if (!(exchange instanceof IServletWebExchange)) {
+        if (!(webContext.getExchange() instanceof IServletWebExchange exchange)) {
             return super.computeContextPath(context, base, parameters);
         }
-        HttpServletRequest request = (HttpServletRequest) ((IServletWebExchange) exchange).getNativeRequestObject();
+        HttpServletRequest request = (HttpServletRequest) exchange.getNativeRequestObject();
         if (base != null && (base.startsWith("/vendor/") || base.startsWith("/resources/"))) {
             String orig = (String) request.getAttribute(ZonePathContextRewritingFilter.ZONE_ORIGINAL_CONTEXT_PATH);
-            return (orig!=null) ? orig : request.getContextPath();
+            return (orig != null) ? orig : request.getContextPath();
         }
         return super.computeContextPath(context, base, parameters);
     }

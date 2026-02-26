@@ -2,6 +2,7 @@ package org.cloudfoundry.identity.uaa.util;
 
 import jakarta.servlet.http.Cookie;
 import org.cloudfoundry.identity.uaa.zone.IdentityZone;
+import org.cloudfoundry.identity.uaa.zone.ZonePathContextRewritingFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.AntPathMatcher;
@@ -88,9 +89,10 @@ public abstract class UaaUrlUtils {
 
     private static boolean isZoneInRequestPath() {
         try {
-            if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs) {
+            if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs
+                    && attrs.getRequest() != null) {
                 String contextPath = attrs.getRequest().getContextPath();
-                return contextPath != null && contextPath.contains("/z/");
+                return contextPath != null && contextPath.contains(ZonePathContextRewritingFilter.ZONE_PATH_PREFIX);
             }
         } catch (IllegalStateException ignored) {
             // No request bound

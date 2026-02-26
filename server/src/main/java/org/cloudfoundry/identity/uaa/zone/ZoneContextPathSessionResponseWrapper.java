@@ -13,7 +13,6 @@ import java.util.Locale;
 public class ZoneContextPathSessionResponseWrapper extends HttpServletResponseWrapper {
 
     private static final String SET_COOKIE_HEADER = "Set-Cookie";
-    private static final String JSESSIONID = "JSESSIONID";
 
     public ZoneContextPathSessionResponseWrapper(HttpServletResponse response) {
         super(response);
@@ -47,14 +46,14 @@ public class ZoneContextPathSessionResponseWrapper extends HttpServletResponseWr
         getHttpResponse().setHeader(name, value);
     }
 
-    private static boolean wouldClearJSessionIdCookie(String name, String value, int maxAge) {
-        if (!JSESSIONID.equalsIgnoreCase(name)) {
+    private boolean wouldClearJSessionIdCookie(String name, String value, int maxAge) {
+        if (!ZoneContextPathSessionFilter.JSESSIONID.equalsIgnoreCase(name)) {
             return false;
         }
         return maxAge == 0 || (value != null && value.isEmpty());
     }
 
-    private static boolean wouldClearJSessionIdInHeader(String headerValue) {
+    private boolean wouldClearJSessionIdInHeader(String headerValue) {
         if (headerValue == null || headerValue.isEmpty()) {
             return false;
         }
@@ -63,7 +62,7 @@ public class ZoneContextPathSessionResponseWrapper extends HttpServletResponseWr
             return false;
         }
         String name = headerValue.substring(0, eq).trim();
-        if (!JSESSIONID.equalsIgnoreCase(name)) {
+        if (!ZoneContextPathSessionFilter.JSESSIONID.equalsIgnoreCase(name)) {
             return false;
         }
         String valuePart = eq < headerValue.length() - 1 ? headerValue.substring(eq + 1) : "";

@@ -20,10 +20,16 @@ import java.util.Collections;
  */
 public class ZonePathHttpSession implements HttpSession {
 
+    /**
+     * Key used for the root context path (empty or "/") in sub-session attribute names and session ID suffixes.
+     * Also reserved as a zone subdomain to prevent collisions.
+     */
+    public static final String DEFAULT_CONTEXT_PATH_KEY = "default";
+
     private final HttpSession containerSession;
     private final Map<String, Object> attributes;
     private final String containerSessionAttributeName;
-    /** Suffix for {@link #getId()}: context path with '/' replaced by '-', or "default" for root. */
+    /** Suffix for {@link #getId()}: context path with '/' replaced by '-', or {@link #DEFAULT_CONTEXT_PATH_KEY} for root. */
     private final String sessionIdSuffix;
     private boolean dirty;
 
@@ -39,10 +45,10 @@ public class ZonePathHttpSession implements HttpSession {
 
     private static String sessionIdSuffixFromContextPath(String contextPathKey) {
         if (contextPathKey == null || contextPathKey.isEmpty()) {
-            return "default";
+            return DEFAULT_CONTEXT_PATH_KEY;
         }
         String suffix = contextPathKey.replaceAll("/", "-").replaceFirst("^-+", "");
-        return suffix.isEmpty() ? "default" : suffix;
+        return suffix.isEmpty() ? DEFAULT_CONTEXT_PATH_KEY : suffix;
     }
 
     @Override

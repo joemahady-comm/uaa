@@ -4,6 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpSession;
 
+import org.cloudfoundry.identity.uaa.util.UaaStringUtils;
+
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -35,6 +37,11 @@ public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrap
         return (HttpServletRequest) getRequest();
     }
 
+    /**
+     * Returns a {@link ZonePathHttpSession} scoped to the current context path. At this point
+     * the context path has already been rewritten by {@link ZonePathContextRewritingFilter} to
+     * include the zone prefix (e.g. {@code /uaa/z/myzone}) when path-based zone access is used.
+     */
     @Override
     public HttpSession getSession(boolean create) {
         HttpSession containerSession = getDelegateRequest().getSession(create);
@@ -71,7 +78,7 @@ public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrap
      * Attribute name on the container session for this context path. Empty context path uses "default".
      */
     public static String attributeNameForContextPath(String contextPathKey) {
-        return ATTRIBUTE_NAME_PREFIX + (contextPathKey.isEmpty() ? "default" : contextPathKey);
+        return ATTRIBUTE_NAME_PREFIX + (contextPathKey.isEmpty() ? ZonePathHttpSession.DEFAULT_CONTEXT_PATH_KEY : contextPathKey);
     }
 
     @Override
@@ -123,6 +130,6 @@ public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrap
 
     private String contextPathKey() {
         String cp = getContextPath();
-        return (cp != null && !cp.isEmpty()) ? cp : "";
+        return (cp != null && !cp.isEmpty()) ? cp : UaaStringUtils.EMPTY_STRING;
     }
 }
