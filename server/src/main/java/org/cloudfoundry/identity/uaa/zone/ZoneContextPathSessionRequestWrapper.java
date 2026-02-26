@@ -128,6 +128,10 @@ public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrap
         snapshot.forEach(containerSession::setAttribute);
     }
 
+    /**
+     * returns the context path key that will be used to store this session under.
+     * @return the context path (may have been set by ZonePathContextRewritingFilter)
+     */
     private String contextPathKey() {
         String cp = getContextPath();
         return (cp != null && !cp.isEmpty()) ? cp : UaaStringUtils.EMPTY_STRING;
