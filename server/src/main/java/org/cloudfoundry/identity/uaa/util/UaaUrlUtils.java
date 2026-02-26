@@ -91,8 +91,13 @@ public abstract class UaaUrlUtils {
         try {
             if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs
                     && attrs.getRequest() != null) {
-                String contextPath = attrs.getRequest().getContextPath();
-                return contextPath != null && contextPath.contains(ZonePathContextRewritingFilter.ZONE_PATH_PREFIX);
+                HttpServletRequest request = attrs.getRequest();
+                Object origAttr = request.getAttribute(ZonePathContextRewritingFilter.ZONE_ORIGINAL_CONTEXT_PATH);
+                if (origAttr instanceof String originalContextPath) {
+                    String contextPath = request.getContextPath();
+                    return contextPath != null
+                            && contextPath.startsWith(originalContextPath + ZonePathContextRewritingFilter.ZONE_PATH_PREFIX);
+                }
             }
         } catch (IllegalStateException ignored) {
             // No request bound
