@@ -12,11 +12,16 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.cloudfoundry.identity.uaa.zone.ZonePathContextRewritingFilter.DEFAULT_ZONE_SUBDOMAIN_PATH;
+
 /**
  * Request wrapper that intercepts {@link #getSession(boolean)} and returns a
- * {@link ZonePathHttpSession} keyed by {@link HttpServletRequest#getContextPath()}
+ * {@link ZonePathHttpSession} scoped to the current context path
  * (or "" if none). The container session holds one attribute per context path,
  * each value being the attribute map for that context path's sub-session.
+ * <p>
+ * A single request always has exactly one context path, so at most one
+ * {@link ZonePathHttpSession} is created per wrapper instance.
  */
 public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrapper {
 
@@ -25,9 +30,9 @@ public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrap
      * {@code ATTRIBUTE_NAME_PREFIX + contextPathKey} (with "" mapped to "default").
      */
     public static final String ATTRIBUTE_NAME_PREFIX =
-            "org.cloudfoundry.identity.uaa.zone.ZoneContextPathSession.";
+            ZonePathHttpSession.class.getName() + ".";
 
-    private final Map<String, ZonePathHttpSession> subSessions = new HashMap<>();
+    private ZonePathHttpSession cachedSession;
 
     public ZoneContextPathSessionRequestWrapper(HttpServletRequest request) {
         super(request);
@@ -44,18 +49,16 @@ public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrap
      */
     @Override
     public HttpSession getSession(boolean create) {
+        if (cachedSession != null) {
+            return cachedSession;
+        }
+
         HttpSession containerSession = getDelegateRequest().getSession(create);
         if (containerSession == null) {
             return null;
         }
 
         String contextPathKey = contextPathKey();
-
-        ZonePathHttpSession cached = subSessions.get(contextPathKey);
-        if (cached != null) {
-            return cached;
-        }
-
         String attributeName = attributeNameForContextPath(contextPathKey);
 
         @SuppressWarnings("unchecked")
@@ -65,20 +68,19 @@ public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrap
             containerSession.setAttribute(attributeName, attributes);
         }
 
-        ZonePathHttpSession session = new ZonePathHttpSession(containerSession, contextPathKey, attributes, attributeName);
-        subSessions.put(contextPathKey, session);
-        return session;
+        cachedSession = new ZonePathHttpSession(containerSession, contextPathKey, attributes, attributeName);
+        return cachedSession;
     }
 
-    Iterable<ZonePathHttpSession> getSubSessions() {
-        return subSessions.values();
+    ZonePathHttpSession getCachedSession() {
+        return cachedSession;
     }
 
     /**
      * Attribute name on the container session for this context path. Empty context path uses "default".
      */
     public static String attributeNameForContextPath(String contextPathKey) {
-        return ATTRIBUTE_NAME_PREFIX + (contextPathKey.isEmpty() ? ZonePathHttpSession.DEFAULT_CONTEXT_PATH_KEY : contextPathKey);
+        return ATTRIBUTE_NAME_PREFIX + (contextPathKey.isEmpty() ? DEFAULT_ZONE_SUBDOMAIN_PATH : contextPathKey);
     }
 
     @Override
@@ -129,11 +131,19 @@ public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrap
     }
 
     /**
-     * returns the context path key that will be used to store this session under.
-     * @return the context path (may have been set by ZonePathContextRewritingFilter)
+     * Returns the context path key used to store this session. For {@code /z/default} path-based requests,
+     * the context path is e.g. {@code /uaa/z/default} but we use the original context path (e.g. {@code /uaa})
+     * so that {@code /profile} and {@code /z/default/profile} share the same session/cookie.
      */
     private String contextPathKey() {
         String cp = getContextPath();
+        if (cp != null && cp.endsWith("/z/" + DEFAULT_ZONE_SUBDOMAIN_PATH)) {
+            Object orig = getAttribute(ZonePathContextRewritingFilter.ZONE_ORIGINAL_CONTEXT_PATH);
+            if (orig instanceof String s && !s.isEmpty()) {
+                return s;
+            }
+            return UaaStringUtils.EMPTY_STRING;
+        }
         return (cp != null && !cp.isEmpty()) ? cp : UaaStringUtils.EMPTY_STRING;
     }
 }

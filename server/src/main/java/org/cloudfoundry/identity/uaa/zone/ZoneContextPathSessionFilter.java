@@ -42,16 +42,14 @@ public class ZoneContextPathSessionFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Re-sets dirty sub-session attribute maps on the container session so that
+     * Re-sets the dirty sub-session attribute map on the container session so that
      * Spring Session's dirty-tracking picks up in-place modifications to the map
-     * contents. Only sub-sessions that were actually modified during the request
-     * are flushed.
+     * contents. Only flushed if the sub-session was actually modified during the request.
      */
     private void flushSubSessionAttributes(ZoneContextPathSessionRequestWrapper wrappedRequest) {
-        for (ZonePathHttpSession subSession : wrappedRequest.getSubSessions()) {
-            if (subSession.isDirty()) {
-                subSession.flushToContainerSession();
-            }
+        ZonePathHttpSession session = wrappedRequest.getCachedSession();
+        if (session != null && session.isDirty()) {
+            session.flushToContainerSession();
         }
     }
 

@@ -24,12 +24,11 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.util.StringUtils;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+
 
 /**
  * This filter ensures that all requests are targeting a specific identity zone
@@ -71,14 +70,12 @@ public class IdentityZoneResolvingFilter extends OncePerRequestFilter implements
     }
 
     /**
-     * Resolves the effective subdomain from path (zone path) or hostname. Sends 400 if both are present.
+     * Resolves the effective subdomain from path (zone path attribute) or hostname. Sends 400 if both are present.
+     *
      * @return the subdomain to use, or null if from hostname and host did not match any zone root (caller must check response.isCommitted() for 400)
      */
     private String resolveEffectiveSubdomain(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String subdomainFromPath = (String) request.getAttribute(ZonePathContextRewritingFilter.ZONE_SUBDOMAIN_FROM_PATH);
-        if (subdomainFromPath == null) {
-            subdomainFromPath = extractSubdomainFromContextPath(request.getContextPath());
-        }
         String subdomainFromHost = getSubdomainFromHost(request.getServerName());
         if (subdomainFromPath != null) {
             if (subdomainFromHost != null && !subdomainFromHost.isEmpty()) {
@@ -130,26 +127,6 @@ public class IdentityZoneResolvingFilter extends OncePerRequestFilter implements
         } finally {
             IdentityZoneHolder.clear();
         }
-    }
-
-    /**
-     * If context path contains /z/{subdomain}, return the subdomain; otherwise null.
-     * Supports both /z/myzone and /uaa/z/myzone. Only matches the prefix at a path
-     * boundary (position 0 or preceded by a path segment like /uaa) to avoid false
-     * positives from user-defined IDs containing "/z/".
-     */
-    private String extractSubdomainFromContextPath(String contextPath) {
-        if (!StringUtils.hasText(contextPath)) {
-            return null;
-        }
-        int idx = contextPath.indexOf(ZonePathContextRewritingFilter.ZONE_PATH_PREFIX);
-        if (idx < 0) {
-            return null;
-        }
-        String after = contextPath.substring(idx + ZonePathContextRewritingFilter.ZONE_PATH_PREFIX.length());
-        int slash = after.indexOf('/');
-        String subdomain = slash < 0 ? after : after.substring(0, slash);
-        return StringUtils.hasText(subdomain) ? subdomain : null;
     }
 
     private String getSubdomainFromHost(String hostname) {

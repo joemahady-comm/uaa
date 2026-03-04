@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.cloudfoundry.identity.uaa.zone.ZonePathContextRewritingFilter.DEFAULT_ZONE_SUBDOMAIN_PATH;
 
 class ZoneContextPathSessionTests {
 
@@ -251,6 +252,87 @@ class ZoneContextPathSessionTests {
         void attributeNameForContextPath_nonEmptyUsesPath() {
             assertThat(ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/zone1"))
                     .isEqualTo(ZoneContextPathSessionRequestWrapper.ATTRIBUTE_NAME_PREFIX + "/uaa/z/zone1");
+        }
+
+        /**
+         * Root path /uaa uses session key "/uaa".
+         */
+        @Test
+        void contextPathUaa_usesSameSessionKeyAsRootPath_soDefaultZonePathSharesSession() {
+            request.setContextPath("/uaa");
+            request.setSession(new MockHttpSession());
+            wrapper = new ZoneContextPathSessionRequestWrapper(request);
+            HttpSession session = wrapper.getSession(true);
+            session.setAttribute("user", "admin");
+
+            String attrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa");
+            assertThat(attrName).isEqualTo(ZoneContextPathSessionRequestWrapper.ATTRIBUTE_NAME_PREFIX + "/uaa");
+            assertThat(request.getSession(false).getAttribute(attrName)).isNotNull();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> subMap = (Map<String, Object>) request.getSession(false).getAttribute(attrName);
+            assertThat(subMap).containsEntry("user", "admin");
+        }
+
+        /**
+         * When /z/default/ is used, context path is /uaa/z/default but the session key is the original
+         * context path (/uaa) so /profile and /z/default/profile share the same cookie/session.
+         */
+        @Test
+        void contextPathUaaZDefault_usesRootSessionKey_soSameCookieAsRootPath() {
+            request.setContextPath("/uaa/z/" + DEFAULT_ZONE_SUBDOMAIN_PATH);
+            request.setAttribute(ZonePathContextRewritingFilter.ZONE_ORIGINAL_CONTEXT_PATH, "/uaa");
+            request.setSession(new MockHttpSession());
+            wrapper = new ZoneContextPathSessionRequestWrapper(request);
+            HttpSession session = wrapper.getSession(true);
+            session.setAttribute("user", "admin");
+
+            String attrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa");
+            assertThat(attrName).isEqualTo(ZoneContextPathSessionRequestWrapper.ATTRIBUTE_NAME_PREFIX + "/uaa");
+            assertThat(request.getSession(false).getAttribute(attrName)).isNotNull();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> subMap = (Map<String, Object>) request.getSession(false).getAttribute(attrName);
+            assertThat(subMap).containsEntry("user", "admin");
+        }
+
+        /**
+         * No-context-path deployment: context path is /z/default, ZONE_ORIGINAL_CONTEXT_PATH is "".
+         * Session key must be "" (same as root), stored under the "default" attribute name.
+         */
+        @Test
+        void contextPathZDefault_noContextPath_usesEmptySessionKey_soSameCookieAsRootPath() {
+            request.setContextPath("/z/" + DEFAULT_ZONE_SUBDOMAIN_PATH);
+            request.setAttribute(ZonePathContextRewritingFilter.ZONE_ORIGINAL_CONTEXT_PATH, "");
+            request.setSession(new MockHttpSession());
+            wrapper = new ZoneContextPathSessionRequestWrapper(request);
+            HttpSession session = wrapper.getSession(true);
+            session.setAttribute("user", "admin");
+
+            String attrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("");
+            assertThat(attrName).isEqualTo(ZoneContextPathSessionRequestWrapper.ATTRIBUTE_NAME_PREFIX + "default");
+            assertThat(request.getSession(false).getAttribute(attrName)).isNotNull();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> subMap = (Map<String, Object>) request.getSession(false).getAttribute(attrName);
+            assertThat(subMap).containsEntry("user", "admin");
+        }
+
+        /**
+         * Defensive: if context path ends with /z/default but ZONE_ORIGINAL_CONTEXT_PATH attribute
+         * is missing, contextPathKey() still falls back to empty string (root session key).
+         */
+        @Test
+        void contextPathZDefault_missingOriginalContextPathAttribute_fallsBackToEmptyKey() {
+            request.setContextPath("/uaa/z/" + DEFAULT_ZONE_SUBDOMAIN_PATH);
+            // deliberately not setting ZONE_ORIGINAL_CONTEXT_PATH
+            request.setSession(new MockHttpSession());
+            wrapper = new ZoneContextPathSessionRequestWrapper(request);
+            HttpSession session = wrapper.getSession(true);
+            session.setAttribute("user", "admin");
+
+            String attrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("");
+            assertThat(request.getSession(false).getAttribute(attrName)).isNotNull();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> subMap = (Map<String, Object>) request.getSession(false).getAttribute(attrName);
+            assertThat(subMap).containsEntry("user", "admin");
         }
 
         @Test

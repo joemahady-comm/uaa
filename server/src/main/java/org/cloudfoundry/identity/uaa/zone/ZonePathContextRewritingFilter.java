@@ -24,6 +24,11 @@ import static org.cloudfoundry.identity.uaa.util.UaaStringUtils.hasText;
  * {@code /z/{subdomain}}. Downstream code then sees a normal path (e.g. {@code /login})
  * and builds URLs using {@code getContextPath()} which already includes the zone path.
  * <p>
+ * The subdomain {@code "default"} is special: the context path still includes {@code /z/default}
+ * (like any other {@code /z/{subdomain}/}), so downstream sees e.g. {@code getContextPath() == "/uaa/z/default"}.
+ * {@link #ZONE_SUBDOMAIN_FROM_PATH} is not set so the default zone is resolved. The session is keyed
+ * the same as the root path so {@code /profile} and {@code /z/default/profile} share the same cookie/session.
+ * <p>
  * Does not validate the zone; {@link IdentityZoneResolvingFilter} looks up the zone by
  * subdomain and rejects invalid or missing zones. Sets request attribute
  * {@link #ZONE_SUBDOMAIN_FROM_PATH} with the subdomain string for {@link IdentityZoneResolvingFilter}.
@@ -36,23 +41,26 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
     public static final String ZONE_PATH_PREFIX = SLASH_Z + "/";
 
     /**
-     * {@link ZonePathHttpSession#DEFAULT_CONTEXT_PATH_KEY} is used as the sub-session key
-     * for the root context path. Reject it as a zone subdomain to prevent any collision.
+     * The subdomain "default" is allowed in the URL path. Requests to {@code /z/default/...} are
+     * rewritten so that the context path includes {@code /z/default} (e.g. {@code /uaa/z/default}), like any
+     * other zone path. No {@link #ZONE_SUBDOMAIN_FROM_PATH} is set so the default zone is used.
+     * {@link ZoneContextPathSessionRequestWrapper} maps this context path to the same session key as the root,
+     * so the same cookie backs {@code /profile} and {@code /z/default/profile}.
      */
-    private static final String RESERVED_SUBDOMAIN = ZonePathHttpSession.DEFAULT_CONTEXT_PATH_KEY;
+    public static final String DEFAULT_ZONE_SUBDOMAIN_PATH = "default";
 
     /**
      * Request attribute set when the request was rewritten for a path-based zone.
      * Value is the subdomain string (e.g. "myzone"). Read by {@link IdentityZoneResolvingFilter} to look up and validate the zone.
      */
-    public static final String ZONE_SUBDOMAIN_FROM_PATH = "org.cloudfoundry.identity.uaa.zone.ZoneSubdomainFromPath";
+    public static final String ZONE_SUBDOMAIN_FROM_PATH = ZonePathContextRewritingFilter.class.getName() + ".ZoneSubdomainFromPath";
 
     /**
      * Request attribute always set by this filter. When the request was rewritten for a path-based zone,
      * value is the original context path (e.g. "/uaa") before the filter rewrote it to include {@code /z/{subdomain}}.
      * When the request was not rewritten, value is the empty string "".
      */
-    public static final String ZONE_ORIGINAL_CONTEXT_PATH = "org.cloudfoundry.identity.uaa.zone.ZoneOriginalContextPath";
+    public static final String ZONE_ORIGINAL_CONTEXT_PATH = ZonePathContextRewritingFilter.class.getName() + ".ZoneOriginalContextPath";
 
     private final boolean zonePathsEnabled;
 
@@ -79,6 +87,10 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
         }
 
         if (!isZonePath) {
+            /*
+              we hard code all cookies to path=/ in UaaSessionConfig.java
+              so, we will always rewrite it to be reduced to the context path, for example "/uaa"
+             */
             request.setAttribute(ZONE_ORIGINAL_CONTEXT_PATH, contextPath);
             HttpServletResponse responseToUse = hasText(contextPath) && !"/".equals(contextPath)
                     ? new CookiePathRewritingResponse(response, contextPath)
@@ -93,15 +105,28 @@ public class ZonePathContextRewritingFilter extends OncePerRequestFilter {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid /z/ URL");
             return;
         }
-        if (RESERVED_SUBDOMAIN.equalsIgnoreCase(subdomain)) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST,
-                    "The subdomain '" + RESERVED_SUBDOMAIN + "' is reserved and cannot be used as a zone path");
+
+        String pathAfterZonePrefix = getPathAfterZonePrefix(pathAfterContext, subdomain);
+        PathResult pathResult = getPathResult(pathAfterZonePrefix, pathAfterContext);
+
+        if (DEFAULT_ZONE_SUBDOMAIN_PATH.equalsIgnoreCase(subdomain)) {
+            // /z/default/... keeps /z/default in context path (like any other zone); same session as root via session key mapping.
+            // Use canonical "default" in path so session key mapping (endsWith "/z/default") matches.
+            // Do not set ZONE_SUBDOMAIN_FROM_PATH so IdentityZoneResolvingFilter resolves default zone from hostname.
+            String newContextPath = getNewContextPath(contextPath, DEFAULT_ZONE_SUBDOMAIN_PATH);
+            HttpServletRequest wrappedRequest = new ZonePathRewrittenRequest(
+                    request,
+                    newContextPath,
+                    pathResult.servletPath(),
+                    pathResult.pathInfo()
+            );
+            wrappedRequest.setAttribute(ZONE_ORIGINAL_CONTEXT_PATH, contextPath);
+            HttpServletResponse wrappedResponse = new CookiePathRewritingResponse(response, contextPath);
+            filterChain.doFilter(wrappedRequest, wrappedResponse);
             return;
         }
 
-        String pathAfterZonePrefix = getPathAfterZonePrefix(pathAfterContext, subdomain);
         String newContextPath = getNewContextPath(contextPath, subdomain);
-        PathResult pathResult = getPathResult(pathAfterZonePrefix, pathAfterContext);
         HttpServletRequest wrappedRequest = new ZonePathRewrittenRequest(
                 request,
                 newContextPath,

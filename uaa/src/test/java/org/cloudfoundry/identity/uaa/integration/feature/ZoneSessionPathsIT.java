@@ -42,6 +42,9 @@ import static org.springframework.http.HttpMethod.POST;
 
 /**
  * Integration test for zone-namespaced session when using path-based zones (/z/{subdomain}/).
+ * This is the <b>required</b> integration test for zone session paths: it is the one place
+ * that must cover separate sessions per zone, profile isolation, and per-zone logout.
+ * <p>
  * Verifies that a single JSESSIONID can hold separate sessions per zone and that logging out
  * of one zone does not affect sessions in other zones.
  * <p>
@@ -56,6 +59,7 @@ class ZoneSessionPathsIT {
     private static final String PASSWORD = "secr3T";
     private static final String ZONE1 = "testzone1";
     private static final String ZONE2 = "testzone2";
+    private static final String DEFAULT_ZONE = "default";
 
     @Autowired
     @RegisterExtension
@@ -168,6 +172,73 @@ class ZoneSessionPathsIT {
         webDriver.get(zonePathUrl(ZONE2) + "/profile");
         assertThat(webDriver.findElement(By.cssSelector("h1")).getText()).contains("Account Settings");
         assertThat(webDriver.getPageSource()).contains(userZone2Email);
+    }
+
+    /**
+     * Verifies that the default zone path (/z/default/...) shares the same session as the base path.
+     * Login at the base path (e.g. /uaa/login), then access profile via /z/default/profile — the same
+     * user session must be visible because ZonePathContextRewritingFilter rewrites /z/default/ to the
+     * original context path and does not set ZONE_SUBDOMAIN_FROM_PATH, so the session key is the same.
+     */
+    @Test
+    void loginToDefaultZoneUsingBasePath() {
+        LoginPage.go(webDriver, baseUrl)
+                .sendLoginCredentials(userDefaultEmail, PASSWORD);
+        webDriver.get(baseUrl + "/profile");
+        assertThat(webDriver.findElement(By.cssSelector("h1")).getText()).contains("Account Settings");
+        assertThat(webDriver.getPageSource()).contains(userDefaultEmail);
+
+        webDriver.get(zonePathUrl(DEFAULT_ZONE) + "/profile");
+        assertThat(webDriver.findElement(By.cssSelector("h1")).getText()).contains("Account Settings");
+        assertThat(webDriver.getPageSource()).contains(userDefaultEmail);
+
+        webDriver.get(baseUrl + "/logout.do");
+
+        webDriver.get(zonePathUrl(DEFAULT_ZONE) + "/profile");
+        assertThat(webDriver.getCurrentUrl())
+                .as("After logging out of the default zone, visiting /z/default/ profile should redirect to /z/default/login login page")
+                .contains("/uaa/z/" + DEFAULT_ZONE + "/login");
+
+
+        webDriver.get(baseUrl + "/profile");
+        assertThat(webDriver.getCurrentUrl())
+                .as("After logging out of default zone, visiting default zone profile should redirect to default zone login page")
+                .contains("/uaa/login");
+
+    }
+
+    /**
+     * Verifies that logging in via the default zone path (/z/default/login) uses the same session as the base path.
+     * Login at /uaa/z/default/login, then access profile via /z/default/profile and via base /uaa/profile — both
+     * must show the same user because the filter rewrites /z/default/ so context path stays /uaa and the session
+     * key is the same as for the base path. Browsing to base path after zone-path login must still show the user.
+     */
+    @Test
+    void loginToDefaultZoneUsingZonePath() {
+        LoginPage.go(webDriver, zonePathUrl(DEFAULT_ZONE))
+                .sendLoginCredentials(userDefaultEmail, PASSWORD);
+        webDriver.get(zonePathUrl(DEFAULT_ZONE) + "/profile");
+        assertThat(webDriver.findElement(By.cssSelector("h1")).getText()).contains("Account Settings");
+        assertThat(webDriver.getPageSource()).contains(userDefaultEmail);
+
+        webDriver.get(baseUrl + "/profile");
+        assertThat(webDriver.findElement(By.cssSelector("h1")).getText()).contains("Account Settings");
+        assertThat(webDriver.getPageSource()).contains(userDefaultEmail);
+
+        webDriver.get(zonePathUrl(DEFAULT_ZONE) + "/logout.do");
+
+        webDriver.get(zonePathUrl(DEFAULT_ZONE) + "/profile");
+        assertThat(webDriver.getCurrentUrl())
+                .as("After logging out of the default zone, visiting /z/default/ profile should redirect to /z/default/login login page")
+                .contains("/uaa/z/" + DEFAULT_ZONE + "/login");
+
+
+        webDriver.get(baseUrl + "/profile");
+        assertThat(webDriver.getCurrentUrl())
+                .as("After logging out of default zone, visiting default zone profile should redirect to default zone login page")
+                .contains("/uaa/login");
+
+
     }
 
     @Test

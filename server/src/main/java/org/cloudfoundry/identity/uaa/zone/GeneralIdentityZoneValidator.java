@@ -3,6 +3,8 @@ package org.cloudfoundry.identity.uaa.zone;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import static org.cloudfoundry.identity.uaa.zone.ZonePathContextRewritingFilter.DEFAULT_ZONE_SUBDOMAIN_PATH;
+
 @Component("identityZoneValidator")
 public class GeneralIdentityZoneValidator implements IdentityZoneValidator {
     private final IdentityZoneConfigurationValidator configValidator;
@@ -16,9 +18,9 @@ public class GeneralIdentityZoneValidator implements IdentityZoneValidator {
         if (IdentityZoneHolder.getUaaZone().getId().equals(identityZone.getId()) && !identityZone.isActive()) {
             throw new InvalidIdentityZoneDetailsException("The default zone cannot be set inactive.", null);
         }
-        if (ZonePathHttpSession.DEFAULT_CONTEXT_PATH_KEY.equalsIgnoreCase(identityZone.getSubdomain())) {
+        if (DEFAULT_ZONE_SUBDOMAIN_PATH.equalsIgnoreCase(identityZone.getSubdomain())) {
             throw new InvalidIdentityZoneDetailsException(
-                    "The subdomain '" + ZonePathHttpSession.DEFAULT_CONTEXT_PATH_KEY + "' is reserved and cannot be used.", null);
+                    "The subdomain '" + DEFAULT_ZONE_SUBDOMAIN_PATH + "' is reserved and cannot be used.", null);
         }
         try {
             identityZone.setConfig(configValidator.validate(identityZone, mode));

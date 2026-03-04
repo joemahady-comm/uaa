@@ -24,7 +24,7 @@ This is useful in deployments where wildcard DNS or wildcard TLS certificates ar
 
 5. **Spring Session integration** — The session filter explicitly flushes sub-session attribute maps back to the container session on every request, working around Spring Session's dirty-tracking limitation with in-place map mutations.
 
-6. **Reserved subdomain protection** — The string `"default"` is rejected as a zone subdomain since it is used internally as the sub-session map key for the root context path.
+6. **Default zone path** — The path prefix `/z/default/` is supported. The context path still includes `/z/default` (e.g. `getContextPath()` is `/uaa/z/default`), like any other zone path. What is unique is that the **session** (and thus the cookie) for `/z/default/` is the same as for the root path: `/profile` and `/z/default/profile` share the same JSESSIONID and session data (default zone). This allows clients to use a uniform URL pattern (always under `/z/{zone}/`) while still addressing the default zone.
 
 7. **Comprehensive test coverage** — 45 new test classes providing unit, MockMvc, and integration test coverage for the new feature, plus ZonePath variants of most existing MockMvc test suites.
 
@@ -38,13 +38,13 @@ This is useful in deployments where wildcard DNS or wildcard TLS certificates ar
 
 **Why:** The filter previously only resolved zones from the hostname subdomain. It now has a two-source resolution strategy:
 
-- **`resolveEffectiveSubdomain()`** — Checks for a `ZONE_SUBDOMAIN_FROM_PATH` request attribute (set by `ZonePathContextRewritingFilter`) or falls back to extracting the subdomain from the context path. If neither is present, it uses the hostname. If **both** a path-based zone and a hostname-based zone are present, it sends a `400 Bad Request` to prevent ambiguity.
-
-- **`extractSubdomainFromContextPath()`** — New method that parses the context path for a `/z/{subdomain}` segment. This supports MockMvc tests where the context path is set directly without going through the rewriting filter.
+- **`resolveEffectiveSubdomain()`** — Checks for a `ZONE_SUBDOMAIN_FROM_PATH` request attribute (set by `ZonePathContextRewritingFilter`). If present, uses it as the zone subdomain. If absent, falls back to hostname-based resolution. If **both** a path-based zone and a hostname-based zone are present, it sends a `400 Bad Request` to prevent ambiguity. This filter does **not** attempt to parse the context path — zone-from-path resolution is entirely the responsibility of `ZonePathContextRewritingFilter`, which communicates its result via the request attribute.
 
 - **`getSubdomain()` → `getSubdomainFromHost()`** — Renamed for clarity; behavior unchanged.
 
 The refactoring into `resolveZoneBySubdomain()`, `handleZoneNotFound()`, and `doFilterWithZone()` is a readability improvement that also makes each responsibility independently testable.
+
+**Default zone path (`/z/default/`):** `ZonePathContextRewritingFilter` does **not** set `ZONE_SUBDOMAIN_FROM_PATH` for `/z/default/` requests. This means `resolveEffectiveSubdomain()` sees `null` for the path attribute and falls through to hostname-based resolution, which naturally resolves to the default zone. No special-case "default" handling is needed in this filter.
 
 ### 2.2 `OpenIdConnectEndpoints.java`
 
@@ -103,8 +103,17 @@ The outermost filter in the chain (`Ordered.HIGHEST_PRECEDENCE + 1`). For reques
 - **Rewrites the request** by wrapping it in `ZonePathRewrittenRequest` (a private `HttpServletRequestWrapper`) that moves `/z/{subdomain}` from the servlet path into the context path. Downstream code sees `getContextPath()` = `/uaa/z/myzone` and `getServletPath()` = `/login`.
 - **Sets request attributes** `ZONE_SUBDOMAIN_FROM_PATH` (the subdomain string) and `ZONE_ORIGINAL_CONTEXT_PATH` (the pre-rewrite context path like `/uaa`), consumed by `IdentityZoneResolvingFilter` and `ZoneAwareStaticResourceLinkBuilder`.
 - **Wraps the response** in `CookiePathRewritingResponse` which intercepts `addCookie()`, `addHeader("Set-Cookie", ...)`, and `setHeader("Set-Cookie", ...)` to rewrite cookie paths from `/` back to the original context path (e.g., `/uaa`).
-- **Rejects** the reserved subdomain `"default"` with a `400 Bad Request`.
+- **Default zone path:** For the subdomain `"default"`, rewrites so the context path **includes** `/z/default` (e.g. `/uaa/z/default`), like any other zone path. Does **not** set `ZONE_SUBDOMAIN_FROM_PATH` so the default zone is resolved. `ZoneContextPathSessionRequestWrapper` maps this context path to the same session key as the root, so `/profile` and `/z/default/profile` share the same cookie/session. See "Default zone path" below.
 - **Passes through** non-zone requests unchanged (but still wraps the response for cookie path normalization when a context path is present).
+
+#### Default zone path
+
+The path prefix `/z/default/` is allowed. The context path **includes** `/z/default` (like any other `/z/{subdomain}/`), so downstream sees e.g. `getContextPath() == "/uaa/z/default"` and `getServletPath() == "/login"`. Examples:
+
+- No context path: `/z/default/login` → context path `/z/default`, servlet path `/login`.
+- With context path `/uaa`: `/uaa/z/default/login` → context path `/uaa/z/default`, servlet path `/login`.
+
+What is unique: the **session** (and cookie) for `/z/default/` is the same as for the root path. `ZoneContextPathSessionRequestWrapper` maps context path `/uaa/z/default` (or `/z/default`) to the same session key as `/uaa` (or `""`), so a user logged in at `/uaa/login` is also logged in at `/uaa/z/default/profile`, and vice versa.
 
 ### 3.2 `ZonePathContextRewritingFilterConfiguration` — Spring Configuration
 
@@ -114,12 +123,12 @@ A `@Configuration` class that registers both `ZonePathContextRewritingFilter` (o
 
 Runs after `SessionRepositoryFilter` (`Ordered.HIGHEST_PRECEDENCE + 51`). Wraps the request and response in `ZoneContextPathSessionRequestWrapper` and `ZoneContextPathSessionResponseWrapper`. In its `finally` block:
 
-1. **Flushes sub-session attributes** — Iterates all container session attributes with the `org.cloudfoundry.identity.uaa.zone.ZoneContextPathSession.` prefix and re-sets them via `containerSession.setAttribute(name, value)`. This forces Spring Session's dirty-tracking to detect in-place `ConcurrentHashMap` mutations and persist them.
+1. **Flushes the sub-session** — If the request's single cached `ZonePathHttpSession` was modified (dirty), re-sets its attribute map on the container session via `containerSession.setAttribute(name, value)`. This forces Spring Session's dirty-tracking to detect in-place `ConcurrentHashMap` mutations and persist them.
 2. **Clears JSESSIONID if empty** — If no sub-session attribute maps remain on the container session (all zones have been logged out), sends a `Set-Cookie: JSESSIONID=; Max-Age=0` header to clean up the cookie.
 
 ### 3.4 `ZoneContextPathSessionRequestWrapper` — The Session View Provider
 
-An `HttpServletRequestWrapper` that intercepts `getSession()` and `getSession(boolean)`. Instead of returning the raw container session, it returns a `ZonePathHttpSession` scoped to the current context path. The container session holds one attribute per context path (e.g., `...ZoneContextPathSession./z/myzone`), with the value being a `ConcurrentHashMap<String, Object>` of that zone's session attributes.
+An `HttpServletRequestWrapper` that intercepts `getSession()` and `getSession(boolean)`. Instead of returning the raw container session, it returns a `ZonePathHttpSession` scoped to the current context path. Since a single request always has exactly one context path, at most one `ZonePathHttpSession` is created per wrapper instance (cached in a single field). The container session holds one attribute per context path (e.g., `...ZonePathHttpSession./uaa/z/myzone`), with the value being a `ConcurrentHashMap<String, Object>` of that zone's session attributes.
 
 Also overrides `changeSessionId()` to snapshot and restore sub-session attributes when the container session is rotated (e.g., during Spring Security's session fixation prevention).
 

@@ -29,7 +29,7 @@ session, keyed by the request's context path.
 | `ZonePathContextRewritingFilter` | Rewrites `/uaa/z/tenant/login` so context path becomes `/uaa/z/tenant` and servlet path becomes `/login`. Also wraps the response to normalize cookie paths. |
 | `SessionRepositoryFilter` (Spring Session) | Loads/saves the container session from the configured store (JDBC or in-memory). |
 | `ZoneContextPathSessionFilter` | Wraps the request so `getSession()` returns a `ZonePathHttpSession` scoped to the current context path. Wraps the response to prevent premature JSESSIONID clearing. |
-| `ZoneContextPathSessionRequestWrapper` | `HttpServletRequestWrapper` that intercepts `getSession()` and `changeSessionId()`. |
+| `ZoneContextPathSessionRequestWrapper` | `HttpServletRequestWrapper` that intercepts `getSession()` and `changeSessionId()`. Caches a single `ZonePathHttpSession` per request (since each request has exactly one context path). |
 | `ZoneContextPathSessionResponseWrapper` | `HttpServletResponseWrapper` that blocks `Set-Cookie` headers that would clear the JSESSIONID (since other zones may still be active). |
 | `ZonePathHttpSession` | `HttpSession` view over one zone's attribute map. `invalidate()` clears only this zone's slice; it does not invalidate the container session. |
 
@@ -89,8 +89,9 @@ code (Spring Security, controllers) sees first via `request.getSession()`.
 │      blocks Set-Cookie headers that would clear JSESSIONID          │
 │      (protects other zones' sessions).                              │
 │  • On completion (finally block):                                   │
-│      a) Flushes sub-session maps back to the container session      │
-│         via setAttribute() so Spring Session marks them dirty.      │
+│      a) If the cached sub-session is dirty, flushes its map back    │
+│         to the container session via setAttribute() so Spring       │
+│         Session marks it dirty.                                     │
 │      b) If all sub-sessions have been invalidated, emits a          │
 │         Set-Cookie to clear the JSESSIONID.                         │
 │                                                                     │
@@ -131,16 +132,23 @@ sequence in `UaaWebApplicationInitializer.onStartup()`.
 
 The container session (the one managed by Spring Session or Tomcat) holds one
 attribute per active zone. The attribute name is prefixed with a well-known
-constant:
+constant derived from the class name:
 
 ```
-org.cloudfoundry.identity.uaa.zone.ZoneContextPathSession.<key>
+org.cloudfoundry.identity.uaa.zone.ZonePathHttpSession.<key>
 ```
 
 Where `<key>` is the context path (e.g. `/uaa/z/tenant`) or `"default"` for the
-root context path. Because `"default"` is a reserved sentinel,
-`ZonePathContextRewritingFilter` rejects requests to `/z/default/...` with
-`400 Bad Request` to prevent any possibility of key collision.
+root context path (empty string maps to `"default"`).
+
+Requests to `/z/default/...` are **not** rejected. They are rewritten so that
+the context path **includes** `/z/default` (e.g. `/uaa/z/default`), like any other
+zone path. `ZONE_SUBDOMAIN_FROM_PATH` is **not** set, so
+`IdentityZoneResolvingFilter` falls through to hostname-based resolution and
+naturally resolves the default zone. `ZoneContextPathSessionRequestWrapper`
+maps context path `/uaa/z/default` to the same session key as the root (e.g.
+`/uaa`), so `/profile` and `/z/default/profile` share the **same cookie and
+session**.
 
 Each attribute value is a `ConcurrentHashMap<String, Object>` that holds the
 zone's session attributes (security context, saved requests, CSRF tokens, etc.).
@@ -150,9 +158,9 @@ zone's session attributes (security context, saved requests, CSRF tokens, etc.).
 ```
 Container session id: abc123
   Attributes:
-    ...ZoneContextPathSession.default         → {SPRING_SECURITY_CONTEXT → <admin auth>}
-    ...ZoneContextPathSession./uaa/z/tenant1  → {SPRING_SECURITY_CONTEXT → <alice auth>}
-    ...ZoneContextPathSession./uaa/z/tenant2  → {SPRING_SECURITY_CONTEXT → <bob auth>}
+    ...ZonePathHttpSession.default         → {SPRING_SECURITY_CONTEXT → <admin auth>}
+    ...ZonePathHttpSession./uaa/z/tenant1  → {SPRING_SECURITY_CONTEXT → <alice auth>}
+    ...ZonePathHttpSession./uaa/z/tenant2  → {SPRING_SECURITY_CONTEXT → <bob auth>}
 ```
 
 ## Session Lifecycle
@@ -220,10 +228,10 @@ are considered dirty. Since `ZonePathHttpSession.setAttribute()` mutates the
 session, Spring Session would not detect the change.
 
 `ZoneContextPathSessionFilter` solves this in its `finally` block: after the
-filter chain completes, it iterates all sub-session attributes on the container
-session and re-sets each one via `containerSession.setAttribute(name, value)`.
-This triggers Spring Session's dirty-tracking, ensuring the updated maps are
-persisted to the store.
+filter chain completes, it checks the request's single cached `ZonePathHttpSession`.
+If the session was modified (dirty), it re-sets the attribute map on the container
+session via `containerSession.setAttribute(name, value)`. This triggers Spring
+Session's dirty-tracking, ensuring the updated map is persisted to the store.
 
 ## Test Coverage
 

@@ -135,52 +135,6 @@ class IdentityZoneResolvingFilterZonePathTests {
 
     // ---------- Path-based: zone from context path /z/{subdomain} ----------
 
-    @Nested
-    class PathBasedFromContextPath {
-
-        @Test
-        void zoneFound_fromContextPathZSubdomain_continuesChainWithZoneSet() throws Exception {
-            request.setContextPath("/uaa/z/myzone");
-            request.setRequestURI("/uaa/z/myzone/login");
-            request.setServletPath("/login");
-            request.setServerName("localhost");
-            IdentityZone zone = MultitenancyFixture.identityZone("zone-id", "myzone");
-            when(dao.retrieveBySubdomain(eq("myzone"))).thenReturn(zone);
-
-            filter.doFilter(request, response, chainThatCapturesHolder());
-
-            assertThat(response.getStatus()).isEqualTo(MockHttpServletResponse.SC_OK);
-            assertThat(chainInvoked.get()).isTrue();
-            assertThat(zoneInHolderWhenChainInvoked.get().getSubdomain()).isEqualTo("myzone");
-        }
-
-        @Test
-        void zoneFound_fromContextPathZSubdomainWithTrailingSlash_continuesChain() throws Exception {
-            request.setContextPath("/uaa/z/myzone/");
-            request.setServerName("localhost");
-            IdentityZone zone = MultitenancyFixture.identityZone("zone-id", "myzone");
-            when(dao.retrieveBySubdomain(eq("myzone"))).thenReturn(zone);
-
-            filter.doFilter(request, response, chainThatCapturesHolder());
-
-            assertThat(chainInvoked.get()).isTrue();
-            assertThat(zoneInHolderWhenChainInvoked.get().getSubdomain()).isEqualTo("myzone");
-        }
-
-        @Test
-        void zoneNotFound_fromContextPath_returns404() throws Exception {
-            request.setContextPath("/z/badzone");
-            request.setServerName("localhost");
-            when(dao.retrieveBySubdomain(eq("badzone"))).thenThrow(new EmptyResultDataAccessException(1));
-
-            filter.doFilter(request, response, chainThatCapturesHolder());
-
-            assertThat(response.getStatus()).isEqualTo(MockHttpServletResponse.SC_NOT_FOUND);
-            assertThat(request.getAttribute("error_message_code")).isEqualTo("zone.not.found");
-            assertThat(chainInvoked.get()).isFalse();
-        }
-    }
-
     // ---------- Error: 400 when both path and host subdomain present ----------
 
     @Nested

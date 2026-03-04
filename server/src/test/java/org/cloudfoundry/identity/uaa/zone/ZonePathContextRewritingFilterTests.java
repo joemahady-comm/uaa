@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.cloudfoundry.identity.uaa.zone.ZonePathContextRewritingFilter.DEFAULT_ZONE_SUBDOMAIN_PATH;
+import static org.cloudfoundry.identity.uaa.zone.ZonePathContextRewritingFilter.ZONE_PATH_PREFIX;
 
 class ZonePathContextRewritingFilterTests {
 
@@ -109,28 +111,74 @@ class ZonePathContextRewritingFilterTests {
     }
 
     @Test
-    void pathWithReservedSubdomain_default_rejectsWithBadRequest() throws ServletException, IOException {
+    void pathWithDefaultZonePrefix_withContextPath_rewritesToIncludeZonePathAndDoesNotSetZoneSubdomainFromPath() throws ServletException, IOException {
         request.setContextPath("/uaa");
-        request.setRequestURI("/uaa/z/default/login");
+        request.setRequestURI("/uaa" + ZONE_PATH_PREFIX + DEFAULT_ZONE_SUBDOMAIN_PATH + "/login");
+        request.setServerName("localhost");
+        request.setServerPort(8080);
+        request.setScheme("http");
 
         FilterChain chain = (req, res) -> requestPassedToChain.set((HttpServletRequest) req);
         filter.doFilter(request, response, chain);
 
-        assertThat(requestPassedToChain.get()).isNull();
-        assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_BAD_REQUEST);
-        assertThat(response.getErrorMessage()).contains("reserved");
+        HttpServletRequest passed = requestPassedToChain.get();
+        assertThat(passed).isNotSameAs(request);
+        assertThat(passed.getContextPath()).isEqualTo("/uaa/z/" + DEFAULT_ZONE_SUBDOMAIN_PATH);
+        assertThat(passed.getServletPath()).isEqualTo("/login");
+        assertThat(passed.getRequestURI()).isEqualTo("/uaa/z/" + DEFAULT_ZONE_SUBDOMAIN_PATH + "/login");
+        assertThat(passed.getPathInfo()).isNull();
+        assertThat(passed.getAttribute(ZonePathContextRewritingFilter.ZONE_SUBDOMAIN_FROM_PATH)).isNull();
+        assertThat(passed.getAttribute(ZonePathContextRewritingFilter.ZONE_ORIGINAL_CONTEXT_PATH)).isEqualTo("/uaa");
     }
 
     @Test
-    void pathWithReservedSubdomain_DEFAULT_caseInsensitive_rejectsWithBadRequest() throws ServletException, IOException {
-        request.setContextPath("/uaa");
-        request.setRequestURI("/uaa/z/DEFAULT/login");
+    void pathWithDefaultZonePrefix_withoutContextPath_rewritesToIncludeZonePathAndDoesNotSetZoneSubdomainFromPath() throws ServletException, IOException {
+        request.setContextPath("");
+        request.setRequestURI(ZONE_PATH_PREFIX + DEFAULT_ZONE_SUBDOMAIN_PATH + "/login");
+        request.setServerName("localhost");
+        request.setServerPort(8080);
 
         FilterChain chain = (req, res) -> requestPassedToChain.set((HttpServletRequest) req);
         filter.doFilter(request, response, chain);
 
-        assertThat(requestPassedToChain.get()).isNull();
-        assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_BAD_REQUEST);
+        HttpServletRequest passed = requestPassedToChain.get();
+        assertThat(passed).isNotSameAs(request);
+        assertThat(passed.getContextPath()).isEqualTo("/z/" + DEFAULT_ZONE_SUBDOMAIN_PATH);
+        assertThat(passed.getServletPath()).isEqualTo("/login");
+        assertThat(passed.getRequestURI()).isEqualTo("/z/" + DEFAULT_ZONE_SUBDOMAIN_PATH + "/login");
+        assertThat(passed.getAttribute(ZonePathContextRewritingFilter.ZONE_SUBDOMAIN_FROM_PATH)).isNull();
+        assertThat(passed.getAttribute(ZonePathContextRewritingFilter.ZONE_ORIGINAL_CONTEXT_PATH)).isEqualTo("");
+    }
+
+    @Test
+    void pathWithDefaultZonePrefix_DEFAULT_caseInsensitive_rewritesSameAsLowercase() throws ServletException, IOException {
+        request.setContextPath("/uaa");
+        request.setRequestURI("/uaa/z/" + DEFAULT_ZONE_SUBDOMAIN_PATH.toUpperCase() + "/profile");
+
+        FilterChain chain = (req, res) -> requestPassedToChain.set((HttpServletRequest) req);
+        filter.doFilter(request, response, chain);
+
+        HttpServletRequest passed = requestPassedToChain.get();
+        assertThat(passed.getContextPath()).isEqualTo("/uaa/z/" + DEFAULT_ZONE_SUBDOMAIN_PATH);
+        assertThat(passed.getServletPath()).isEqualTo("/profile");
+        assertThat(passed.getRequestURI()).isEqualTo("/uaa/z/" + DEFAULT_ZONE_SUBDOMAIN_PATH + "/profile");
+        assertThat(passed.getAttribute(ZonePathContextRewritingFilter.ZONE_SUBDOMAIN_FROM_PATH)).isNull();
+    }
+
+    @Test
+    void pathWithDefaultZonePrefix_trailingSlash_rewritesWithServletPathEmptyAndPathInfoSlash() throws ServletException, IOException {
+        request.setContextPath("/uaa");
+        request.setRequestURI("/uaa" + ZONE_PATH_PREFIX + DEFAULT_ZONE_SUBDOMAIN_PATH + "/");
+
+        FilterChain chain = (req, res) -> requestPassedToChain.set((HttpServletRequest) req);
+        filter.doFilter(request, response, chain);
+
+        HttpServletRequest passed = requestPassedToChain.get();
+        assertThat(passed.getContextPath()).isEqualTo("/uaa/z/" + DEFAULT_ZONE_SUBDOMAIN_PATH);
+        assertThat(passed.getServletPath()).isEmpty();
+        assertThat(passed.getPathInfo()).isEqualTo("/");
+        assertThat(passed.getRequestURI()).isEqualTo("/uaa/z/" + DEFAULT_ZONE_SUBDOMAIN_PATH + "/");
+        assertThat(passed.getAttribute(ZonePathContextRewritingFilter.ZONE_SUBDOMAIN_FROM_PATH)).isNull();
     }
 
     @Test

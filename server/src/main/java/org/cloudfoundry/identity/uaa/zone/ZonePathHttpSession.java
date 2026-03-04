@@ -7,6 +7,8 @@ import java.util.Enumeration;
 import java.util.Map;
 import java.util.Collections;
 
+import static org.cloudfoundry.identity.uaa.zone.ZonePathContextRewritingFilter.DEFAULT_ZONE_SUBDOMAIN_PATH;
+
 /**
  * HttpSession view scoped to a context path. Attributes are stored in a map held
  * in the container session under one attribute per context path. {@link #invalidate()}
@@ -24,7 +26,7 @@ public class ZonePathHttpSession implements HttpSession {
      * Key used for the root context path (empty or "/") in sub-session attribute names and session ID suffixes.
      * Also reserved as a zone subdomain to prevent collisions.
      */
-    public static final String DEFAULT_CONTEXT_PATH_KEY = "default";
+    private static final String DEFAULT_CONTEXT_PATH_KEY = DEFAULT_ZONE_SUBDOMAIN_PATH;
 
     private final HttpSession containerSession;
     private final Map<String, Object> attributes;
