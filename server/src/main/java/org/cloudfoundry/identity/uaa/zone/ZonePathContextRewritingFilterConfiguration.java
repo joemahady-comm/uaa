@@ -16,7 +16,7 @@ public class ZonePathContextRewritingFilterConfiguration {
      */
     @Bean(ZonePathContextRewritingFilter.BEAN_NAME)
     FilterRegistrationBean<ZonePathContextRewritingFilter> zonePathContextRewritingFilter(
-            @Value("${zones.paths.enabled:true}") boolean zonePathsEnabled) {
+            @Value("${zones.paths.enabled:false}") boolean zonePathsEnabled) {
         ZonePathContextRewritingFilter filter = new ZonePathContextRewritingFilter(zonePathsEnabled);
         FilterRegistrationBean<ZonePathContextRewritingFilter> bean = new FilterRegistrationBean<>(filter);
         bean.addUrlPatterns("/*");
