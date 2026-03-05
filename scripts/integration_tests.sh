@@ -115,25 +115,38 @@ function main() {
         --no-configuration-cache \
         compileTestJava
 
+      # In CI, use single worker to reduce memory pressure and avoid OOM/hangs
+      local gradle_workers=2 max_workers=2
+      if [[ -n "${CI:-}" ]] || [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+        gradle_workers=1
+        max_workers=1
+      fi
+
       # Explicit memory limits for test JVMs with GC tuning and classloader fixes
       # All flags required to prevent classloading deadlocks and thread starvation during test init
+      # Per-test timeout (5 min) so a stuck test fails instead of hanging the job
+      # ExitOnOutOfMemoryError so OOM leads to clear failure, not a hung process
       ./gradlew \
         -Dspring.profiles.active="${test_profile}" \
         -Djava.security.egd=file:/dev/./urandom \
         -DskipUaaAutoStart=true \
-        -Dorg.gradle.jvmargs="-Dfile.encoding=utf8 -Xms64m -Xmx${gradle_test_heap} -XX:MaxMetaspaceSize=128m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:ParallelGCThreads=2 -XX:CICompilerCount=2 -Djdk.lang.processReaperUseDefaultStackSize=true" \
+        -Djunit.jupiter.execution.timeout.default=300000 \
+        -Dorg.gradle.jvmargs="-Dfile.encoding=utf8 -Xms64m -Xmx${gradle_test_heap} -XX:MaxMetaspaceSize=128m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:ParallelGCThreads=2 -XX:CICompilerCount=2 -Djdk.lang.processReaperUseDefaultStackSize=true -XX:+ExitOnOutOfMemoryError" \
         -Dorg.gradle.daemon.idletimeout=300000 \
         -Dorg.gradle.parallel=false \
-        -Dorg.gradle.workers.max=2 \
+        -Dorg.gradle.workers.max=${gradle_workers} \
         ${UAA_GRADLE_INT_TEST_COMMAND:-integrationTest} \
         --no-watch-fs \
         --no-daemon \
         --no-configuration-cache \
-        --max-workers=2 \
+        --max-workers=${max_workers} \
         --stacktrace \
         --console=plain
 
       { set +x; } 2>/dev/null
+
+      echo "Memory after integration tests:"
+      display_memory
       
       # Clean up: kill the boot server
       if [[ -f boot.pid ]]; then

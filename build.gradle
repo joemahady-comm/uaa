@@ -152,17 +152,19 @@ subprojects {
 
     tasks.register('integrationTest', Test) {
         dependsOn subprojects.integrationTest
-        
+
         useJUnitPlatform()
 
-        // This prevents integrationTests from hanging indefinitely
-        timeout = Duration.ofMinutes(180)
-        
+        // This prevents integrationTests from hanging indefinitely (align with workflow timeout-minutes: 20)
+        timeout = Duration.ofMinutes(20)
+
         // Integration test workers need same memory as unit tests
         // Actual CI configuration is controlled via integration_tests.sh script
+        // ExitOnOutOfMemoryError so OOM leads to clear failure, not a hung process
         jvmArgs += ["-Xmx640m",
                     "-XX:+StartAttachListener",
                     "-XX:+HeapDumpOnOutOfMemoryError",
+                    "-XX:+ExitOnOutOfMemoryError",
                     "-XX:HeapDumpPath=/var/log/uaa-tests.hprof"
         ]
 
