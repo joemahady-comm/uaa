@@ -26,7 +26,7 @@ This is useful in deployments where wildcard DNS or wildcard TLS certificates ar
 
 6. **Default zone path** — The path prefix `/z/default/` is supported. The context path still includes `/z/default` (e.g. `getContextPath()` is `/uaa/z/default`), like any other zone path. What is unique is that the **session** (and thus the cookie) for `/z/default/` is the same as for the root path: `/profile` and `/z/default/profile` share the same JSESSIONID and session data (default zone). This allows clients to use a uniform URL pattern (always under `/z/{zone}/`) while still addressing the default zone.
 
-7. **Comprehensive test coverage** — 45 new test classes providing unit, MockMvc, and integration test coverage for the new feature, plus ZonePath variants of most existing MockMvc test suites.
+7. **Comprehensive test coverage** — 38 zone-path-specific test classes (conditionally run when `zones.paths.enabled=true`), plus unit tests for the filter and session implementation (`ZonePathContextRewritingFilterTests`, `ZoneContextPathSessionTests`), and ZonePath variants of most existing MockMvc test suites.
 
 ---
 
@@ -157,9 +157,9 @@ The entire zone-path feature can be enabled or disabled at runtime through the `
 
 ### How it works
 
-`ZonePathContextRewritingFilter` accepts a `boolean zonePathsEnabled` constructor parameter (defaulting to `true`). When the flag is `false`, any request whose path starts with `/z/` receives a **404 Not Found** response immediately — the filter does not rewrite the request or invoke the rest of the filter chain. Non-zone-path requests are unaffected and pass through normally regardless of the flag.
+`ZonePathContextRewritingFilter` accepts a `boolean zonePathsEnabled` constructor parameter. When the flag is `false`, any request whose path starts with `/z/` receives a **404 Not Found** response immediately — the filter does not rewrite the request or invoke the rest of the filter chain. Non-zone-path requests are unaffected and pass through normally regardless of the flag.
 
-`ZonePathContextRewritingFilterConfiguration` reads the property via `@Value("${zones.paths.enabled:true}")` and passes it to the filter constructor.
+`ZonePathContextRewritingFilterConfiguration` reads the property via `@Value("${zones.paths.enabled:false}")` and passes it to the filter constructor. The **default is `false`** so that zone paths are off unless explicitly enabled.
 
 ### Configuration
 
@@ -193,7 +193,7 @@ The flag is forwarded from Gradle's `-D` arguments to the test JVM and the `boot
 
 ### Test skipping mechanism
 
-All zone-path test classes (42 unit/MockMvc test classes + `ZoneSessionPathsIT`) are annotated with `@EnabledIfZonePathsEnabled`, a meta-annotation backed by JUnit 5's `@EnabledIfSystemProperty(named = "zones.paths.enabled", matches = "true")`. When the system property is `false`, these tests are reported as **skipped** rather than failing.
+All zone-path-specific test classes (37 unit/MockMvc test classes + `ZoneSessionPathsIT` = 38 total) are annotated with `@EnabledIfZonePathsEnabled`, a meta-annotation backed by JUnit 5's `@EnabledIfSystemProperty(named = "zones.paths.enabled", matches = "true")`. When the system property is `false`, these tests are reported as **skipped** rather than failing. (Unit tests for the filter and session implementation itself — `ZonePathContextRewritingFilterTests`, `ZoneContextPathSessionTests` — run in all modes and are not annotated.)
 
 ---
 
@@ -256,6 +256,6 @@ Beyond the session access pattern, two notable changes:
 
 ## Summary
 
-This is a large but well-structured changeset. The production code additions (~1,000 lines across 7 new classes + 5 modified files) are focused and cohesive, implementing a clear filter-chain-based architecture. The overwhelming majority of the diff (~29,400 lines) is test code: 45 new ZonePath test classes that mirror existing test suites under zone-path mode, plus mechanical adjustments to 12 existing test classes to account for session attribute namespacing.
+This is a large but well-structured changeset. The production code additions (~1,000 lines across 7 new classes + 5 modified files) are focused and cohesive, implementing a clear filter-chain-based architecture. The overwhelming majority of the diff (~29,400 lines) is test code: 38 zone-path-specific test classes (plus filter/session unit tests) that mirror existing test suites under zone-path mode, plus mechanical adjustments to 12 existing test classes to account for session attribute namespacing.
 
 The modifications to existing production code are minimal and surgical — no behavioral changes for subdomain-based zone resolution, no changes to database schemas, and no API contract changes. The existing test adjustments are all a direct consequence of the `ZoneContextPathSessionFilter` being added to the MockMvc filter chain, which namespaces all session attributes under a sub-session map.
