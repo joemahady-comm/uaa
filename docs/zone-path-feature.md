@@ -2,6 +2,31 @@
 
 ## 1. High-Level Overview
 
+### Configuration
+
+#### New configuration options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `zones.paths.enabled` | boolean | `false` | When `true`, enables path-based zone resolution. Requests to `/z/{subdomain}/*` are rewritten so the zone is taken from the path and the rest of the app sees a normal servlet path. When `false`, any request whose path starts with `/z/` receives **404 Not Found**. Non-zone-path requests are unaffected. |
+
+YAML (under top-level `zones:`):
+
+```yaml
+zones:
+  paths:
+    enabled: true   # or false
+```
+
+- **Production default:** `uaa/src/main/resources/uaa.yml` sets `zones.paths.enabled: false`, so zone paths are off unless the deployer enables them.
+- **Integration / test:** `scripts/boot/uaa.yml` and `uaa/src/test/resources/integration_test_properties.yml` set `zones.paths.enabled: true` so tests can exercise the feature.
+
+#### Changed configuration options
+
+None. No existing configuration options were changed by this feature.
+
+---
+
 ### What was implemented
 
 This changeset introduces **path-based identity zone resolution** as an alternative to the existing subdomain-based mechanism. Previously, UAA multi-tenancy worked exclusively through subdomains (e.g., `myzone.uaa.example.com`). With this feature, zones can also be addressed through a URL path prefix:
@@ -9,6 +34,8 @@ This changeset introduces **path-based identity zone resolution** as an alternat
 ```
 https://uaa.example.com/z/{subdomain}/login
 ```
+
+There is one **hardcoded default**: when `{subdomain}` is `default`, the request is for the **default zone**. That path is equivalent to the same URL without the `/z/default` prefix. For example, `https://uaa.example.com/z/default/oauth/token` is the same as `https://uaa.example.com/oauth/token` (same zone, same session, same behavior).
 
 This is useful in deployments where wildcard DNS or wildcard TLS certificates are not available or practical. A single hostname with a single certificate can now serve multiple identity zones.
 
