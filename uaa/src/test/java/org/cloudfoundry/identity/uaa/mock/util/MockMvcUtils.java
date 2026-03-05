@@ -140,8 +140,8 @@ public final class MockMvcUtils {
 
     /**
      * Returns the {@link ZonePathHttpSession} (sub-session view) for the given context path
-     * from a container session. Use after a request to read/write attributes that the
-     * filter stored inside the sub-session map.
+     * from a container session. Use after a request to read/write attributes; they are
+     * stored directly on the container session under prefixed keys.
      *
      * @param contextPath e.g. "" for default, "/uaa", or "/z/myzone"
      */
@@ -151,13 +151,7 @@ public final class MockMvcUtils {
         }
         String key = (contextPath != null) ? contextPath : "";
         String attributeName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath(key);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> attributes = (Map<String, Object>) containerSession.getAttribute(attributeName);
-        if (attributes == null) {
-            attributes = new java.util.concurrent.ConcurrentHashMap<>();
-            containerSession.setAttribute(attributeName, attributes);
-        }
-        return new ZonePathHttpSession(containerSession, key, attributes, attributeName);
+        return new ZonePathHttpSession(containerSession, key, attributeName);
     }
 
     /**

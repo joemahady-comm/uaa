@@ -3,45 +3,52 @@ package org.cloudfoundry.identity.uaa.zone;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpSession;
 
-import java.util.Enumeration;
-import java.util.Map;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Enumeration;
+import java.util.List;
 
 import static org.cloudfoundry.identity.uaa.zone.ZonePathContextRewritingFilter.DEFAULT_ZONE_SUBDOMAIN_PATH;
 
 /**
- * HttpSession view scoped to a context path. Attributes are stored in a map held
- * in the container session under one attribute per context path. {@link #invalidate()}
- * clears this context path's attributes and removes the attribute from the container
- * session; it does not invalidate the container session itself.
+ * HttpSession view scoped to a context path. Each attribute is stored directly on the
+ * container session under a prefixed key: {@code containerSessionAttributeName + ATTRIBUTE_KEY_DELIMITER + name}.
+ * This ensures Spring Session's dirty-tracking sees every read/write immediately and
+ * avoids timing issues (e.g. with MySQL JDBC session store). {@link #invalidate()}
+ * removes all attributes for this context path from the container session; it does
+ * not invalidate the container session itself.
  * <p>
  * Each subsession has a unique {@link #getId()} so that session repositories and
  * the application can distinguish subsessions: container session ID plus the context
- * path with '/' replaced by '-'. The application only reads and writes attributes
- * through this view (the context-path map), not the container session.
+ * path with '/' replaced by '-'.
  */
 public class ZonePathHttpSession implements HttpSession {
 
     /**
-     * Key used for the root context path (empty or "/") in sub-session attribute names and session ID suffixes.
+     * Delimiter between the zone prefix and the attribute name on the container session.
+     * Public so tests and other code can build container keys without hardcoding the delimiter.
+     */
+    public static final String ATTRIBUTE_KEY_DELIMITER = ".";
+
+    /**
+     * Key used for the root context path (empty or "/") in session ID suffixes.
      * Also reserved as a zone subdomain to prevent collisions.
      */
     private static final String DEFAULT_CONTEXT_PATH_KEY = DEFAULT_ZONE_SUBDOMAIN_PATH;
 
     private final HttpSession containerSession;
-    private final Map<String, Object> attributes;
     private final String containerSessionAttributeName;
+    /** Prefix for this zone's attributes on the container: containerSessionAttributeName + ATTRIBUTE_KEY_DELIMITER */
+    private final String attributeKeyPrefix;
     /** Suffix for {@link #getId()}: context path with '/' replaced by '-', or {@link #DEFAULT_CONTEXT_PATH_KEY} for root. */
     private final String sessionIdSuffix;
-    private boolean dirty;
 
     public ZonePathHttpSession(HttpSession containerSession,
                                String contextPathKey,
-                               Map<String, Object> attributes,
                                String containerSessionAttributeName) {
         this.containerSession = containerSession;
-        this.attributes = attributes;
         this.containerSessionAttributeName = containerSessionAttributeName;
+        this.attributeKeyPrefix = containerSessionAttributeName + ATTRIBUTE_KEY_DELIMITER;
         this.sessionIdSuffix = sessionIdSuffixFromContextPath(contextPathKey);
     }
 
@@ -53,25 +60,28 @@ public class ZonePathHttpSession implements HttpSession {
         return suffix.isEmpty() ? DEFAULT_CONTEXT_PATH_KEY : suffix;
     }
 
+    private String containerKey(String name) {
+        return containerSessionAttributeName + ATTRIBUTE_KEY_DELIMITER + name;
+    }
+
     @Override
     public Object getAttribute(String name) {
-        return attributes.get(name);
+        return containerSession.getAttribute(containerKey(name));
     }
 
     @Override
     public void setAttribute(String name, Object value) {
-        dirty = true;
+        String key = containerKey(name);
         if (value != null) {
-            attributes.put(name, value);
+            containerSession.setAttribute(key, value);
         } else {
-            attributes.remove(name);
+            containerSession.removeAttribute(key);
         }
     }
 
     @Override
     public void removeAttribute(String name) {
-        dirty = true;
-        attributes.remove(name);
+        containerSession.removeAttribute(containerKey(name));
     }
 
     @Override
@@ -111,31 +121,37 @@ public class ZonePathHttpSession implements HttpSession {
 
     @Override
     public void invalidate() {
-        dirty = false;
-        attributes.clear();
-        containerSession.removeAttribute(containerSessionAttributeName);
-    }
-
-    public boolean isDirty() {
-        return dirty;
-    }
-
-    /**
-     * Re-sets this sub-session's attribute map on the container session so that
-     * Spring Session's dirty-tracking detects the change, then clears the dirty flag.
-     * Silently does nothing if the container session has been invalidated.
-     */
-    public void flushToContainerSession() {
-        try {
-            containerSession.setAttribute(containerSessionAttributeName, attributes);
-        } catch (IllegalStateException ignored) {
-            // Container session was invalidated during the request
+        List<String> toRemove = new ArrayList<>();
+        Enumeration<String> names = containerSession.getAttributeNames();
+        if (names != null) {
+            while (names.hasMoreElements()) {
+                String name = names.nextElement();
+                if (name.startsWith(attributeKeyPrefix)) {
+                    toRemove.add(name);
+                }
+            }
         }
-        dirty = false;
+        for (String name : toRemove) {
+            try {
+                containerSession.removeAttribute(name);
+            } catch (IllegalStateException ignored) {
+                // Container session was invalidated
+            }
+        }
     }
 
     @Override
     public Enumeration<String> getAttributeNames() {
-        return Collections.enumeration(attributes.keySet());
+        List<String> result = new ArrayList<>();
+        Enumeration<String> names = containerSession.getAttributeNames();
+        if (names != null) {
+            while (names.hasMoreElements()) {
+                String name = names.nextElement();
+                if (name.startsWith(attributeKeyPrefix)) {
+                    result.add(name.substring(attributeKeyPrefix.length()));
+                }
+            }
+        }
+        return Collections.enumeration(result);
     }
 }

@@ -10,15 +10,14 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import static org.cloudfoundry.identity.uaa.zone.ZonePathContextRewritingFilter.DEFAULT_ZONE_SUBDOMAIN_PATH;
 
 /**
  * Request wrapper that intercepts {@link #getSession(boolean)} and returns a
  * {@link ZonePathHttpSession} scoped to the current context path
- * (or "" if none). The container session holds one attribute per context path,
- * each value being the attribute map for that context path's sub-session.
+ * (or "" if none). The container session holds attributes for each context path under prefixed keys
+ * (see {@link ZonePathHttpSession}).
  * <p>
  * A single request always has exactly one context path, so at most one
  * {@link ZonePathHttpSession} is created per wrapper instance.
@@ -61,14 +60,7 @@ public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrap
         String contextPathKey = contextPathKey();
         String attributeName = attributeNameForContextPath(contextPathKey);
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> attributes = (Map<String, Object>) containerSession.getAttribute(attributeName);
-        if (attributes == null) {
-            attributes = new ConcurrentHashMap<>();
-            containerSession.setAttribute(attributeName, attributes);
-        }
-
-        cachedSession = new ZonePathHttpSession(containerSession, contextPathKey, attributes, attributeName);
+        cachedSession = new ZonePathHttpSession(containerSession, contextPathKey, attributeName);
         return cachedSession;
     }
 

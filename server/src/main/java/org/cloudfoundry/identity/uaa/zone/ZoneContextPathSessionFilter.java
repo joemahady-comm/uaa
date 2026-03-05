@@ -18,9 +18,8 @@ import java.util.Enumeration;
  * (when Spring Session is active) so that the zone session wrapper delegates to the
  * Spring Session-backed session.
  *
- * <p>After the filter chain completes, flushes only dirty sub-session attribute maps back
- * to the container session via {@code setAttribute} so that Spring Session's
- * dirty-tracking detects the changes and persists them.
+ * <p>Zone session attributes are written directly to the container session (see
+ * {@link ZonePathHttpSession}), so no flush step is needed.
  */
 public class ZoneContextPathSessionFilter extends OncePerRequestFilter {
 
@@ -36,20 +35,7 @@ public class ZoneContextPathSessionFilter extends OncePerRequestFilter {
         try {
             filterChain.doFilter(wrappedRequest, wrappedResponse);
         } finally {
-            flushSubSessionAttributes(wrappedRequest);
             maybeClearJSessionIdIfNoSubSessions(request, wrappedResponse);
-        }
-    }
-
-    /**
-     * Re-sets the dirty sub-session attribute map on the container session so that
-     * Spring Session's dirty-tracking picks up in-place modifications to the map
-     * contents. Only flushed if the sub-session was actually modified during the request.
-     */
-    private void flushSubSessionAttributes(ZoneContextPathSessionRequestWrapper wrappedRequest) {
-        ZonePathHttpSession session = wrappedRequest.getCachedSession();
-        if (session != null && session.isDirty()) {
-            session.flushToContainerSession();
         }
     }
 

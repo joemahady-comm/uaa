@@ -16,8 +16,6 @@ import org.springframework.mock.web.MockHttpSession;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,22 +32,19 @@ class ZoneContextPathSessionTests {
     class ZonePathHttpSessionTests {
 
         private MockHttpSession containerSession;
-        private Map<String, Object> attributes;
         private ZonePathHttpSession subSession;
         private String containerAttributeName;
 
         @BeforeEach
         void setUp() {
             containerSession = new MockHttpSession();
-            attributes = new ConcurrentHashMap<>();
             containerAttributeName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/myzone");
-            containerSession.setAttribute(containerAttributeName, attributes);
-            subSession = new ZonePathHttpSession(containerSession, "/uaa/z/myzone", attributes, containerAttributeName);
+            subSession = new ZonePathHttpSession(containerSession, "/uaa/z/myzone", containerAttributeName);
         }
 
         @Test
-        void getAttribute_returnsValueFromSubSessionMap() {
-            attributes.put("key", "value");
+        void getAttribute_returnsValueFromContainerSession() {
+            subSession.setAttribute("key", "value");
             assertThat(subSession.getAttribute("key")).isEqualTo("value");
         }
 
@@ -59,30 +54,30 @@ class ZoneContextPathSessionTests {
         }
 
         @Test
-        void setAttribute_putsValueInSubSessionMap() {
+        void setAttribute_putsValueOnContainerSession() {
             subSession.setAttribute("foo", "bar");
-            assertThat(attributes.get("foo")).isEqualTo("bar");
+            assertThat(containerSession.getAttribute(containerAttributeName + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "foo")).isEqualTo("bar");
         }
 
         @Test
         void setAttribute_withNull_removesKey() {
-            attributes.put("foo", "bar");
+            subSession.setAttribute("foo", "bar");
             subSession.setAttribute("foo", null);
-            assertThat(attributes).doesNotContainKey("foo");
+            assertThat(containerSession.getAttribute(containerAttributeName + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "foo")).isNull();
         }
 
         @Test
-        void removeAttribute_removesFromSubSessionMap() {
-            attributes.put("key", "value");
+        void removeAttribute_removesFromContainerSession() {
+            subSession.setAttribute("key", "value");
             subSession.removeAttribute("key");
-            assertThat(attributes).doesNotContainKey("key");
+            assertThat(containerSession.getAttribute(containerAttributeName + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "key")).isNull();
         }
 
         @Test
         void getAttributeNames_returnsSubSessionKeysOnly() {
             containerSession.setAttribute("containerOnly", "x");
-            attributes.put("zone1", "a");
-            attributes.put("zone2", "b");
+            subSession.setAttribute("zone1", "a");
+            subSession.setAttribute("zone2", "b");
 
             List<String> names = Collections.list(subSession.getAttributeNames());
             assertThat(names).containsExactlyInAnyOrder("zone1", "zone2");
@@ -98,7 +93,7 @@ class ZoneContextPathSessionTests {
         @Test
         void getId_defaultSuffix_forEmptyContextPath() {
             ZonePathHttpSession defaultSubSession = new ZonePathHttpSession(
-                    containerSession, "", new ConcurrentHashMap<>(), "irrelevant");
+                    containerSession, "", "irrelevant");
             assertThat(defaultSubSession.getId()).endsWith("-default");
         }
 
@@ -119,47 +114,38 @@ class ZoneContextPathSessionTests {
 
         @Test
         void invalidate_clearsSubSessionButNotContainer() {
-            attributes.put("secCtx", "auth");
+            subSession.setAttribute("secCtx", "auth");
             subSession.invalidate();
 
-            assertThat(attributes).isEmpty();
-            assertThat(containerSession.getAttribute(containerAttributeName)).isNull();
+            assertThat(containerSession.getAttribute(containerAttributeName + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "secCtx")).isNull();
             assertThat(containerSession.isInvalid()).isFalse();
         }
 
         @Test
         void invalidate_leavesOtherSubSessionsIntact() {
             String otherAttrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/other");
-            Map<String, Object> otherAttrs = new ConcurrentHashMap<>();
-            otherAttrs.put("otherKey", "otherVal");
-            containerSession.setAttribute(otherAttrName, otherAttrs);
+            containerSession.setAttribute(otherAttrName + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "otherKey", "otherVal");
 
             subSession.invalidate();
 
-            assertThat(containerSession.getAttribute(otherAttrName)).isSameAs(otherAttrs);
-            assertThat(otherAttrs).containsEntry("otherKey", "otherVal");
+            assertThat(containerSession.getAttribute(otherAttrName + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "otherKey")).isEqualTo("otherVal");
         }
 
         @Test
-        void containerSession_invalidated_subSessionAttributesStillAccessibleFromMap() {
-            attributes.put("data", "value");
+        void containerSession_invalidated_subSessionGetAttributeThrows() {
+            subSession.setAttribute("data", "value");
             containerSession.invalidate();
 
-            // The sub-session attributes live in a ConcurrentHashMap that is independent
-            // of container session validity. The map itself remains readable even after
-            // the container session is invalidated; only container-delegated methods
-            // (like getCreationTime) throw.
-            assertThat(subSession.getAttribute("data")).isEqualTo("value");
+            // With direct container storage, sub-session getAttribute delegates to container and throws.
             assertThatThrownBy(() -> subSession.getCreationTime())
                     .isInstanceOf(IllegalStateException.class);
         }
 
         @Test
         void attributeIsolation_acrossSubSessions() {
-            Map<String, Object> otherAttrs = new ConcurrentHashMap<>();
+            String otherAttrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/other");
             ZonePathHttpSession otherSubSession = new ZonePathHttpSession(
-                    containerSession, "/uaa/z/other", otherAttrs,
-                    ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/other"));
+                    containerSession, "/uaa/z/other", otherAttrName);
 
             subSession.setAttribute("shared-name", "zone1-value");
             otherSubSession.setAttribute("shared-name", "zone2-value");
@@ -193,12 +179,12 @@ class ZoneContextPathSessionTests {
         }
 
         @Test
-        void getSession_createsSubSessionMapOnContainerSession() {
-            wrapper.getSession(true);
+        void getSession_storesAttributesOnContainerSessionUnderPrefixedKeys() {
+            HttpSession session = wrapper.getSession(true);
+            session.setAttribute("x", "y");
             HttpSession containerSession = request.getSession(false);
             String attrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/zone1");
-            assertThat(containerSession.getAttribute(attrName)).isNotNull();
-            assertThat(containerSession.getAttribute(attrName)).isInstanceOf(Map.class);
+            assertThat(containerSession.getAttribute(attrName + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "x")).isEqualTo("y");
         }
 
         @Test
@@ -207,7 +193,7 @@ class ZoneContextPathSessionTests {
         }
 
         @Test
-        void getSession_reusesExistingSubSessionMap() {
+        void getSession_reusesExistingSubSessionAttributes() {
             HttpSession first = wrapper.getSession(true);
             first.setAttribute("data", "value");
 
@@ -267,10 +253,7 @@ class ZoneContextPathSessionTests {
 
             String attrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa");
             assertThat(attrName).isEqualTo(ZoneContextPathSessionRequestWrapper.ATTRIBUTE_NAME_PREFIX + "/uaa");
-            assertThat(request.getSession(false).getAttribute(attrName)).isNotNull();
-            @SuppressWarnings("unchecked")
-            Map<String, Object> subMap = (Map<String, Object>) request.getSession(false).getAttribute(attrName);
-            assertThat(subMap).containsEntry("user", "admin");
+            assertThat(request.getSession(false).getAttribute(attrName + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "user")).isEqualTo("admin");
         }
 
         /**
@@ -288,10 +271,7 @@ class ZoneContextPathSessionTests {
 
             String attrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa");
             assertThat(attrName).isEqualTo(ZoneContextPathSessionRequestWrapper.ATTRIBUTE_NAME_PREFIX + "/uaa");
-            assertThat(request.getSession(false).getAttribute(attrName)).isNotNull();
-            @SuppressWarnings("unchecked")
-            Map<String, Object> subMap = (Map<String, Object>) request.getSession(false).getAttribute(attrName);
-            assertThat(subMap).containsEntry("user", "admin");
+            assertThat(request.getSession(false).getAttribute(attrName + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "user")).isEqualTo("admin");
         }
 
         /**
@@ -309,10 +289,7 @@ class ZoneContextPathSessionTests {
 
             String attrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("");
             assertThat(attrName).isEqualTo(ZoneContextPathSessionRequestWrapper.ATTRIBUTE_NAME_PREFIX + "default");
-            assertThat(request.getSession(false).getAttribute(attrName)).isNotNull();
-            @SuppressWarnings("unchecked")
-            Map<String, Object> subMap = (Map<String, Object>) request.getSession(false).getAttribute(attrName);
-            assertThat(subMap).containsEntry("user", "admin");
+            assertThat(request.getSession(false).getAttribute(attrName + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "user")).isEqualTo("admin");
         }
 
         /**
@@ -329,10 +306,7 @@ class ZoneContextPathSessionTests {
             session.setAttribute("user", "admin");
 
             String attrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("");
-            assertThat(request.getSession(false).getAttribute(attrName)).isNotNull();
-            @SuppressWarnings("unchecked")
-            Map<String, Object> subMap = (Map<String, Object>) request.getSession(false).getAttribute(attrName);
-            assertThat(subMap).containsEntry("user", "admin");
+            assertThat(request.getSession(false).getAttribute(attrName + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "user")).isEqualTo("admin");
         }
 
         @Test
@@ -498,13 +472,11 @@ class ZoneContextPathSessionTests {
 
             HttpSession containerSession = request.getSession(false);
             String attrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/zone1");
-            @SuppressWarnings("unchecked")
-            Map<String, Object> subMap = (Map<String, Object>) containerSession.getAttribute(attrName);
-            assertThat(subMap).containsEntry("user", "alice");
+            assertThat(containerSession.getAttribute(attrName + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "user")).isEqualTo("alice");
         }
 
         @Test
-        void flushes_subSessionAttributes_afterChain() throws ServletException, IOException {
+        void sessionAttributes_storedOnContainerImmediately() throws ServletException, IOException {
             request.setContextPath("/uaa/z/zone1");
             MockHttpSession containerSession = new MockHttpSession();
             request.setSession(containerSession);
@@ -515,12 +487,7 @@ class ZoneContextPathSessionTests {
                 capturedRequest.get().getSession(true).setAttribute("data", "value");
             }));
 
-            // After filter completes, the sub-session map should be re-set on the container
-            // session. Verify by checking the attribute is present.
-            assertThat(containerSession.getAttribute(attrName)).isNotNull();
-            @SuppressWarnings("unchecked")
-            Map<String, Object> subMap = (Map<String, Object>) containerSession.getAttribute(attrName);
-            assertThat(subMap).containsEntry("data", "value");
+            assertThat(containerSession.getAttribute(attrName + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "data")).isEqualTo("value");
         }
 
         @Test
@@ -547,11 +514,9 @@ class ZoneContextPathSessionTests {
             MockHttpSession containerSession = new MockHttpSession();
             request.setSession(containerSession);
 
-            // Pre-populate another zone's sub-session
+            // Pre-populate another zone's sub-session (direct attribute)
             String otherAttrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/zone2");
-            Map<String, Object> otherAttrs = new ConcurrentHashMap<>();
-            otherAttrs.put("user", "bob");
-            containerSession.setAttribute(otherAttrName, otherAttrs);
+            containerSession.setAttribute(otherAttrName + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "user", "bob");
 
             filter.doFilter(request, response, capturingChain(() -> {
                 HttpSession sub = capturedRequest.get().getSession(true);
@@ -604,17 +569,11 @@ class ZoneContextPathSessionTests {
                 ((HttpServletRequest) req).getSession(true).setAttribute("user", "bob");
             });
 
-            // Verify both sub-sessions exist on the container
             String z1Attr = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/zone1");
             String z2Attr = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/zone2");
 
-            @SuppressWarnings("unchecked")
-            Map<String, Object> z1Map = (Map<String, Object>) containerSession.getAttribute(z1Attr);
-            @SuppressWarnings("unchecked")
-            Map<String, Object> z2Map = (Map<String, Object>) containerSession.getAttribute(z2Attr);
-
-            assertThat(z1Map).containsEntry("user", "alice");
-            assertThat(z2Map).containsEntry("user", "bob");
+            assertThat(containerSession.getAttribute(z1Attr + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "user")).isEqualTo("alice");
+            assertThat(containerSession.getAttribute(z2Attr + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "user")).isEqualTo("bob");
         }
 
         @Test
@@ -661,13 +620,11 @@ class ZoneContextPathSessionTests {
 
             // Default zone sub-session should still be present
             String defaultAttr = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("");
-            @SuppressWarnings("unchecked")
-            Map<String, Object> defaultMap = (Map<String, Object>) containerSession.getAttribute(defaultAttr);
-            assertThat(defaultMap).containsEntry("user", "admin");
+            assertThat(containerSession.getAttribute(defaultAttr + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "user")).isEqualTo("admin");
 
-            // Zone1 sub-session should be gone
+            // Zone1 sub-session attributes should be gone
             String z1Attr = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/zone1");
-            assertThat(containerSession.getAttribute(z1Attr)).isNull();
+            assertThat(containerSession.getAttribute(z1Attr + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "user")).isNull();
         }
     }
 }
