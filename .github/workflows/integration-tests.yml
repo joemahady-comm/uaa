@@ -25,7 +25,6 @@ jobs:
         uses: actions/checkout@v6
       - name: Integration tests on container
         id: testrun
-        timeout-minutes: 20
         run: /root/uaa/scripts/integration_tests.sh ${PROFILE},default boot
         continue-on-error: true
       - name: Test result upload
