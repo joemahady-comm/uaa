@@ -241,65 +241,6 @@ Session's dirty-tracking, ensuring the updated map is persisted to the store.
 | `ZonePathSessionMockMvcTests` (uaa module, MockMvc) | End-to-end login, profile access, and logout across multiple zones using `MockMvc` with the real filter chain. |
 | `ZoneSessionPathsIT` (uaa module, integration) | Selenium-driven tests against a running UAA server. Logs in to default zone and two path-based zones, verifies profile isolation, verifies logout from one zone leaves others intact. |
 
-## MySQL and Spring Session JDBC
-
-When using Spring Session with the **database** store on **MySQL**, the default
-flush mode (`ON_SAVE`) can cause session attributes written in one request to be
-invisible when the next request loads the session. That leads to flows that
-store data in the session (e.g. the OAuth authorization request with PKCE
-`code_challenge` during `/oauth/authorize`) and then read it on a subsequent
-request (e.g. after login, when the user approves) seeing a null or incomplete
-session, with errors such as "Cannot approve uninitialized authorization request"
-or wrong token responses. The same flows work correctly on PostgreSQL and with
-the in-memory session store.
-
-**Why PostgreSQL works:** With Spring Session JDBC, both MySQL and PostgreSQL
-persist session attributes in a BLOB/BYTEA column. PostgreSQL's transaction
-and commit semantics, together with how the JDBC driver and Spring Session
-interact, typically make writes visible to the next request when the session is
-saved at end of request (`ON_SAVE`). On MySQL, the same sequence can leave the
-next request not seeing the attributes (e.g. different connection, commit
-timing, or BLOB handling). So the issue is timing/visibility of the persisted
-session on MySQL, not the application logic.
-
-**Fixes (both applied for MySQL):**
-
-1. **Flush mode:** For the MySQL profile only, UAA sets
-   `spring.session.jdbc.flush-mode=IMMEDIATE` in
-   `server/src/main/resources/application-mysql.properties`. That makes Spring
-   Session persist session attributes as soon as they are set, so the next
-   request is more likely to see them. PostgreSQL and other stores keep the
-   default `ON_SAVE` (flush at end of request).
-
-2. **Same-request flush of zone session to container:** The zone session
-   (`ZonePathHttpSession`) holds attributes in a map stored as one attribute on
-   the container session. Spring MVC stores `@SessionAttributes` (e.g. the
-   authorization request) in the model; the framework copies them to the session
-   after the controller returns, and the zone filter flushes that map to the
-   container session in its `finally` block. On MySQL, that ordering can still
-   leave the container session not updated or not persisted before the response
-   is sent. So in `UaaAuthorizationEndpoint`, after placing the authorization
-   request in the model, we also set the same attributes directly on the
-   session and, when the session is a `ZonePathHttpSession`, call
-   `flushToContainerSession()` immediately. That puts the attributes in the
-   container session in the same request and triggers Spring Session's
-   dirty-tracking (and with `IMMEDIATE`, persistence) before the controller
-   returns, so the next request reliably sees them on all databases.
-
-When the integration test task starts the UAA server with the `mysql` profile
-(see `uaa/build.gradle`), it also passes
-`-Dspring.session.jdbc.flush-mode=IMMEDIATE` on the JVM command line so the
-flush-mode fix is active for the full integration test suite.
-
-**Remaining limitation:** Flows that trigger a **session ID change on login**
-(session fixation protection) create a new session and copy attributes from the
-old one. On MySQL, that copy or the new session’s persistence can still exhibit
-visibility issues in some cases, so a few tests (e.g. some OpenID hybrid flow
-tests) may pass on PostgreSQL but fail on MySQL. If you see such a failure, it
-is the same class of MySQL + Spring Session JDBC behaviour; further mitigation
-would require changing how the new session is persisted or avoiding session ID
-change for the MySQL profile (with security trade-offs).
-
 ## Configuration
 
 | Property | Value | Effect |
@@ -307,4 +248,3 @@ change for the MySQL profile (with security trade-offs).
 | `servlet.session-store` | `database` or `memory` | Selects Spring Session JDBC or in-memory store. |
 | `servlet.session-cookie.encode-base64` | `true`/`false` | Base64 encoding of the JSESSIONID value. |
 | Cookie path | Fixed to `"/"` in `UaaSessionConfig` | Ensures one JSESSIONID is sent for all paths; rewritten to context path by `CookiePathRewritingResponse`. |
-| `spring.session.jdbc.flush-mode` (MySQL only) | `IMMEDIATE` in `application-mysql.properties` | Ensures session attributes are visible on the next request; see [MySQL and Spring Session JDBC](#mysql-and-spring-session-jdbc). |
