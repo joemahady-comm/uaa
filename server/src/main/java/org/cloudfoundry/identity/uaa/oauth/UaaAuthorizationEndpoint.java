@@ -24,6 +24,7 @@ import org.cloudfoundry.identity.uaa.oauth.provider.endpoint.AbstractEndpoint;
 import org.cloudfoundry.identity.uaa.util.UaaHttpRequestUtils;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.cloudfoundry.identity.uaa.zone.MultitenantClientServices;
+import org.cloudfoundry.identity.uaa.zone.ZonePathHttpSession;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -69,6 +70,7 @@ import org.springframework.web.util.UriUtils;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.net.URI;
 import java.security.Principal;
@@ -254,6 +256,16 @@ public class UaaAuthorizationEndpoint extends AbstractEndpoint implements Authen
                 model.put(AUTHORIZATION_REQUEST, authorizationRequest);
                 model.put("original_uri", UrlUtils.buildFullRequestUrl(request));
                 model.put(ORIGINAL_AUTHORIZATION_REQUEST, unmodifiableMap(authorizationRequest));
+                // Store in session immediately and flush zone session to container session so that
+                // Spring Session (e.g. JDBC on MySQL) persists the attributes before the response is sent.
+                // Without this, the next request can load a session that does not yet see these attributes.
+                HttpSession session = request.getSession(true);
+                session.setAttribute(AUTHORIZATION_REQUEST, authorizationRequest);
+                session.setAttribute("original_uri", UrlUtils.buildFullRequestUrl(request));
+                session.setAttribute(ORIGINAL_AUTHORIZATION_REQUEST, unmodifiableMap(authorizationRequest));
+                if (session instanceof ZonePathHttpSession zoneSession) {
+                    zoneSession.flushToContainerSession();
+                }
                 // skip CSRF check for the authorize endpoint and internal forward to the user approval page
                 if (request.getServletPath().endsWith("/oauth/authorize")) {
                     CsrfFilter.skipRequest(request);

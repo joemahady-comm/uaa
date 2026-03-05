@@ -247,15 +247,17 @@ integrationTest {
         def springProfile = System.getProperty("spring.profiles.active", "hsqldb")
         def warFile = file("build/libs/cloudfoundry-identity-uaa-0.0.0.war")
         def bootDir = rootProject.file("scripts/boot")
+        def mysqlSessionFlush = springProfile.contains("mysql") ? "-Dspring.session.jdbc.flush-mode=IMMEDIATE" : null
 
-        def javaCmd = """nohup java \\
-            -DCLOUDFOUNDRY_CONFIG_PATH=${bootDir.absolutePath} \\
-            -DSECRETS_DIR=${bootDir.absolutePath} \\
-            -Dserver.servlet.context-path=/uaa \\
-            -Dsmtp.host=localhost \\
-            -Dsmtp.port=2525 \\
-            -Dspring.profiles.active=${springProfile} \\
-            -jar ${warFile.absolutePath} > ${bootLogFile.absolutePath} 2>&1 & echo \$!"""
+        def javaCmd = "nohup java " +
+            "-DCLOUDFOUNDRY_CONFIG_PATH=${bootDir.absolutePath} " +
+            "-DSECRETS_DIR=${bootDir.absolutePath} " +
+            "-Dserver.servlet.context-path=/uaa " +
+            "-Dsmtp.host=localhost " +
+            "-Dsmtp.port=2525 " +
+            "-Dspring.profiles.active=${springProfile} " +
+            (mysqlSessionFlush != null ? mysqlSessionFlush + " " : "") +
+            "-jar ${warFile.absolutePath} > ${bootLogFile.absolutePath} 2>&1 & echo \$!"
         
         def proc = ['bash', '-c', javaCmd].execute()
         proc.waitFor()
