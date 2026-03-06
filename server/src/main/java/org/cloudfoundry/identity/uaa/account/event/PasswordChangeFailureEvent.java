@@ -33,10 +33,10 @@ public class PasswordChangeFailureEvent extends AbstractPasswordChangeEvent {
     public AuditEvent getAuditEvent() {
         UaaUser user = getUser();
         if (user == null) {
-            return createAuditRecord(getPrincipal().getName(), AuditEventType.PasswordChangeFailure,
+            return createAuditRecord(getPrincipal().getName(), getPrincipal().getName(), AuditEventType.PasswordChangeFailure,
                     getOrigin(getPrincipal()), getMessage());
         } else {
-            return createAuditRecord(user.getUsername(), AuditEventType.PasswordChangeFailure,
+            return createAuditRecord(user.getId(), user.getUsername(), AuditEventType.PasswordChangeFailure,
                     getOrigin(getPrincipal()), getMessage());
         }
     }

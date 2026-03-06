@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.cloudfoundry.identity.uaa.audit.AuditEventType.PasswordChangeFailure;
+import static org.cloudfoundry.identity.uaa.audit.AuditEventType.PasswordChangeSuccess;
 import static org.cloudfoundry.identity.uaa.audit.AuditEventType.UserAuthenticationSuccess;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -46,6 +47,30 @@ class LoggingAuditServiceTest {
         verify(mockLogger).info(stringCaptor.capture());
         String logMessage = stringCaptor.getValue();
         assertThat(logMessage).isEqualTo("PasswordChangeFailure ('theData'): principal=thePrincipalId, origin=[theOrigin], identityZoneId=[theZoneId], detailedDescription=[theDescription]");
+    }
+
+    @Test
+    void log_format_whenPrincipalNameIsPresent() {
+        AuditEvent auditEvent = new AuditEvent(PasswordChangeSuccess, "thePrincipalId", "thePrincipalName", "theOrigin", "theData", 42L, "theZoneId", null, null);
+
+        loggingAuditService.log(auditEvent, "not-used");
+
+        ArgumentCaptor<String> stringCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mockLogger).info(stringCaptor.capture());
+        String logMessage = stringCaptor.getValue();
+        assertThat(logMessage).isEqualTo("PasswordChangeSuccess ('theData'): principal=thePrincipalId, origin=[theOrigin], identityZoneId=[theZoneId], principalName=[thePrincipalName]");
+    }
+
+    @Test
+    void log_format_whenPrincipalNameAndAuthTypeArePresent() {
+        AuditEvent auditEvent = new AuditEvent(PasswordChangeFailure, "thePrincipalId", "thePrincipalName", "theOrigin", "theData", 42L, "theZoneId", "theAuthType", "theDescription");
+
+        loggingAuditService.log(auditEvent, "not-used");
+
+        ArgumentCaptor<String> stringCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mockLogger).info(stringCaptor.capture());
+        String logMessage = stringCaptor.getValue();
+        assertThat(logMessage).isEqualTo("PasswordChangeFailure ('theData'): principal=thePrincipalId, origin=[theOrigin], identityZoneId=[theZoneId], principalName=[thePrincipalName], authenticationType=[theAuthType], detailedDescription=[theDescription]");
     }
 
     @Test
