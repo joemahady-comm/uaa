@@ -29,10 +29,10 @@ public class AuditEvent {
     private final String authenticationType;
 
     public AuditEvent(AuditEventType type, String principalId, String origin, String data, long time, String identityZoneId, String authenticationType, String description) {
-        this(type, principalId, null, origin, data, time, identityZoneId, authenticationType, description);
+        this(type, principalId, origin, data, time, identityZoneId, authenticationType, description, null);
     }
 
-    public AuditEvent(AuditEventType type, String principalId, String principalName, String origin, String data, long time, String identityZoneId, String authenticationType, String description) {
+    public AuditEvent(AuditEventType type, String principalId, String origin, String data, long time, String identityZoneId, String authenticationType, String description, String principalName) {
         this.type = type;
         this.data = data;
         this.origin = origin;
