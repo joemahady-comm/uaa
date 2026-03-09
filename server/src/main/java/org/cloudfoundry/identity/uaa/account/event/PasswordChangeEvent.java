@@ -31,8 +31,8 @@ public class PasswordChangeEvent extends AbstractPasswordChangeEvent {
 
     @Override
     public AuditEvent getAuditEvent() {
-        return createAuditRecord(getUser().getId(), getUser().getUsername(), AuditEventType.PasswordChangeSuccess,
-                getOrigin(getPrincipal()), getMessage());
+        return createAuditRecord(getUser().getId(), AuditEventType.PasswordChangeSuccess,
+                getOrigin(getPrincipal()), getMessage(), getUser().getUsername());
     }
 
 }

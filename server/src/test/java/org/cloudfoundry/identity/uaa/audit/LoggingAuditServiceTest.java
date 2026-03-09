@@ -51,7 +51,7 @@ class LoggingAuditServiceTest {
 
     @Test
     void log_format_whenPrincipalNameIsPresent() {
-        AuditEvent auditEvent = new AuditEvent(PasswordChangeSuccess, "thePrincipalId", "thePrincipalName", "theOrigin", "theData", 42L, "theZoneId", null, null);
+        AuditEvent auditEvent = new AuditEvent(PasswordChangeSuccess, "thePrincipalId", "theOrigin", "theData", 42L, "theZoneId", null, null, "thePrincipalName");
 
         loggingAuditService.log(auditEvent, "not-used");
 
@@ -63,7 +63,7 @@ class LoggingAuditServiceTest {
 
     @Test
     void log_format_whenPrincipalNameAndAuthTypeArePresent() {
-        AuditEvent auditEvent = new AuditEvent(PasswordChangeFailure, "thePrincipalId", "thePrincipalName", "theOrigin", "theData", 42L, "theZoneId", "theAuthType", "theDescription");
+        AuditEvent auditEvent = new AuditEvent(PasswordChangeFailure, "thePrincipalId", "theOrigin", "theData", 42L, "theZoneId", "theAuthType", "theDescription", "thePrincipalName");
 
         loggingAuditService.log(auditEvent, "not-used");
 
@@ -76,6 +76,20 @@ class LoggingAuditServiceTest {
     @Test
     void log_sanitizesMaliciousInput() {
         AuditEvent auditEvent = new AuditEvent(UserAuthenticationSuccess, "principalId", "origin", "data", 100L, "malicious-zone\r\n\t", null, null);
+
+        loggingAuditService.log(auditEvent, "not-used");
+
+        ArgumentCaptor<String> stringCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mockLogger).info(stringCaptor.capture());
+        assertThat(stringCaptor.getValue()).doesNotContain("\r")
+                .doesNotContain("\n")
+                .doesNotContain("\t")
+                .contains(LogSanitizerUtil.SANITIZED_FLAG);
+    }
+
+    @Test
+    void log_sanitizesMaliciousPrincipalName() {
+        AuditEvent auditEvent = new AuditEvent(PasswordChangeSuccess, "principalId", "origin", "data", 100L, "safe-zone", null, null, "malicious\r\n\tname");
 
         loggingAuditService.log(auditEvent, "not-used");
 
