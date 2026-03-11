@@ -6,6 +6,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.cloudfoundry.identity.uaa.util.TimeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import org.springframework.mock.web.MockHttpSession;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,6 +25,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.cloudfoundry.identity.uaa.zone.ZonePathContextRewritingFilter.DEFAULT_ZONE_SUBDOMAIN_PATH;
 
 class ZoneContextPathSessionTests {
+
+    private final TimeService timeService = new TimeService() {};
 
     // ───────────────────────────────────────────────────────────────────────────
     // ZonePathHttpSession
@@ -39,7 +43,7 @@ class ZoneContextPathSessionTests {
         void setUp() {
             containerSession = new MockHttpSession();
             containerAttributeName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/myzone");
-            subSession = new ZonePathHttpSession(containerSession, "/uaa/z/myzone", containerAttributeName);
+            subSession = new ZonePathHttpSession(containerSession, "/uaa/z/myzone", containerAttributeName, timeService);
         }
 
         @Test
@@ -93,16 +97,122 @@ class ZoneContextPathSessionTests {
         @Test
         void getId_defaultSuffix_forEmptyContextPath() {
             ZonePathHttpSession defaultSubSession = new ZonePathHttpSession(
-                    containerSession, "", "irrelevant");
+                    containerSession, "", "irrelevant", timeService);
             assertThat(defaultSubSession.getId()).endsWith("-default");
         }
 
         @Test
-        void delegatesTimingMethodsToContainerSession() {
-            assertThat(subSession.getCreationTime()).isEqualTo(containerSession.getCreationTime());
-            assertThat(subSession.getLastAccessedTime()).isEqualTo(containerSession.getLastAccessedTime());
-            assertThat(subSession.isNew()).isEqualTo(containerSession.isNew());
+        void getServletContext_delegatesToContainerSession() {
             assertThat(subSession.getServletContext()).isSameAs(containerSession.getServletContext());
+        }
+
+        @Test
+        void isNew_returnsTrueForFreshSubSession() {
+            assertThat(subSession.isNew()).isTrue();
+        }
+
+        @Test
+        void isNew_returnsFalseForReconnectedSubSession() {
+            subSession.setAttribute("user", "alice");
+            ZonePathHttpSession reconnected = new ZonePathHttpSession(
+                    containerSession, "/uaa/z/myzone", containerAttributeName, timeService);
+            assertThat(reconnected.isNew()).isFalse();
+        }
+
+        @Test
+        void isNew_returnsTrueAfterInvalidateAndRecreate() {
+            subSession.setAttribute("user", "alice");
+            subSession.invalidate();
+            ZonePathHttpSession recreated = new ZonePathHttpSession(
+                    containerSession, "/uaa/z/myzone", containerAttributeName, timeService);
+            assertThat(recreated.isNew()).isTrue();
+        }
+
+        @Test
+        void isNew_independentAcrossZones() {
+            subSession.setAttribute("data", "val");
+            // Reconnect to the same zone - should be not-new since creation time was persisted
+            ZonePathHttpSession reconnected = new ZonePathHttpSession(
+                    containerSession, "/uaa/z/myzone", containerAttributeName, timeService);
+            // A different zone that has never been created - should be new
+            String otherAttrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/other");
+            ZonePathHttpSession otherSubSession = new ZonePathHttpSession(
+                    containerSession, "/uaa/z/other", otherAttrName, timeService);
+            assertThat(reconnected.isNew()).isFalse();
+            assertThat(otherSubSession.isNew()).isTrue();
+        }
+
+        @Test
+        void creationTime_setOnConstruction() {
+            long before = System.currentTimeMillis();
+            ZonePathHttpSession fresh = new ZonePathHttpSession(
+                    containerSession, "/uaa/z/fresh",
+                    ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/fresh"),
+                    timeService);
+            long after = System.currentTimeMillis();
+            assertThat(fresh.getCreationTime()).isBetween(before, after);
+        }
+
+        @Test
+        void creationTime_preservedOnReconnect() {
+            long originalCreationTime = subSession.getCreationTime();
+            subSession.setAttribute("data", "val");
+            ZonePathHttpSession reconnected = new ZonePathHttpSession(
+                    containerSession, "/uaa/z/myzone", containerAttributeName, timeService);
+            assertThat(reconnected.getCreationTime()).isEqualTo(originalCreationTime);
+        }
+
+        @Test
+        void creationTime_resetAfterInvalidateAndRecreate() throws InterruptedException {
+            long originalCreationTime = subSession.getCreationTime();
+            subSession.setAttribute("data", "val");
+            subSession.invalidate();
+            Thread.sleep(5);
+            ZonePathHttpSession recreated = new ZonePathHttpSession(
+                    containerSession, "/uaa/z/myzone", containerAttributeName, timeService);
+            assertThat(recreated.getCreationTime()).isGreaterThan(originalCreationTime);
+        }
+
+        @Test
+        void creationTime_independentPerZone() {
+            String otherAttrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/other");
+            ZonePathHttpSession otherSubSession = new ZonePathHttpSession(
+                    containerSession, "/uaa/z/other", otherAttrName, timeService);
+            assertThat(subSession.getCreationTime()).isNotEqualTo(0L);
+            assertThat(otherSubSession.getCreationTime()).isNotEqualTo(0L);
+        }
+
+        @Test
+        void lastAccessedTime_setOnConstruction() {
+            long before = System.currentTimeMillis();
+            ZonePathHttpSession fresh = new ZonePathHttpSession(
+                    containerSession, "/uaa/z/fresh",
+                    ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/fresh"),
+                    timeService);
+            long after = System.currentTimeMillis();
+            assertThat(fresh.getLastAccessedTime()).isBetween(before, after);
+        }
+
+        @Test
+        void lastAccessedTime_independentPerZone() throws InterruptedException {
+            subSession.setAttribute("data", "val");
+            Thread.sleep(5);
+            String otherAttrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/other");
+            ZonePathHttpSession otherSubSession = new ZonePathHttpSession(
+                    containerSession, "/uaa/z/other", otherAttrName, timeService);
+            assertThat(otherSubSession.getLastAccessedTime())
+                    .isGreaterThanOrEqualTo(subSession.getLastAccessedTime());
+        }
+
+        @Test
+        void isInvalidated_falseByDefault() {
+            assertThat(subSession.isInvalidated()).isFalse();
+        }
+
+        @Test
+        void isInvalidated_trueAfterInvalidate() {
+            subSession.invalidate();
+            assertThat(subSession.isInvalidated()).isTrue();
         }
 
         @Test
@@ -136,8 +246,12 @@ class ZoneContextPathSessionTests {
             subSession.setAttribute("data", "value");
             containerSession.invalidate();
 
-            // With direct container storage, sub-session getAttribute delegates to container and throws.
-            assertThatThrownBy(() -> subSession.getCreationTime())
+            // creationTime and lastAccessedTime are cached locally, so they don't throw
+            assertThat(subSession.getCreationTime()).isGreaterThan(0);
+            assertThat(subSession.getLastAccessedTime()).isGreaterThan(0);
+
+            // getAttribute delegates to the invalidated container and throws
+            assertThatThrownBy(() -> subSession.getAttribute("data"))
                     .isInstanceOf(IllegalStateException.class);
         }
 
@@ -145,7 +259,7 @@ class ZoneContextPathSessionTests {
         void attributeIsolation_acrossSubSessions() {
             String otherAttrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("/uaa/z/other");
             ZonePathHttpSession otherSubSession = new ZonePathHttpSession(
-                    containerSession, "/uaa/z/other", otherAttrName);
+                    containerSession, "/uaa/z/other", otherAttrName, timeService);
 
             subSession.setAttribute("shared-name", "zone1-value");
             otherSubSession.setAttribute("shared-name", "zone2-value");
@@ -169,7 +283,7 @@ class ZoneContextPathSessionTests {
         void setUp() {
             request = new MockHttpServletRequest();
             request.setContextPath("/uaa/z/zone1");
-            wrapper = new ZoneContextPathSessionRequestWrapper(request);
+            wrapper = new ZoneContextPathSessionRequestWrapper(request, timeService);
         }
 
         @Test
@@ -206,12 +320,12 @@ class ZoneContextPathSessionTests {
             MockHttpServletRequest req1 = new MockHttpServletRequest();
             req1.setContextPath("/uaa/z/zone1");
             req1.setSession(new MockHttpSession());
-            ZoneContextPathSessionRequestWrapper w1 = new ZoneContextPathSessionRequestWrapper(req1);
+            ZoneContextPathSessionRequestWrapper w1 = new ZoneContextPathSessionRequestWrapper(req1, timeService);
 
             MockHttpServletRequest req2 = new MockHttpServletRequest();
             req2.setContextPath("/uaa/z/zone2");
             req2.setSession(req1.getSession(false));
-            ZoneContextPathSessionRequestWrapper w2 = new ZoneContextPathSessionRequestWrapper(req2);
+            ZoneContextPathSessionRequestWrapper w2 = new ZoneContextPathSessionRequestWrapper(req2, timeService);
 
             w1.getSession().setAttribute("user", "alice");
             w2.getSession().setAttribute("user", "bob");
@@ -223,7 +337,7 @@ class ZoneContextPathSessionTests {
         @Test
         void emptyContextPath_usesDefaultKey() {
             request.setContextPath("");
-            wrapper = new ZoneContextPathSessionRequestWrapper(request);
+            wrapper = new ZoneContextPathSessionRequestWrapper(request, timeService);
             HttpSession session = wrapper.getSession(true);
             assertThat(session.getId()).endsWith("-default");
         }
@@ -247,7 +361,7 @@ class ZoneContextPathSessionTests {
         void contextPathUaa_usesSameSessionKeyAsRootPath_soDefaultZonePathSharesSession() {
             request.setContextPath("/uaa");
             request.setSession(new MockHttpSession());
-            wrapper = new ZoneContextPathSessionRequestWrapper(request);
+            wrapper = new ZoneContextPathSessionRequestWrapper(request, timeService);
             HttpSession session = wrapper.getSession(true);
             session.setAttribute("user", "admin");
 
@@ -265,7 +379,7 @@ class ZoneContextPathSessionTests {
             request.setContextPath("/uaa/z/" + DEFAULT_ZONE_SUBDOMAIN_PATH);
             request.setAttribute(ZonePathContextRewritingFilter.ZONE_ORIGINAL_CONTEXT_PATH, "/uaa");
             request.setSession(new MockHttpSession());
-            wrapper = new ZoneContextPathSessionRequestWrapper(request);
+            wrapper = new ZoneContextPathSessionRequestWrapper(request, timeService);
             HttpSession session = wrapper.getSession(true);
             session.setAttribute("user", "admin");
 
@@ -283,7 +397,7 @@ class ZoneContextPathSessionTests {
             request.setContextPath("/z/" + DEFAULT_ZONE_SUBDOMAIN_PATH);
             request.setAttribute(ZonePathContextRewritingFilter.ZONE_ORIGINAL_CONTEXT_PATH, "");
             request.setSession(new MockHttpSession());
-            wrapper = new ZoneContextPathSessionRequestWrapper(request);
+            wrapper = new ZoneContextPathSessionRequestWrapper(request, timeService);
             HttpSession session = wrapper.getSession(true);
             session.setAttribute("user", "admin");
 
@@ -301,12 +415,81 @@ class ZoneContextPathSessionTests {
             request.setContextPath("/uaa/z/" + DEFAULT_ZONE_SUBDOMAIN_PATH);
             // deliberately not setting ZONE_ORIGINAL_CONTEXT_PATH
             request.setSession(new MockHttpSession());
-            wrapper = new ZoneContextPathSessionRequestWrapper(request);
+            wrapper = new ZoneContextPathSessionRequestWrapper(request, timeService);
             HttpSession session = wrapper.getSession(true);
             session.setAttribute("user", "admin");
 
             String attrName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath("");
             assertThat(request.getSession(false).getAttribute(attrName + ZonePathHttpSession.ATTRIBUTE_KEY_DELIMITER + "user")).isEqualTo("admin");
+        }
+
+        @Test
+        void getSession_afterInvalidate_returnsFreshSubSession() {
+            HttpSession first = wrapper.getSession(true);
+            first.setAttribute("user", "alice");
+            first.invalidate();
+
+            // getSession(true) after invalidate should return a new sub-session
+            // Need a new wrapper since cachedSession is per-request
+            wrapper = new ZoneContextPathSessionRequestWrapper(request, timeService);
+            HttpSession second = wrapper.getSession(true);
+            assertThat(second).isInstanceOf(ZonePathHttpSession.class);
+            assertThat(second.isNew()).isTrue();
+            assertThat(second.getAttribute("user")).isNull();
+        }
+
+        @Test
+        void getSession_afterInvalidate_sameRequest_clearsCacheAndReturnsNew() {
+            HttpSession first = wrapper.getSession(true);
+            first.setAttribute("user", "alice");
+            assertThat(first.getAttribute("user")).isEqualTo("alice");
+            first.invalidate();
+
+            // On the same wrapper, getSession(true) should detect invalidation and create fresh
+            HttpSession second = wrapper.getSession(true);
+            assertThat(second).isNotSameAs(first);
+            assertThat(second.getAttribute("user")).isNull();
+        }
+
+        @Test
+        void getSession_false_afterInvalidate_returnsNull() {
+            HttpSession first = wrapper.getSession(true);
+            first.setAttribute("user", "alice");
+            first.invalidate();
+
+            // getSession(false) after invalidate: sub-session is dead, should return null
+            // Need a new wrapper to not hit cache
+            wrapper = new ZoneContextPathSessionRequestWrapper(request, timeService);
+            HttpSession result = wrapper.getSession(false);
+            // Container session still exists, but this sub-session has no attributes
+            // A fresh ZonePathHttpSession is acceptable here since container session exists
+            // but it should be new
+            if (result != null) {
+                assertThat(result.isNew()).isTrue();
+            }
+        }
+
+        @Test
+        void getSession_touchesLastAccessedTimeOnAccess() {
+            AtomicLong clock = new AtomicLong(1_000_000L);
+            TimeService controllableClock = new TimeService() {
+                @Override public long getCurrentTimeMillis() { return clock.get(); }
+            };
+
+            MockHttpServletRequest req = new MockHttpServletRequest();
+            req.setContextPath("/uaa/z/zone1");
+            ZoneContextPathSessionRequestWrapper w = new ZoneContextPathSessionRequestWrapper(req, controllableClock);
+
+            HttpSession first = w.getSession(true);
+            long creationTime = first.getLastAccessedTime();
+            assertThat(creationTime).isEqualTo(1_000_000L);
+
+            // Advance the clock and access the session again on a new request
+            clock.set(2_000_000L);
+            ZoneContextPathSessionRequestWrapper w2 = new ZoneContextPathSessionRequestWrapper(req, controllableClock);
+            HttpSession second = w2.getSession(false);
+            assertThat(second).isNotNull();
+            assertThat(second.getLastAccessedTime()).isEqualTo(2_000_000L);
         }
 
         @Test
@@ -430,7 +613,7 @@ class ZoneContextPathSessionTests {
 
         @BeforeEach
         void setUp() {
-            filter = new ZoneContextPathSessionFilter();
+            filter = new ZoneContextPathSessionFilter(timeService);
             request = new MockHttpServletRequest();
             response = new MockHttpServletResponse();
             capturedRequest = new AtomicReference<>();

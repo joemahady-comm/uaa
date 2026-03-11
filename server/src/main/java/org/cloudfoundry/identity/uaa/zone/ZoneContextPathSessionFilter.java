@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.cloudfoundry.identity.uaa.util.TimeService;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -27,10 +28,16 @@ public class ZoneContextPathSessionFilter extends OncePerRequestFilter {
 
     public static final String JSESSIONID = "JSESSIONID";
 
+    private final TimeService timeService;
+
+    public ZoneContextPathSessionFilter(TimeService timeService) {
+        this.timeService = timeService;
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        ZoneContextPathSessionRequestWrapper wrappedRequest = new ZoneContextPathSessionRequestWrapper(request);
+        ZoneContextPathSessionRequestWrapper wrappedRequest = new ZoneContextPathSessionRequestWrapper(request, timeService);
         ZoneContextPathSessionResponseWrapper wrappedResponse = new ZoneContextPathSessionResponseWrapper(response);
         try {
             filterChain.doFilter(wrappedRequest, wrappedResponse);

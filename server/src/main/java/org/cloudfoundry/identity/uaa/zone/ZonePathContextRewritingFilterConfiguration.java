@@ -1,5 +1,6 @@
 package org.cloudfoundry.identity.uaa.zone;
 
+import org.cloudfoundry.identity.uaa.util.TimeService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -31,8 +32,8 @@ public class ZonePathContextRewritingFilterConfiguration {
      * to SessionRepositoryFilter's session (the actual Spring Session-backed session).
      */
     @Bean(ZoneContextPathSessionFilter.BEAN_NAME)
-    FilterRegistrationBean<ZoneContextPathSessionFilter> zoneContextPathSessionFilter() {
-        ZoneContextPathSessionFilter filter = new ZoneContextPathSessionFilter();
+    FilterRegistrationBean<ZoneContextPathSessionFilter> zoneContextPathSessionFilter(TimeService timeService) {
+        ZoneContextPathSessionFilter filter = new ZoneContextPathSessionFilter(timeService);
         FilterRegistrationBean<ZoneContextPathSessionFilter> bean = new FilterRegistrationBean<>(filter);
         bean.addUrlPatterns("/*");
         bean.setOrder(Ordered.HIGHEST_PRECEDENCE + 51); // after SessionRepositoryFilter (HIGHEST_PRECEDENCE + 50)

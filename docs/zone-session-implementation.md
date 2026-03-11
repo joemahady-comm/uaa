@@ -31,9 +31,9 @@ timing dependency (e.g. avoids MySQL JDBC session visibility issues).
 | `ZonePathContextRewritingFilter` | Rewrites `/uaa/z/tenant/login` so context path becomes `/uaa/z/tenant` and servlet path becomes `/login`. Also wraps the response to normalize cookie paths. |
 | `SessionRepositoryFilter` (Spring Session) | Loads/saves the container session from the configured store (JDBC or in-memory). |
 | `ZoneContextPathSessionFilter` | Wraps the request so `getSession()` returns a `ZonePathHttpSession` scoped to the current context path. Wraps the response to prevent premature JSESSIONID clearing. |
-| `ZoneContextPathSessionRequestWrapper` | `HttpServletRequestWrapper` that intercepts `getSession()` and `changeSessionId()`. Caches a single `ZonePathHttpSession` per request (since each request has exactly one context path). |
+| `ZoneContextPathSessionRequestWrapper` | `HttpServletRequestWrapper` that intercepts `getSession()` and `changeSessionId()`. Caches a single `ZonePathHttpSession` per request (since each request has exactly one context path). If the cached sub-session has been invalidated, the cache is cleared so `getSession(true)` creates a fresh sub-session. |
 | `ZoneContextPathSessionResponseWrapper` | `HttpServletResponseWrapper` that blocks `Set-Cookie` headers that would clear the JSESSIONID (since other zones may still be active). |
-| `ZonePathHttpSession` | `HttpSession` view over one zone's attributes (each stored on the container as a prefixed key). `invalidate()` removes only this zone's attributes; it does not invalidate the container session. |
+| `ZonePathHttpSession` | `HttpSession` view over one zone's attributes (each stored on the container as a prefixed key). Tracks per-sub-session `creationTime`, `lastAccessedTime`, and `isNew` independently of the container session (persisted as reserved prefixed attributes so they survive serialization). `invalidate()` removes only this zone's attributes and marks the sub-session as invalidated; it does not invalidate the container session. Uses `TimeService` for timestamps (injectable for testing). |
 
 ## Filter Chain Order
 
@@ -147,6 +147,21 @@ For example, `SPRING_SECURITY_CONTEXT` for zone `/uaa/z/tenant1` is stored under
 so Spring Session's dirty-tracking sees the change immediately and there is no
 flush step or timing dependency (which avoids MySQL JDBC session visibility issues).
 
+In addition to application attributes, each sub-session stores two reserved
+metadata attributes under the same prefix:
+
+- `__creationTime__` — the epoch millis when this sub-session was first created.
+- `__lastAccessedTime__` — the epoch millis of the most recent `getSession()` access.
+
+These are used by `getCreationTime()`, `getLastAccessedTime()`, and `isNew()` to
+report per-sub-session values instead of delegating to the container session. On
+construction, if `__creationTime__` is found on the container, the sub-session is
+considered a reconnection (`isNew() == false`); otherwise it is new. When a
+sub-session is invalidated, these metadata attributes are removed along with all
+other prefixed attributes, so a subsequent `getSession(true)` creates a fresh
+sub-session with new timestamps and `isNew() == true`. The reserved keys are
+filtered out of `getAttributeNames()` so they are invisible to application code.
+
 Requests to `/z/default/...` are **not** rejected. They are rewritten so that
 the context path **includes** `/z/default` (e.g. `/uaa/z/default`), like any other
 zone path. `ZoneContextPathSessionRequestWrapper` maps context path
@@ -158,8 +173,14 @@ zone path. `ZoneContextPathSessionRequestWrapper` maps context path
 ```
 Container session id: abc123
   Attributes:
+    ...ZonePathHttpSession.default.__creationTime__                  → 1710000000000
+    ...ZonePathHttpSession.default.__lastAccessedTime__              → 1710000060000
     ...ZonePathHttpSession.default.SPRING_SECURITY_CONTEXT           → <admin auth>
+    ...ZonePathHttpSession./uaa/z/tenant1.__creationTime__           → 1710000010000
+    ...ZonePathHttpSession./uaa/z/tenant1.__lastAccessedTime__       → 1710000070000
     ...ZonePathHttpSession./uaa/z/tenant1.SPRING_SECURITY_CONTEXT    → <alice auth>
+    ...ZonePathHttpSession./uaa/z/tenant2.__creationTime__           → 1710000020000
+    ...ZonePathHttpSession./uaa/z/tenant2.__lastAccessedTime__       → 1710000080000
     ...ZonePathHttpSession./uaa/z/tenant2.SPRING_SECURITY_CONTEXT    → <bob auth>
 ```
 
@@ -189,11 +210,18 @@ Container session id: abc123
 1. Browser sends `GET /uaa/z/tenant/logout.do`.
 2. Spring Security calls `session.invalidate()` on the `ZonePathHttpSession`.
 3. `ZonePathHttpSession.invalidate()` removes all container session attributes
-   whose key starts with this zone's prefix. **The container session itself is not
-   invalidated.**
-4. The `ZoneContextPathSessionResponseWrapper` blocks Spring Security's attempt
+   whose key starts with this zone's prefix (including the reserved
+   `__creationTime__` and `__lastAccessedTime__` metadata). The sub-session is
+   marked as invalidated (`isInvalidated() == true`). **The container session
+   itself is not invalidated.**
+4. If code subsequently calls `request.getSession(true)` on the same request,
+   `ZoneContextPathSessionRequestWrapper` detects that the cached sub-session is
+   invalidated, clears its cache, and creates a fresh `ZonePathHttpSession`. The
+   new sub-session has `isNew() == true` and fresh `creationTime`/`lastAccessedTime`
+   timestamps, while other zones' sub-sessions are unaffected.
+5. The `ZoneContextPathSessionResponseWrapper` blocks Spring Security's attempt
    to clear the `JSESSIONID` cookie (since other zones are still active).
-5. In the filter's `finally` block, `maybeClearJSessionIdIfNoSubSessions` checks
+6. In the filter's `finally` block, `maybeClearJSessionIdIfNoSubSessions` checks
    whether any container attributes with the zone prefix remain. If yes (other
    zones are still logged in), the cookie is left alone. If none remain, a
    `Set-Cookie` header is emitted to clear the `JSESSIONID`.
@@ -233,7 +261,7 @@ batched (e.g. in a map) and written only at request end.
 
 | Test class | Scope |
 |---|---|
-| `ZoneContextPathSessionTests` (server module, unit) | `ZonePathHttpSession`, `ZoneContextPathSessionRequestWrapper`, `ZoneContextPathSessionResponseWrapper`, `ZoneContextPathSessionFilter` — attribute isolation, invalidation semantics, direct container storage, cookie blocking, multi-zone lifecycle |
+| `ZoneContextPathSessionTests` (server module, unit) | `ZonePathHttpSession`, `ZoneContextPathSessionRequestWrapper`, `ZoneContextPathSessionResponseWrapper`, `ZoneContextPathSessionFilter` — attribute isolation, invalidation semantics, direct container storage, cookie blocking, multi-zone lifecycle, per-sub-session `isNew`/`creationTime`/`lastAccessedTime` tracking, `isInvalidated` flag, wrapper cache clearing after invalidate |
 | `ZonePathSessionMockMvcTests` (uaa module, MockMvc) | End-to-end login, profile access, and logout across multiple zones using `MockMvc` with the real filter chain. |
 | `ZoneSessionPathsIT` (uaa module, integration) | Selenium-driven tests against a running UAA server. Logs in to default zone and two path-based zones, verifies profile isolation, verifies logout from one zone leaves others intact. |
 

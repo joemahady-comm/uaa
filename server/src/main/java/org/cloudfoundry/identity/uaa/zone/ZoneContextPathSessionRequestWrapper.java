@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpSession;
 
+import org.cloudfoundry.identity.uaa.util.TimeService;
 import org.cloudfoundry.identity.uaa.util.UaaStringUtils;
 
 import java.util.Collections;
@@ -31,10 +32,12 @@ public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrap
     public static final String ATTRIBUTE_NAME_PREFIX =
             ZonePathHttpSession.class.getName() + ".";
 
+    private final TimeService timeService;
     private ZonePathHttpSession cachedSession;
 
-    public ZoneContextPathSessionRequestWrapper(HttpServletRequest request) {
+    public ZoneContextPathSessionRequestWrapper(HttpServletRequest request, TimeService timeService) {
         super(request);
+        this.timeService = timeService;
     }
 
     private HttpServletRequest getDelegateRequest() {
@@ -48,9 +51,10 @@ public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrap
      */
     @Override
     public HttpSession getSession(boolean create) {
-        if (cachedSession != null) {
+        if (cachedSession != null && !cachedSession.isInvalidated()) {
             return cachedSession;
         }
+        cachedSession = null;
 
         HttpSession containerSession = getDelegateRequest().getSession(create);
         if (containerSession == null) {
@@ -60,11 +64,10 @@ public class ZoneContextPathSessionRequestWrapper extends HttpServletRequestWrap
         String contextPathKey = contextPathKey();
         String attributeName = attributeNameForContextPath(contextPathKey);
 
-        cachedSession = new ZonePathHttpSession(containerSession, contextPathKey, attributeName);
-        return cachedSession;
-    }
-
-    ZonePathHttpSession getCachedSession() {
+        cachedSession = new ZonePathHttpSession(containerSession, contextPathKey, attributeName, timeService);
+        if (!cachedSession.isNew()) {
+            cachedSession.touchLastAccessedTime();
+        }
         return cachedSession;
     }
 

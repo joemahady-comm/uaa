@@ -3,9 +3,12 @@ package org.cloudfoundry.identity.uaa.zone;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpSession;
 
+import org.cloudfoundry.identity.uaa.util.TimeService;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.LinkedList;
 import java.util.List;
 
 import static org.cloudfoundry.identity.uaa.zone.ZonePathContextRewritingFilter.DEFAULT_ZONE_SUBDOMAIN_PATH;
@@ -36,20 +39,47 @@ public class ZonePathHttpSession implements HttpSession {
      */
     private static final String DEFAULT_CONTEXT_PATH_KEY = DEFAULT_ZONE_SUBDOMAIN_PATH;
 
+    static final String CREATION_TIME_KEY = "__creationTime__";
+    static final String LAST_ACCESSED_TIME_KEY = "__lastAccessedTime__";
+
     private final HttpSession containerSession;
+    private final TimeService timeService;
     private final String containerSessionAttributeName;
     /** Prefix for this zone's attributes on the container: containerSessionAttributeName + ATTRIBUTE_KEY_DELIMITER */
     private final String attributeKeyPrefix;
     /** Suffix for {@link #getId()}: context path with '/' replaced by '-', or {@link #DEFAULT_CONTEXT_PATH_KEY} for root. */
     private final String sessionIdSuffix;
 
+    private final long creationTime;
+    private long lastAccessedTime;
+    private final boolean isNew;
+    private boolean invalidated;
+
     public ZonePathHttpSession(HttpSession containerSession,
                                String contextPathKey,
-                               String containerSessionAttributeName) {
+                               String containerSessionAttributeName,
+                               TimeService timeService) {
         this.containerSession = containerSession;
+        this.timeService = timeService;
         this.containerSessionAttributeName = containerSessionAttributeName;
         this.attributeKeyPrefix = containerSessionAttributeName + ATTRIBUTE_KEY_DELIMITER;
         this.sessionIdSuffix = sessionIdSuffixFromContextPath(contextPathKey);
+
+        String creationTimeContainerKey = containerKey(CREATION_TIME_KEY);
+        Object storedCreationTime = containerSession.getAttribute(creationTimeContainerKey);
+        if (storedCreationTime instanceof Long ct) {
+            this.creationTime = ct;
+            Object storedLastAccessed = containerSession.getAttribute(containerKey(LAST_ACCESSED_TIME_KEY));
+            this.lastAccessedTime = (storedLastAccessed instanceof Long la) ? la : ct;
+            this.isNew = false;
+        } else {
+            long now = timeService.getCurrentTimeMillis();
+            this.creationTime = now;
+            this.lastAccessedTime = now;
+            this.isNew = true;
+            containerSession.setAttribute(creationTimeContainerKey, now);
+            containerSession.setAttribute(containerKey(LAST_ACCESSED_TIME_KEY), now);
+        }
     }
 
     private static String sessionIdSuffixFromContextPath(String contextPathKey) {
@@ -79,6 +109,12 @@ public class ZonePathHttpSession implements HttpSession {
         }
     }
 
+    void touchLastAccessedTime() {
+        long now = timeService.getCurrentTimeMillis();
+        this.lastAccessedTime = now;
+        containerSession.setAttribute(containerKey(LAST_ACCESSED_TIME_KEY), now);
+    }
+
     @Override
     public void removeAttribute(String name) {
         containerSession.removeAttribute(containerKey(name));
@@ -96,12 +132,12 @@ public class ZonePathHttpSession implements HttpSession {
 
     @Override
     public long getCreationTime() {
-        return containerSession.getCreationTime();
+        return creationTime;
     }
 
     @Override
     public long getLastAccessedTime() {
-        return containerSession.getLastAccessedTime();
+        return lastAccessedTime;
     }
 
     @Override
@@ -116,11 +152,16 @@ public class ZonePathHttpSession implements HttpSession {
 
     @Override
     public boolean isNew() {
-        return containerSession.isNew();
+        return isNew;
+    }
+
+    public boolean isInvalidated() {
+        return invalidated;
     }
 
     @Override
     public void invalidate() {
+        invalidated = true;
         List<String> toRemove = new ArrayList<>();
         Enumeration<String> names = containerSession.getAttributeNames();
         if (names != null) {
@@ -142,16 +183,23 @@ public class ZonePathHttpSession implements HttpSession {
 
     @Override
     public Enumeration<String> getAttributeNames() {
-        List<String> result = new ArrayList<>();
+        List<String> result = new LinkedList<>();
         Enumeration<String> names = containerSession.getAttributeNames();
         if (names != null) {
             while (names.hasMoreElements()) {
                 String name = names.nextElement();
                 if (name.startsWith(attributeKeyPrefix)) {
-                    result.add(name.substring(attributeKeyPrefix.length()));
+                    String unprefixed = name.substring(attributeKeyPrefix.length());
+                    if (!isReservedKey(unprefixed)) {
+                        result.add(unprefixed);
+                    }
                 }
             }
         }
         return Collections.enumeration(result);
+    }
+
+    private static boolean isReservedKey(String key) {
+        return CREATION_TIME_KEY.equals(key) || LAST_ACCESSED_TIME_KEY.equals(key);
     }
 }

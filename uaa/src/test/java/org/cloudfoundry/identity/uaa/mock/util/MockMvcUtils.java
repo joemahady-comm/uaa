@@ -151,7 +151,7 @@ public final class MockMvcUtils {
         }
         String key = (contextPath != null) ? contextPath : "";
         String attributeName = ZoneContextPathSessionRequestWrapper.attributeNameForContextPath(key);
-        return new ZonePathHttpSession(containerSession, key, attributeName);
+        return new ZonePathHttpSession(containerSession, key, attributeName, new TimeService() {});
     }
 
     /**
